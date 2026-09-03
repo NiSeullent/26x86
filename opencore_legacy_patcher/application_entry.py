@@ -24,7 +24,8 @@ from .support import (
     reroute_payloads,
     commit_info,
     logging_handler,
-    analytics_handler
+    analytics_handler,
+    cli,
 )
 
 
@@ -40,7 +41,9 @@ class OpenCoreLegacyPatcher:
 
         self._generate_base_data()
 
-        if utilities.check_cli_args() is None:
+        if not cli.is_cli_mode(self.cli_args):
+            if self.cli_args and getattr(self.cli_args, "advanced_gui", False):
+                self.constants.advanced_gui = True
             gui_entry.EntryPoint(self.constants).start()
 
 
@@ -197,7 +200,7 @@ class OpenCoreLegacyPatcher:
                 logging.info("7. Then open the Terminal")
                 logging.info("8. Run python3, followed by the directory where is located the Build-Project.command.")
                 logging.info("9. Once successfully builds the project, you'll get Build successful")
-                logging.info("10. Then open the dist foler and install OpenCore Legacy Patcher T2 with the newly done changes")
+                logging.info("10. Then open the dist foler and install 26x86 with the newly done changes")
 
             self._apply_vmware_simulated_hardware()
 
@@ -255,31 +258,28 @@ class OpenCoreLegacyPatcher:
         self.constants.analytics_thread = threading.Thread(target=analytics_handler.Analytics(self.constants).send_analytics)
         self.constants.analytics_thread.start()
 
-        if utilities.check_cli_args() is None:
+        self.cli_args = utilities.check_cli_args()
+
+        if not cli.is_cli_mode(self.cli_args):
             self.constants.cli_mode = False
             return
-        # behebt eine Sicherheitslücke, indem einen Angreifer könnte der Benutzer daran zwingen, aufs CLI-Modus/Terminal zu wechseln
+
+        logging.info("Detected arguments, switching to CLI mode")
+        self.constants.cli_mode = True
+        self.constants.gui_mode = False
+
+        ignore_args = ["--auto_patch", "--gui_patch", "--gui_unpatch", "--update_installed"]
+
+        if not any(x in sys.argv for x in ignore_args):
+            self.constants.current_path = Path.cwd()
+
+        if "--auto_patch" not in sys.argv:
+            while self.constants.unpack_thread.is_alive():
+                time.sleep(self.constants.thread_sleep_interval)
         else:
-            logging.info("Detected arguments, switching to CLI mode")
-            self.constants.cli_mode = True  
-            self.constants.gui_mode = False 
-    
-            ignore_args = ["--auto_patch", "--gui_patch", "--gui_unpatch", "--update_installed"]
-            
-            # If none of the specific arguments are in sys.argv
-            if not any(x in sys.argv for x in ignore_args):
-                self.constants.current_path = Path.cwd()
-    
-            # Fix: Deterministic Thread Synchronization.
-            # Ensure arguments parsing never runs into race conditions regardless of flags if unpack state is required
-            if "--auto_patch" not in sys.argv:
-                while self.constants.unpack_thread.is_alive():
-                    time.sleep(self.constants.thread_sleep_interval)
-            else:
-                # Explicit guard or logging if auto_patch deliberately overrides synchronization safely
-                logging.info("Proceeding with auto_patch execution orchestration flow.")
-    
-            arguments.arguments(self.constants)
+            logging.info("Proceeding with auto_patch execution orchestration flow.")
+
+        arguments.arguments(self.constants)
 
 
 class SecurityError(Exception):

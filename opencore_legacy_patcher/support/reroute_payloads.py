@@ -34,7 +34,7 @@ class RoutePayloadDiskImage:
         """
         try:
             return applescript.AppleScript(
-                f'set theResult to display dialog "OpenCore Legacy Patcher requires administrator access to mount patch resources." default answer "" with hidden answer with title "OpenCore Legacy Patcher" with icon file "{self.icon_path}"\nreturn the text returned of theResult'
+                f'set theResult to display dialog "26x86 requires administrator access to mount patch resources." default answer "" with hidden answer with title "26x86" with icon file "{self.icon_path}"\nreturn the text returned of theResult'
             ).run()
         except Exception:
             return ""

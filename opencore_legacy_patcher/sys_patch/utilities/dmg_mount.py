@@ -33,7 +33,7 @@ class PatcherSupportPkgMount:
         """
         try:
             return applescript.AppleScript(
-                f'set theResult to display dialog "OpenCore Legacy Patcher requires administrator access to mount patch resources." default answer "" with hidden answer with title "OpenCore Legacy Patcher" with icon file "{self.icon_path}"\nreturn the text returned of theResult'
+                f'set theResult to display dialog "26x86 requires administrator access to mount patch resources." default answer "" with hidden answer with title "26x86" with icon file "{self.icon_path}"\nreturn the text returned of theResult'
             ).run()
         except Exception:
             return ""
@@ -118,16 +118,16 @@ class PatcherSupportPkgMount:
         msg = "Welcome to the DortaniaInternal Program, please provide the decryption key." if attempt == 0 else f"Decryption failed. {2 - attempt} attempts remaining."
         try:
             return applescript.AppleScript(
-                f'set theResult to display dialog "{msg}" default answer "" with hidden answer with title "OpenCore Legacy Patcher" with icon file "{self.icon_path}"\nreturn the text returned of theResult'
+                f'set theResult to display dialog "{msg}" default answer "" with hidden answer with title "26x86" with icon file "{self.icon_path}"\nreturn the text returned of theResult'
             ).run()
         except Exception:
             return ""
 
     def _display_authentication_error(self) -> None:
-        applescript.AppleScript(f'display dialog "Failed to mount DortaniaInternal resources, please file an internal radar." with title "OpenCore Legacy Patcher" with icon file "{self.icon_path}"').run()
+        applescript.AppleScript(f'display dialog "Failed to mount DortaniaInternal resources, please file an internal radar." with title "26x86" with icon file "{self.icon_path}"').run()
 
     def _display_too_many_attempts(self) -> None:
-        applescript.AppleScript(f'display dialog "Failed to mount DortaniaInternal resources, too many incorrect passwords." with title "OpenCore Legacy Patcher" with icon file "{self.icon_path}"').run()
+        applescript.AppleScript(f'display dialog "Failed to mount DortaniaInternal resources, too many incorrect passwords." with title "26x86" with icon file "{self.icon_path}"').run()
 
     def mount(self) -> bool:
         if Path(self.constants.payload_local_binaries_root_path).exists():

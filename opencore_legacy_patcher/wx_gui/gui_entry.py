@@ -23,12 +23,14 @@ from ..wx_gui import (
     gui_update,
     gui_mode_selector,
 )
+from ..wizard import WizardFrame
 
 
 class SupportedEntryPoints:
     """
     Enum for supported entry points
     """
+    WIZARD     = WizardFrame
     MAIN_MENU  = gui_main_menu.MainFrame
     MODE_SELECT = gui_mode_selector.ModeSelectorFrame
     BUILD_OC   = gui_build.BuildFrame
@@ -111,7 +113,7 @@ class EntryPoint:
         NSApp().activateIgnoringOtherApps_(True)
 
 
-    def start(self, entry: SupportedEntryPoints = gui_mode_selector.ModeSelectorFrame, start_patching: bool = False) -> None:
+    def start(self, entry: SupportedEntryPoints = None, start_patching: bool = False) -> None:
         """
         Launches entry point for the wxPython GUI
         """
@@ -121,20 +123,24 @@ class EntryPoint:
         patches = None
         is_patching_mode = "--gui_patch" in sys.argv or "--gui_unpatch" in sys.argv or start_patching is True
 
+        if entry is None:
+            if "--advanced_gui" in sys.argv or getattr(self.constants, "advanced_gui", False):
+                entry = gui_main_menu.MainFrame
+            else:
+                entry = WizardFrame
+
         if is_patching_mode:
             entry = gui_sys_patch_start.SysPatchStartFrame
             patches = HardwarePatchsetDetection(constants=self.constants).device_properties
         elif entry is gui_mode_selector.ModeSelectorFrame:
-            # Bypass Mode Selector entirely.
-            # If Developer Mode is OFF -> Albert mode (Standard)
-            # If Developer Mode is ON -> Matteo mode (T1 Experimental)
+            # Legacy mode selector path (advanced / developer flows)
             try:
                 if not self.constants.Experimental_Features:
-                    logging.info(f"Developer Mode is OFF, bypassing Mode Selector → Standard UI")
+                    logging.info("Developer Mode is OFF, bypassing Mode Selector → Standard UI")
                     self.constants.app_mode = "albert"
                     entry = gui_main_menu.MainFrame
                 else:
-                    logging.info(f"Developer Mode is ON, bypassing Mode Selector → Experimental UI")
+                    logging.info("Developer Mode is ON, bypassing Mode Selector → Experimental UI")
                     self.constants.app_mode = "matteo"
                     entry = gui_main_menu.MainFrame
             except Exception as e:
@@ -142,6 +148,9 @@ class EntryPoint:
                 logging.exception("Stack Trace:")
                 logging.info("Please report this issue.")
                 logging.info("In the meanwhile, Developer Mode may be switched off or the app may crash.")
+        elif entry is WizardFrame:
+            logging.info("26x86 마법사 UI 시작")
+            self.constants.app_mode = "albert"
 
         logging.info(f"Entry point set: {entry.__name__}")
 

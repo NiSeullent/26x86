@@ -70,8 +70,11 @@ class ModelPickerFrame(wx.Frame):
 
 
 
-        self.parent.model_button.SetLabel(f"Model: {selection}")
-        self.parent.model_button.Centre(wx.HORIZONTAL)
+        if hasattr(self.parent, 'model_button') and self.parent.model_button:
+            self.parent.model_button.SetLabel(f"Model: {selection}")
+            self.parent.model_button.Centre(wx.HORIZONTAL)
+        elif hasattr(self.parent, '_show_step'):
+            self.parent._show_step(0)
 
         self.frame_modal.Hide()
         self.frame_modal.Destroy()

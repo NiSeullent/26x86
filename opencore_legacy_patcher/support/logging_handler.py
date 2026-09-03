@@ -198,7 +198,7 @@ class InitializeLoggingSupport:
         Start logging, used as easily identifiable start point in logs
         """
 
-        str_msg = f"# OpenCore Legacy Patcher ({self.constants.patcher_version}) #"
+        str_msg = f"# 26x86 ({self.constants.patcher_version}) #"
         str_len = len(str_msg)
 
         logging.info('#' * str_len)
@@ -234,7 +234,7 @@ class InitializeLoggingSupport:
             if self.constants.cli_mode is True:
                 return
 
-            error_msg = f"OpenCore Legacy Patcher encountered the following internal error:\n\n"
+            error_msg = f"26x86 encountered the following internal error:\n\n"
             error_msg += f"{type.__name__}: {value}"
             if tb:
                 error_msg += f"\n\n{traceback.extract_tb(tb)[-1]}"
@@ -243,7 +243,7 @@ class InitializeLoggingSupport:
 
             # Ask user if they want to send crash report
             try:
-                result = applescript.AppleScript(f'display dialog "{error_msg}" with title "OpenCore Legacy Patcher ({self.constants.patcher_version})" buttons {{"Yes", "No"}} default button "Yes" with icon caution').run()
+                result = applescript.AppleScript(f'display dialog "{error_msg}" with title "26x86 ({self.constants.patcher_version})" buttons {{"Yes", "No"}} default button "Yes" with icon caution').run()
             except Exception as e:
                 logging.error(f"Failed to display crash report dialog: {e}")
                 return

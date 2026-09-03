@@ -1,4 +1,4 @@
-# OpenCore Legacy Patcher T2 changelog / OpenCore Legacy Patcher T2-Änderungsprotokoll
+# 26x86 changelog / 26x86-Änderungsprotokoll
 ## 4.0.0.18002 - 4.0.0 alpha 18.2
 This release:
 - fixes a bug where upon clicking Save OpenCore and the EFI configuration has been saved successfully, it will show a crash log

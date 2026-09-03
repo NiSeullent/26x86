@@ -960,7 +960,9 @@ class Computer:
             return
         sys_plist = plistlib.load(path.open("rb"))
         if sys_plist:
-            if "OpenCore Legacy Patcher" in sys_plist:
+            if "26x86" in sys_plist:
+                self.oclp_sys_version = sys_plist["26x86"]
+            elif "OpenCore Legacy Patcher" in sys_plist:
                 self.oclp_sys_version = sys_plist["OpenCore Legacy Patcher"]
             if "Time Patched" in sys_plist:
                 self.oclp_sys_date = sys_plist["Time Patched"]

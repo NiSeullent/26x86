@@ -315,9 +315,9 @@ class GenerateScripts:
         self.zsh_functions = ZSHFunctions()
 
         self.files = [
-            "Applications/OpenCore-Patcher-T2.app",
+            "Applications/26x86.app",
             "Library/Application Support/Dortania/Update.plist",
-            "Library/Application Support/Dortania/OpenCore-Patcher-T2.app",
+            "Library/Application Support/Dortania/26x86.app",
             "Library/PrivilegedHelperTools/com.dortania.opencore-legacy-patcher.privileged-helper"
         ]
 
@@ -357,7 +357,7 @@ class GenerateScripts:
         _script += self.__generate_shebang()
 
         _script += self._generate_header_bar()
-        _script += f"# {'AutoPkg Assets' if is_autopkg else 'OpenCore Legacy Patcher'} Preinstall Script\n"
+        _script += f"# {'AutoPkg Assets' if is_autopkg else '26x86'} Preinstall Script\n"
         _script += self._generate_header_bar()
         _script += "# Remove old files, and prepare directories.\n"
         _script += self._generate_header_bar()
@@ -412,7 +412,7 @@ class GenerateScripts:
         _script += self.__generate_shebang()
 
         _script += self._generate_header_bar()
-        _script += f"# {'AutoPkg Assets' if is_autopkg else 'OpenCore Legacy Patcher'} Post Install Script\n"
+        _script += f"# {'AutoPkg Assets' if is_autopkg else '26x86'} Post Install Script\n"
         _script += self._generate_header_bar()
         if is_autopkg:
             _script += "# Set UID, create alias, start patching, and reboot.\n"
@@ -429,8 +429,8 @@ class GenerateScripts:
         _script += "\n"
 
         _script += "helperPath=\"Library/PrivilegedHelperTools/com.dortania.opencore-legacy-patcher.privileged-helper\"\n"
-        _script += "mainAppPath=\"Library/Application Support/Dortania/OpenCore-Patcher-T2.app\"\n"
-        _script += "shimAppPath=\"Applications/OpenCore-Patcher-T2.app\"\n"
+        _script += "mainAppPath=\"Library/Application Support/Dortania/26x86.app\"\n"
+        _script += "shimAppPath=\"Applications/26x86.app\"\n"
         if is_autopkg:
             _script += "executablePath=\"$mainAppPath/Contents/MacOS/OpenCore-Patcher\"\n"
 
@@ -477,9 +477,9 @@ class GenerateScripts:
         _script += self.__generate_shebang()
 
         _script += self._generate_header_bar()
-        _script += f"# OpenCore Legacy Patcher Uninstall Script\n"
+        _script += f"# 26x86 Uninstall Script\n"
         _script += self._generate_header_bar()
-        _script += "# Remove OpenCore Legacy Patcher files and directories.\n"
+        _script += "# Remove 26x86 files and directories.\n"
         _script += self._generate_header_bar()
         _script += "\n\n"
 

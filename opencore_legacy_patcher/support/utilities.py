@@ -1,5 +1,5 @@
 """
-utilities.py: Utility functions for OpenCore Legacy Patcher
+utilities.py: Utility functions for 26x86
 """
 
 import os
@@ -610,54 +610,5 @@ def fetch_staged_update(variant: str = "Update") -> tuple[str, str]:
 
 
 def check_cli_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--build", help="Build OpenCore", action="store_true", required=False)
-    parser.add_argument("--verbose", help="Enable verbose boot", action="store_true", required=False)
-    parser.add_argument("--debug_oc", help="Enable OpenCore DEBUG", action="store_true", required=False)
-    parser.add_argument("--debug_kext", help="Enable kext DEBUG", action="store_true", required=False)
-    parser.add_argument("--hide_picker", help="Hide OpenCore picker", action="store_true", required=False)
-    parser.add_argument("--disable_sip", help="Disable SIP", action="store_true", required=False)
-    parser.add_argument("--disable_smb", help="Disable SecureBootModel", action="store_true", required=False)
-    parser.add_argument("--vault", help="Enable OpenCore Vaulting", action="store_true", required=False)
-    parser.add_argument("--support_all", help="Allow OpenCore on natively supported Models", action="store_true", required=False)
-    parser.add_argument("--firewire", help="Enable FireWire Booting", action="store_true", required=False)
-    parser.add_argument("--nvme", help="Enable NVMe Booting", action="store_true", required=False)
-    parser.add_argument("--wlan", help="Enable Wake on WLAN support", action="store_true", required=False)
-    # parser.add_argument("--disable_amfi", help="Disable AMFI", action="store_true", required=False)
-    parser.add_argument("--moderate_smbios", help="Moderate SMBIOS Patching", action="store_true", required=False)
-    parser.add_argument("--disable_tb", help="Disable Thunderbolt on 2013-2014 MacBook Pros", action="store_true", required=False)
-    parser.add_argument("--force_surplus", help="Force SurPlus in all newer OSes", action="store_true", required=False)
-
-    # Building args requiring value values (ie. --model iMac12,2)
-    parser.add_argument("--model", action="store", help="Set custom model", required=False)
-    parser.add_argument("--disk", action="store", help="Specifies disk to install to", required=False)
-    parser.add_argument("--smbios_spoof", action="store", help="Set SMBIOS patching mode", required=False)
-
-    # sys_patch args
-    parser.add_argument("--patch_sys_vol", help="Patches root volume", action="store_true", required=False)
-    parser.add_argument("--unpatch_sys_vol", help="Unpatches root volume, EXPERIMENTAL", action="store_true", required=False)
-    parser.add_argument("--prepare_for_update", help="Prepares host for macOS update, ex. clean /Library/Extensions", action="store_true", required=False)
-    parser.add_argument("--cache_os", help="Caches patcher files (ex. KDKs) for incoming OS in Preflight.plist", action="store_true", required=False)
-
-    # validation args
-    parser.add_argument("--validate", help="Runs Validation Tests for CI", action="store_true", required=False)
-
-    # GUI args
-    parser.add_argument("--gui_patch", help="Starts GUI in Root Patcher", action="store_true", required=False)
-    parser.add_argument("--gui_unpatch", help="Starts GUI in Root Unpatcher", action="store_true", required=False)
-    parser.add_argument("--auto_patch", help="Check if patches are needed and prompt user", action="store_true", required=False)
-    parser.add_argument("--update_installed", help="Prompt user to finish updating via GUI", action="store_true", required=False)
-
-    args = parser.parse_args()
-    if not (
-        args.build or
-        args.patch_sys_vol or
-        args.unpatch_sys_vol or
-        args.validate or
-        args.auto_patch or
-        args.prepare_for_update or
-        args.cache_os
-    ):
-        return None
-    else:
-        return args
+    from . import cli
+    return cli.parse_cli_args()

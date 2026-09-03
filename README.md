@@ -1,225 +1,124 @@
-<img src="https://github.com/dortania/OpenCore-Legacy-Patcher/blob/macos-next/docs/images/OC-Patcher.png" alt="OpenCore Patcher Logo" width="256" />
-             <h1>OpenCore Legacy Patcher for T2 Macs - Experimental Alpha Project</h1>
+# 26x86
+
+<div align="center">
+<img src="https://github.com/dortania/OpenCore-Legacy-Patcher/blob/macos-next/docs/images/OC-Patcher.png" alt="26x86 로고" width="256" />
+<h1>26x86</h1>
+<h3>x86 기반 Mac을 위한 더 나은 macOS 26 시스템</h3>
+<p><strong>Better macOS 26 System for x86-Based Macintosh</strong> — T2 칩 탑재 Mac을 포함한 Intel Mac에서 macOS 26 Tahoe 지원을 목표로 하는 실험적 커뮤니티 포크입니다.</p>
 </div>
 
-A Python-based project revolving around [Acidanthera's OpenCorePkg](https://github.com/acidanthera/OpenCorePkg) and [Lilu](https://github.com/acidanthera/Lilu) for both running and unlocking features in macOS on supported and unsupported Macs.
-Security researchers can report vulnerabilities in the app inside Security and quality, provided that they read the security policy here: https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/security/policy and the vulnerability isn't by design.
-Sicherheitsforscher können Schwachstellen in der App im Bereich „Security and quality“ melden, vorausgesetzt, sie haben die Sicherheitsrichtlinie hier gelesen: https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/security/policy und die Schwachstelle ist nicht beabsichtigt.
+> **면책 조항:** 본 소프트웨어는 실험적 알파 단계입니다. 사용 전 [DISCLAIMER.md](./DISCLAIMER.md)를 반드시 읽고, **전체 데이터를 백업**한 뒤 여분의 Mac에서 테스트하세요.
 
-⚠️ Attention! Macs with Intel Core 2 Duos:
-- 2010 11 inch and 13 inch MacBook Air
-- 2010 MacBook Pro
-- 2010 Mac mini
-- 2010 MacBook
-- 2009 MacBook Pro
-- 2009 MacBook Air
-- 2009 MacBook
-- Mac mini 2009
-- Mac Pro 2008
-- MacBook Air 2008
-- MacBook Pro 2008
-- MacBook 2008
+[Acidanthera OpenCorePkg](https://github.com/acidanthera/OpenCorePkg)와 [Lilu](https://github.com/acidanthera/Lilu)를 기반으로, 공식·비공식 지원 Mac에서 macOS를 실행하고 기능을 잠금 해제하는 Python 프로젝트입니다.
 
-are unable to boot into macOS 26 Tahoe at all at this moment due to a known limitation of AAAMouSSE and telemetrap causing kernel panics. You can try macOS 26 Tahoe on these models only at your own risk and if you're ready to troubleshoot, reverse engineer and fix this panic. https://forums.macrumors.com/threads/mp3-1-others-sse-4-2-emulation-to-enable-amd-metal-driver.2206682/page-9
-At the end, for a functional versions of AAAMouSSE and telemetrap on macOS 26 Tahoe requires reverse engineering and writing similar but completely new kext from scratch. They haven't received updates since 2021, and these 2 kexts are closed source, so getting them to boot will be very difficult.
+26x86은 [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2)를 포크했으며, 해당 프로젝트는 Dortania의 [OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher)를 확장합니다.
 
-**⚠️ Attention! Graphics patches are currently missing on the following models and are causing kernel panics at the moment on macOS 26:**
-- Metal 8302 - all Mac models between 2012 and 2014
-- non-Metal - all 2011 Mac models
-We’re working on it. In the meanwhile, I’ll put safety guards to prevent those patches from getting injected if running macOS 26, so users can continue to use macOS 26 with no graphics acceleration on these instead of getting kernel panics.
+**한글판 최적화:** 사용자 문서·GUI 마법사·CLI 도움말의 기본 언어는 한국어입니다. 영문 보조 문서: [docs/README.en.md](./docs/README.en.md) · [docs/KOREAN_EDITION.md](./docs/KOREAN_EDITION.md)
 
-> **⚠️ On T2 Macs only, this patcher disables SIP completely to be able to boot macOS properly** What is SIP? SIP, in short for System Integrity Protection, protects against attackers from tampering with core system files. However, on T2 Macs, SIP also causes thermal throttling and other issues when booting via OpenCorePkg, so it needs to be disabled, so setting SIP to 0xFFF is hardcoded into misc.py. As such, the SIP settings inside OpenCore Legacy Patcher T2 > Settings (or very soon, instead in the patcher > OpenCore) are mostly rendered useless on T2 Macs. This doesn’t apply to non-T2 Macs, such as T1 or non-T Macs
+보안 연구자는 [GitHub 보안 정책](https://github.com/NiSeullent/26x86/security/policy)을 확인한 뒤 취약점을 보고할 수 있습니다.
 
+---
 
-> **⚠️ Building EFIs on Hackintoshes is unsupported by this patcher!** Building EFIs for Hackintoshes is unsupported by this patcher. I’ll explain clearly why: like Dortania’s OCLP, it generates EFIs for real Macs. They wouldn’t work on Hackintoshes. While OpenCore Legacy Patcher T2 uses OpenCore under the hood, real Macs boot differently macOS from a Hackintosh. Also, a GIGABYTE board with let’s say, i7-8700B may offer the exact same board with different configurations, so predicting what patches are needed is infeasible on something no one does know. Also, on the same board depending on the config you may need different boot arguments. And also, it doesn’t use OpenCore’s version of boot.efi, it uses the one that works on real Macs. Standard Hackintoshes rely on BOOTx64.efi. So calling that OpenCore Legacy Patcher T2 can build EFIs for Hackintoshes just because it uses OpenCore is propaganda - it's true that OpenCore works on Hackintoshes, but that's not true for the patcher itself - it either produces EFIs for Hackintoshes or real Macs, that's it. It can't produce for both. So the release note in 4.0.0.16050 says for itself:
-fixes a vulnerability where an attacker or bad Hackintosh user could trick a Hackintosh user into building OpenCore EFIs for real Macs by spoofing the SMBIOS as a Mac computer
->
-> **⚠️ Das Erstellen von EFIs auf Hackintoshes wird von diesem Patcher nicht unterstützt!** Das Erstellen von EFIs für Hackintoshes wird von diesem Patcher nicht unterstützt. Ich erkläre Ihnen den Grund: Wie Dortanias OCLP generiert er EFIs für echte Macs. Diese würden auf Hackintoshes nicht funktionieren. Obwohl der OpenCore Legacy Patcher T2 im Hintergrund OpenCore verwendet, booten echte Macs macOS anders als ein Hackintosh. Außerdem kann ein GIGABYTE-Board mit beispielsweise einem i7-8700B in verschiedenen Konfigurationen erhältlich sein. Daher ist es unmöglich vorherzusagen, welche Patches benötigt werden, wenn niemand die genaue Konfiguration kennt. Selbst auf demselben Board können je nach Konfiguration unterschiedliche Boot-Argumente erforderlich sein. Zudem verwendet er nicht die OpenCore-Version von boot.efi, sondern diejenige, die auf echten Macs funktioniert. Standard-Hackintoshes verwenden BOOTx64.efi. Die Behauptung, OpenCore Legacy Patcher T2 könne EFIs für Hackintoshes erstellen, nur weil er OpenCore verwendet, ist Propaganda. Zwar funktioniert OpenCore auf Hackintoshes, aber das stimmt nicht für den Patcher selbst. Er erstellt entweder EFIs für Hackintoshes oder für echte Macs, nicht für beides. Die Versionshinweise zu 4.0.0.16050 belegen dies:
-"fixes a vulnerability where an attacker or bad Hackintosh user could trick a Hackintosh user into building OpenCore EFIs for real Macs by spoofing the SMBIOS as a Mac computer" oder auf Deutsch übersetzt - „Behebt eine Sicherheitslücke, durch die ein Angreifer oder ein Hackintosh-Nutzer einen Hackintosh-Nutzer dazu verleiten konnte, OpenCore-EFIs für echte Macs zu erstellen, indem er das SMBIOS als Mac-Computer fälschte.“
+## ⚠️ Intel Core 2 Duo Mac 주의
 
-> **⚠️⚠️⚠️⚠️⚠️ Warning** No support for macOS 27 Golden Gate and newer versions of macOS because macOS 27 Golden Gate and newer versions are arm64-only, so only for Apple Silicon Macs. So the answer is clear. macOS 26 Tahoe is the last supported macOS version by this project.
+다음 모델 등은 AAAMouSSE·telemetrap 한계로 **현재 macOS 26 Tahoe 부팅이 불가능**할 수 있습니다.
 
-> **⚠️⚠️⚠️⚠️⚠️ Warnung** macOS 27 Golden Gate und neuere macOS-Versionen sind nicht unterstützt, weil diese sind nur für Apple Silicon/arm64 Macs. Also die Antwort ist klar. macOS 26 Tahoe ist die letzte Version, die von dieser Projekt unterstützt wird.
+- 2008–2010 MacBook / MacBook Pro / MacBook Air
+- 2009–2010 Mac mini
+- 2008 Mac Pro
 
-> **⚠️ EXPERIMENTAL FORK** — Adds **macOS 15 Sequoia and macOS 26 Tahoe support for T2 Macs**. T2 Macs as of now are unsupported by the official OpenCore Legacy Patcher from Dortania. Use it at your own risk. It's still in alpha stage, so I highly recommend to backup all your data and do it only on a spare T2 Mac to experiment. This is experimental alpha software.
-## T2 Mac Support
+자세한 논의: [MacRumors 스레드](https://forums.macrumors.com/threads/mp3-1-others-sse-4-2-emulation-to-enable-amd-metal-driver.2206682/page-9). macOS 26에서 동작하려면 해당 kext의 역공학·재작성이 필요할 수 있으며, 두 kext는 2021년 이후 업데이트가 없고 **폐쇄 소스**입니다.
 
-> **⚠️ Attention, please!** If you download OpenCore Legacy Patcher T2 from Code > Download, you may run into bugs because I'm writing the code mostly directly from GitHub's interface. If you want to avoid running into weird bugs, I recommend to download from Releases instead.
+## ⚠️ 그래픽 패치 미완료 모델
 
-> **⚠️Warnung!** Wenn Sie OpenCore Legacy Patcher T2 über Code > Download herunterladen, in der App kann einige Bugs auftreten, weil ich den Code größtenteils direkt über GitHubs Oberfläche schreibe. Um diese zu vermeiden, es ist empfohlen den OpenCore Legacy Patcher T2-App stattdessen über Releases herunterzuladen.
+macOS 26에서 다음 GPU 클래스는 **그래픽 패치가 없어 커널 패닉**이 발생할 수 있습니다.
 
-> **🚧 Not ready for general use**
+- **Metal 8302** — 2012–2014년 Mac 전반
+- **Non-Metal** — 2011년 Mac 전반
 
-> **Progress:**
+작업 진행 중이며, 해당 환경에서는 패치 주입을 막아 **가속 없이 사용**할 수 있도록 안전 장치를 두고 있습니다.
 
-- [X] Installer boots
-- [ ] MacBookAir8,1 and MacBookAir8,2 can boot the installer
-- [ ] Internal hard drive mounts properly on T2 Macs - https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/issues/69
-- [ ] ability to reach the desktop
-- [ ] Post install - issues with second stage
-- [ ] GPU accelaration/WiFi - most T2 Macs will have GPU accelaration out of the box, and on certain T2 Macs, also WiFi
+## ⚠️ T2 Mac — SIP(시스템 무결성 보호)
 
-Our goal of this project is to add support for T2 Macs so unsupported T2 Macs can boot into Tahoe. This project does run also on non-T2 Macs and we're committing to improve macOS 26 Tahoe compatability even on non-T2 Macs.
+**T2 Mac에서는 SIP가 완전히 비활성화(0xFFF)될 수 있습니다.** OpenCorePkg 부팅 시 열·스로틀링 등 이슈로 SIP 비활성화가 하드코딩되어 있을 수 있습니다. T2가 아닌 Mac(T1·비-T Mac)에는 적용되지 않을 수 있습니다.
 
-Noteworthy features of OpenCore Legacy Patcher:
+## ⚠️ Hackintosh EFI 빌드 미지원
 
-* Support for macOS Monterey, Ventura, Sonoma, Sequoia and eventually add support for Tahoe.
-* Native Over the Air (OTA) System Updates
-* Supports Penryn and newer Macs
-* Full support for WPA Wi-Fi and Personal Hotspot on BCM943224 and newer wireless chipsets
-* System Integrity Protection, FileVault 2, .im4m Secure Boot and Vaulting
-* Recovery OS, Safe Mode and Single-user Mode booting on non-native OSes
-* Unlocks features such as Sidecar and AirPlay to Mac even on native Macs
-* Enables enhanced SATA and NVMe power management on non-Apple storage devices
-* Zero firmware patching required (ie. APFS ROM patching)
-* Graphics acceleration for both Metal and non-Metal GPUs
+본 패처는 **실제 Mac**용 OpenCore EFI를 생성합니다. Hackintosh용 BOOTx64.efi 워크플로와는 다릅니다. Hackintosh에서 EFI를 빌드하는 것은 지원하지 않습니다.
 
-----------
+## ⚠️ macOS 27 Golden Gate 이후 미지원
 
-Note: Only clean-installs and upgrades are supported. macOS Big Sur installs already patched with other patchers, such as [Patched Sur](https://github.com/BenSova/Patched-Sur) or [bigmac](https://github.com/StarPlayrX/bigmac), cannot be used due to broken file integrity with APFS snapshots and SIP. Here's an exception: if you are already using patchers like OCLP-Mod or OCLP-Plus or the official OpenCore Legacy Patcher by Dortania, you can revert the root patches and upgrade to this patcher. 
+macOS 27 Golden Gate 및 이후 버전은 **Apple Silicon(arm64) 전용**으로 예상됩니다. **macOS 26 Tahoe**가 본 프로젝트의 마지막 주요 지원 대상입니다.
 
-* You can, however, reinstall macOS with this patcher and retain your original data
+## 실험적 T2 포크
 
-Note 2: Currently, OpenCore Legacy Patcher officially supports patching to run macOS Monterey through Tahoe installs. For older OSes, OpenCore may function; however, support is currently not provided from Albert Müller.
+Dortania 공식 OCLP가 아직 T2 Mac을 지원하지 않는 가운데, **macOS 15 Sequoia·macOS 26 Tahoe T2 지원**을 실험적으로 추가합니다. 알파 단계이므로 백업 후 여분의 T2 Mac에서만 시험하세요.
 
-* For macOS Mojave and Catalina support, we recommend the use of [dosdude1's patchers](http://dosdude1.com)
+### T2 Mac — 다운로드 안내
 
-## Getting Started
+GitHub **Code → Download ZIP**은 개발 중 커밋으로 인해 불안정할 수 있습니다. **Releases**에서 받는 것을 권장합니다.
 
-To start using the project, please see our in-depth guide:
+### T2 진행 상황 (요약)
 
-* [OpenCore Legacy Patcher Guide](https://dortania.github.io/OpenCore-Legacy-Patcher/)
+- [x] 인스톨러 부팅
+- [ ] MacBookAir8,1 / 8,2 인스톨러 부팅
+- [ ] T2 내부 디스크 마운트 — [이슈 #69](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/issues/69)
+- [ ] 데스크톱 도달
+- [ ] 설치 후 2단계 이슈
+- [ ] GPU 가속 / Wi-Fi (일부 T2는 기본 가속 가능)
 
-## Support
+T2·비-T2 x86 Mac 모두에서 macOS 26 Tahoe 호환성 개선을 목표로 합니다.
 
-This project is offered on an AS-IS basis, we do not guarantee support for any issues that may arise. However, there is a community server with other passionate users and developers that can aid you:
+---
 
-* [OpenCore Patcher Paradise Discord Server](https://discord.gg/rqdPgH8xSN)
-  * Keep in mind that the Discord server is maintained by the community, so we ask everyone to be respectful.
-  * Please review our docs on [how to debug with OpenCore](https://dortania.github.io/OpenCore-Legacy-Patcher/DEBUG.html) to gather important information to help others with troubleshooting.
+## 주요 기능
 
-## Running from source
+- macOS Monterey, Ventura, Sonoma, Sequoia 및 Tahoe 지원(목표)
+- OTA(무선) 시스템 업데이트
+- Penryn 이후 Mac 지원
+- BCM943224 이후 무선 칩셋 WPA Wi-Fi·Personal Hotspot
+- SIP, FileVault 2, .im4m Secure Boot, Vaulting(모델·구성에 따라 다름)
+- 비네이티브 OS에서 Recovery / Safe Mode / Single-user Mode
+- Sidecar, AirPlay to Mac 등 기능 잠금 해제
+- 비-Apple 저장장치 SATA·NVMe 전력 관리
+- APFS ROM 등 **펌웨어 패치 불필요**
+- Metal·Non-Metal GPU 그래픽 가속(지원 모델 한정)
 
-To run the project from source, see here: [Build and run from source](./SOURCE.md)
+---
 
-## Credits
+## 설치·업그레이드 참고
 
-* [Acidanthera](https://github.com/Acidanthera)
-  * OpenCorePkg, as well as many of the core kexts and tools
-* [DhinakG](https://github.com/DhinakG)
-  * Main co-author
-* [Khronokernel](https://github.com/Khronokernel)
-  * Main co-author
-  * Great amounts of help with debugging, and code suggestions
-* [Ausdauersportler](https://github.com/Ausdauersportler)
-  * iMacs Metal GPUs Upgrade Patch set and documentation
-* [nxvid](https://github.com/nxvid/OpenCore-Legacy-Patcher-T2/)
-  * for documenting and fixing an issue where sbvmm might not have been injected on T2 Macs
-* [gandolf243](https://github.com/gandolf243)
-  * UI redesign
-  * fixing some bugs, testing and documenting issues
-* [DrDonk](https://github.com/DrDonk)
-  * for helping me write a valid patch for AppleKeyStore
-  * testing and troubleshooting
-* [TheRaddish1313](https://github.com/TheRaddish1313)
-    * for fixing framebuffer issues and boot args
-    * testing and troubleshooting
-* [vit9696](https://github.com/vit9696)
-* [Albert Müller](https://github.com/albert-mueller/)
-  * Adding support for unsupported T2 Macs and the main author of this fork
-  * Help troubleshooting, determining fixes, fixing security vulnerabilities and writing patches
-* [YBronst](https://github.com/YBronst/OCLP-Plus)
-* for fixing modern wireless on macOS 26 Tahoe
-* [pyquick](https://github.com/pyquick) and [hackdoc](https://github.com/hackdoc)
-  * [improving support for Metallibs on macOS 26 Tahoe on unsupported non-T2 Macs](https://github.com/hackdoc/OCLP-R)
-* [stephandeutsch] (https://github.com/stephandeutsch/OpenCore-Legacy-Patcher/)
-  * for fixing USB1.1 compatability with Sequoia and Tahoe
-* [vytska69](https://github.com/vytska69)
-  * [developing patches for the T2 chip](https://github.com/vytska69/OpenCore-Legacy-Patcher)
-  * [Developing Secure Enclave Processor (SEP) timeout patches](https://github.com/vytska69/OpenCore-Legacy-Patcher)
-  * [workflow files](https://github.com/vytska69/OpenCore-Legacy-Patcher)
-  
-  * [peltorio](https://github.com/peltorio/)
-    * Fix a critical bug in GitHub Actions by changing macos-version to macos-15
-* [kodeaqua](https://github.com/kodeaqua)
-  * for research on MacBook Air 2018-2019 hardware to fix boot issues
-* [GUTY345](https://github.com/GUTY345)
-  * for fixing a bug in OpenCore Legacy Patcher T2 where USB-Map.plist's syntax was invalid and SMBIOS spoofing bug that prevented SMBIOS spoofing from working properly on T2 Macs
-  * [fix graphics accelaration on Intel UHD Graphics 630 on unsupported T2 Macs](https://github.com/GUTY345/OpenCore-Legacy-patcher-t2chip-fixBugs/tree/main)
-  * [fix your Mac is not supported by macOS 26 Tahoe](https://github.com/GUTY345/OpenCore-Legacy-patcher-t2chip-fixBugs/tree/main)
-  * [fix Unsupported Mantissa speed kernel panics on T2 MacBooks](https://github.com/GUTY345/OpenCore-Legacy-patcher-t2chip-fixBugs/tree/main)
-* [EduCovas](https://github.com/covasedu)
-  * [non-Metal patch set](https://github.com/moraea/non-metal-frameworks) for nVidia Tesla/Fermi/Maxwell/Pascal, AMD TeraScale 1/2, and Intel Core 1st/2nd Generation GPUs
-  * [3802 Metal patch set](https://github.com/moraea/misc-patches/tree/main/3802-Metal-15) and [MetallibSupportPkg](https://github.com/dortania/MetallibSupportPkg) for nVidia Kepler and Intel Core 3rd/4th Generation GPUs
-  * Metal bundle patches and shims for [nVidia Kepler](https://github.com/moraea/misc-patches/tree/main/Kepler%2013%2B), [AMD GCN 1 - 4](https://github.com/moraea/misc-patches/tree/main/GCN%2013%2B), and [AMD GCN 5 (Vega)](https://github.com/moraea/misc-patches/tree/main/vega%2013%2B)
-  * [IOSurface offset patches](https://github.com/moraea/misc-patches/tree/main/Sonoma%2014.4%20IOSurface) for nVidia Kepler, AMD GCN 1 - 5, and Intel Core 3rd - 6th Generation GPUs
-  * [legacy Wi-Fi patch set](https://github.com/moraea/unsupported-wifi-patches) restores functionality for Wi-Fi cards in all 2007 - 2017 models
-  * [T1 patch set](https://github.com/moraea/misc-patches/tree/main/T1-Patch) restores Touch ID, Apple Pay, and other secure functionality in 2016 - 2017 models
-  * AppleGVA downgrade for accelerated video decoding on 2012 - 2016 models
-  * OpenCL and OpenGL downgrade for AMD GCN
-  * [USB 1 patch](https://github.com/moraea/misc-patches/tree/main/IOUSBHostFamily-14.4)
+- **클린 설치·업그레이드**만 공식 지원합니다. Patched Sur, bigmac 등으로 이미 패치된 Big Sur 설치본은 APFS 스냅샷·SIP 무결성 문제로 사용할 수 없습니다.
+- OCLP-Mod, OCLP-Plus, Dortania OCLP 사용자는 루트 패치를 되돌린 뒤 본 패처로 업그레이드할 수 있습니다.
+- 본 패처로 macOS를 재설치하면서 **기존 데이터를 유지**할 수 있습니다.
+- 26x86은 Monterey~Tahoe 패치를 공식 지원합니다. 그 이전 OS는 OpenCore가 동작할 수 있으나 Albert Müller 포크 기준 공식 지원은 제공하지 않습니다.
+- Mojave·Catalina는 [dosdude1 패처](http://dosdude1.com) 사용을 권장합니다.
 
-* [ASentientHedgehog](https://github.com/moosethegoose2213)
-  * [non-Metal patch set](https://github.com/moraea/non-metal-frameworks) for nVidia Tesla/Fermi/Maxwell/Pascal, AMD TeraScale 1/2, and Intel Core 1st/2nd Generation GPUs
+## 시작하기
 
-* [ASentientBot](https://github.com/ASentientBot)
-  * [non-Metal patch set](https://github.com/moraea/non-metal-frameworks) for nVidia Tesla/Fermi/Maxwell/Pascal, AMD TeraScale 1/2, and Intel Core 1st/2nd Generation GPUs
-  * [Metal bundle interposer](https://github.com/moraea/misc-patches/tree/main/sequoia%2031001%20interposer) for AMD GCN 1 - 5 and Intel Core 5th/6th Generation GPUs
-  * [dsce](https://github.com/moraea/dsce) and [shared code](https://github.com/moraea/moraea-common) used by some other patches
-* [cdf](https://github.com/cdf)
-  * Mac Pro on OpenCore Patch set and documentation
-  * [Innie](https://github.com/cdf/Innie) and [NightShiftEnabler](https://github.com/cdf/NightShiftEnabler)
-* [Syncretic](https://forums.macrumors.com/members/syncretic.1173816/)
-  * [AAAMouSSE](https://forums.macrumors.com/threads/mp3-1-others-sse-4-2-emulation-to-enable-amd-metal-driver.2206682/), [telemetrap](https://forums.macrumors.com/threads/mp3-1-others-sse-4-2-emulation-to-enable-amd-metal-driver.2206682/post-28447707) and [SurPlus](https://github.com/reenigneorcim/SurPlus)
-* [dosdude1](https://github.com/dosdude1)
-  * Main author of the [original GUI](https://github.com/dortania/OCLP-GUI)
-  * Development of previous patchers, laying out much of what needs to be patched
-* [parrotgeek1](https://github.com/parrotgeek1)
-  * [VMM Patch Set](https://github.com/dortania/OpenCore-Legacy-Patcher/blob/4a8f61a01da72b38a4b2250386cc4b497a31a839/payloads/Config/config.plist#L1222-L1281)
-* [BarryKN](https://github.com/BarryKN)
-  * Development of previous patchers, laying out much of what needs to be patched
-* [mario_bros_tech](https://github.com/mariobrostech) and the rest of the Unsupported Mac Discord
-  * Catalyst that started OpenCore Legacy Patcher
-* [arter97](https://github.com/arter97/)
-  * [SimpleMSR](https://github.com/arter97/SimpleMSR/) to disable firmware throttling in Nehalem+ MacBooks without batteries
-* [Mr.Macintosh](https://mrmacintosh.com)
-  * Endless hours helping architect and troubleshoot many portions of the project
-* [flagers](https://github.com/flagersgit)
-  * Aid with Nvidia Web Driver research and development
-  * [non-Metal patch set](https://github.com/moraea/non-metal-frameworks) for nVidia Tesla/Fermi/Maxwell/Pascal, AMD TeraScale 1/2, and Intel Core 1st/2nd Generation GPUs
-  * [Metal bundle interposer](https://github.com/moraea/misc-patches/tree/main/sequoia%2031001%20interposer) for AMD GCN 1 - 5 and Intel Core 5th/6th Generation GPUs
-  * LegacyRVPL, SnapshotIsKill, etc. to aid in rapid testing and development
-* [joevt](https://github.com/joevt)
-  * [FixPCIeLinkrate](https://github.com/joevt/joevtApps)
-* [Jazzzny](https://github.com/Jazzzny)
-  * Research and various contributions to the project
-  * UEFI Legacy XHCI research and development
-  * NVIDIA OpenCL research and development
-  * `MacBook5,2` research and development
-    * LegacyKeyboardInjector
-  * Pre-Ivy Bridge Aquantia Ethernet Patch
-  * Non-Metal Photo Booth Patch for Monterey+
-  * GUI and Backend Development
-    * Updater UI
-    * macOS Downloader UI
-    * Downloader UI
-    * USB Top Case probing
-    * Developer root patching
-  * Vaulting implementation
-  * macOS 15 3802 Helios Research
-  * UEFI bootx64.efi research
-  * universal2 build research
-  * Various documentation contributions
-* Amazing users who've graciously donate hardware:
-  * [JohnD](https://forums.macrumors.com/members/johnd.53633/) - 2013 Mac Pro
-  * [SpiGAndromeda](https://github.com/SpiGAndromeda) - AMD Vega 64
-  * [turbomacs](https://github.com/turbomacs) - 2014 5k iMac
-  * [vinaypundith](https://forums.macrumors.com/members/vinaypundith.1212357/) - MacBook7,1
-   * [ThatStella7922](https://github.com/ThatStella7922) - 2017 13" MacBook Pro (A1708)
-  * zephar - 2008 Mac Pro
-  * jazo97 - 2011 15" MacBook Pro
-  * And others (reach out if we forgot you!)
-* MacRumors and Unsupported Mac Communities
-  * Endless testing and reporting issues
-* Apple
-  * for macOS and many of the kexts, frameworks and other binaries we reimplemented into newer OSes
+- Dortania 가이드(영문): [OpenCore Legacy Patcher Guide](https://dortania.github.io/OpenCore-Legacy-Patcher/)
+- 소스 실행: [SOURCE.md](./SOURCE.md) (한국어)
+- 개발환경(한국어): [docs/SETUP.md](./docs/SETUP.md)
+- 영문 개요: [docs/README.en.md](./docs/README.en.md)
+- 한글판 최적화 안내: [docs/KOREAN_EDITION.md](./docs/KOREAN_EDITION.md)
+
+## 지원
+
+본 프로젝트는 **「있는 그대로(AS IS)」** 제공되며 공식 기술 지원을 보장하지 않습니다. 커뮤니티 Discord 등에서 도움을 받을 수 있습니다.
+
+- [OpenCore Patcher Paradise Discord](https://discord.gg/rqdPgH8xSN)
+- 문제 해결 시 [OpenCore 디버그 문서](https://dortania.github.io/OpenCore-Legacy-Patcher/DEBUG.html)를 참고해 로그를 준비하세요.
+
+## 법적·라이선스
+
+| 문서 | 설명 |
+|------|------|
+| [DISCLAIMER.md](./DISCLAIMER.md) | 면책 조항 (한국어) |
+| [LICENSE.txt](./LICENSE.txt) | BSD 3-Clause |
+| [NOTICE.md](./NOTICE.md) | 업스트림 고지 |
+| [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md) | 서드파티 라이선스 |
+| [CREDITS.md](./CREDITS.md) | 기여자 목록 |
+
+## 기여자
+
+전체 목록은 [CREDITS.md](./CREDITS.md)를 참고하세요. OpenCorePkg·Lilu, Dortania OCLP, OCLP-T2, NiSeullent 및 커뮤니티 기여자에게 감사드립니다.

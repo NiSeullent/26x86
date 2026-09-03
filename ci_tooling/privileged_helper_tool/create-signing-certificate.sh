@@ -3,10 +3,10 @@
 # create-signing-certificate.sh
 #
 # Erstellt ein selbstsigniertes Code-Signing-Zertifikat fuer den lokalen Build
-# von OpenCore-Patcher-T2 und importiert es in den Anmeldeschlussel.
+# von 26x86 und importiert es in den Anmeldeschlussel.
 #
 # Creates a self signed code signing certificate for local builds of
-# OpenCore-Patcher-T2 and imports it into the login keychain.
+# 26x86 and imports it into the login keychain.
 #
 # Nutzung / Usage:
 #   ./create-signing-certificate.sh

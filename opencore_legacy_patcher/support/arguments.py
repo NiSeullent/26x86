@@ -19,13 +19,16 @@ from ..wx_gui import gui_entry
 from ..efi_builder import build
 from ..sys_patch import sys_patch
 from ..sys_patch.auto_patcher import StartAutomaticPatching
+from ..sys_patch.patchsets import HardwarePatchsetDetection, HardwarePatchsetValidation
 
 from ..datasets import (
     model_array,
-    os_data
+    os_data,
+    smbios_data,
 )
 
 from . import (
+    cli,
     utilities,
     defaults,
     validation
@@ -53,6 +56,14 @@ class arguments:
             self._validation_handler()
             return
 
+        if self.args.detect:
+            self._detect_handler()
+            return
+
+        if self.args.status:
+            self._status_handler()
+            return
+
         if self.args.build:
             self._build_handler()
             return
@@ -76,6 +87,94 @@ class arguments:
         if self.args.auto_patch:
             self._sys_patch_auto_handler()
             return
+
+
+    def _detect_handler(self) -> None:
+        """
+        Detect Mac model and hardware (CLI --detect)
+        """
+        computer = self.constants.computer
+        model = self.constants.custom_model or computer.real_model
+        marketing = smbios_data.smbios_dictionary.get(model, {}).get("Marketing Name", model)
+        cpu_name = getattr(computer.cpu, "name", None) if computer.cpu else None
+
+        gpus = []
+        if computer.gpus:
+            for gpu in computer.gpus:
+                gpus.append({
+                    "name": getattr(gpu, "name", "Unknown"),
+                    "vendor": hex(getattr(gpu, "vendor_id", 0)),
+                    "device": hex(getattr(gpu, "device_id", 0)),
+                })
+
+        payload = {
+            "model": model,
+            "marketing_name": marketing,
+            "build_model": computer.build_model,
+            "real_model": computer.real_model,
+            "cpu": cpu_name,
+            "gpus": gpus,
+            "os_version": self.constants.detected_os_version,
+            "os_build": self.constants.detected_os_build,
+            "host_is_hackintosh": self.constants.host_is_hackintosh,
+        }
+
+        if self.args.json:
+            cli.emit_json(payload)
+            return
+
+        logging.info("Mac 모델 감지 결과:")
+        logging.info(f"  모델: {payload['model']}")
+        logging.info(f"  제품명: {payload['marketing_name']}")
+        logging.info(f"  CPU: {payload['cpu'] or 'N/A'}")
+        logging.info(f"  macOS: {payload['os_version']} ({payload['os_build']})")
+
+
+    def _status_handler(self) -> None:
+        """
+        Show root patch status (CLI --status)
+        """
+        patches = HardwarePatchsetDetection(constants=self.constants, validation=True).device_properties
+
+        active = [
+            p.split(": ", 1)[1]
+            for p in patches
+            if patches[p] is True and not p.startswith("Validation") and not p.startswith("Settings")
+        ]
+
+        validations = {
+            k.split("Validation: ", 1)[1]: v
+            for k, v in patches.items()
+            if k.startswith("Validation:")
+        }
+
+        payload = {
+            "model": self.constants.custom_model or self.constants.computer.real_model,
+            "os_version": self.constants.detected_os_version,
+            "os_build": self.constants.detected_os_build,
+            "last_patched_version": self.constants.computer.oclp_sys_version,
+            "last_patched_date": self.constants.computer.oclp_sys_date,
+            "patches_available": active,
+            "can_patch": not patches.get(HardwarePatchsetValidation.PATCHING_NOT_POSSIBLE, False),
+            "can_unpatch": not patches.get(HardwarePatchsetValidation.UNPATCHING_NOT_POSSIBLE, False),
+            "validations": validations,
+        }
+
+        if self.args.json:
+            cli.emit_json(payload)
+            return
+
+        logging.info("루트 패치 상태:")
+        logging.info(f"  모델: {payload['model']}")
+        logging.info(f"  macOS: {payload['os_version']} ({payload['os_build']})")
+        if payload["last_patched_version"]:
+            logging.info(f"  마지막 패치: {payload['last_patched_version']} ({payload['last_patched_date']})")
+        logging.info(f"  패치 가능: {'예' if payload['can_patch'] else '아니오'}")
+        logging.info(f"  되돌리기 가능: {'예' if payload['can_unpatch'] else '아니오'}")
+        if active:
+            logging.info("  적용 가능한 패치:")
+            for name in active:
+                logging.info(f"    - {name}")
 
 
     def _validation_handler(self) -> None:

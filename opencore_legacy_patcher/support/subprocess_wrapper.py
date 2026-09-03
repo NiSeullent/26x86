@@ -102,7 +102,7 @@ def repair_privileged_helper_permissions() -> bool:
                 0
             ),
         )
-        prompt = b"OpenCore Legacy Patcher needs administrator permission to repair the permissions of its privileged helper tool."
+        prompt = b"26x86 needs administrator permission to repair the permissions of its privileged helper tool."
 
         environment = (
             Security.AuthorizationItem(

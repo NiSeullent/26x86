@@ -587,7 +587,7 @@ Hardware Information:
 
             try:
                 rights = (Security.AuthorizationItem(Security.kAuthorizationRightExecute, 0, None, 0),)
-                prompt = b"OpenCore Legacy Patcher T2 needs administrator permission to fix the Developer Mode marker file, which appears to be owned by another user."
+                prompt = b"26x86 needs administrator permission to fix the Developer Mode marker file, which appears to be owned by another user."
                 environment = (Security.AuthorizationItem(Security.kAuthorizationEnvironmentPrompt, len(prompt), prompt, 0),)
 
                 status, _ = Security.AuthorizationCopyRights(

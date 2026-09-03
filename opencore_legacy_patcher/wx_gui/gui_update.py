@@ -66,11 +66,11 @@ class UpdateFrame(wx.Frame):
         self.version_label = version_label
         self.url = url
 
-        # Our own releases ship a raw "OpenCore-Patcher-T2.pkg" asset (see updates.py),
+        # Our own releases ship a raw "26x86.pkg" asset (see updates.py),
         # while the upstream Dortania nightly.link fallback (gui_macos_configeration.py)
         # still ships the original "OpenCore-Patcher.pkg" zipped up - keep expecting
         # whichever one this URL actually points to instead of hardcoding one name.
-        self.pkg_download_path = self.constants.payload_path / ("OpenCore-Patcher.pkg" if self.url.endswith(".zip") else "OpenCore-Patcher-T2.pkg")
+        self.pkg_download_path = self.constants.payload_path / ("OpenCore-Patcher.pkg" if self.url.endswith(".zip") else "26x86.pkg")
 
         logging.info(f"Update URL: {url}")
         logging.info(f"Update Version: {version_label}")
@@ -121,7 +121,7 @@ class UpdateFrame(wx.Frame):
         preventing GUI lockups and avoiding hazardous wx.Yield use.
         """
         download_obj = None
-        file_name = "OpenCore-Patcher.pkg.zip" if self.url.endswith(".zip") else "OpenCore-Patcher-T2.pkg"
+        file_name = "OpenCore-Patcher.pkg.zip" if self.url.endswith(".zip") else "26x86.pkg"
         download_obj = network_handler.DownloadObject(self.url, self.constants.payload_path / file_name)
 
         # --- Phase 1: Download ---
@@ -294,8 +294,8 @@ class UpdateFrame(wx.Frame):
     def _launch_update(self) -> None:
         # Same reasoning as pkg_download_path above: an upstream Dortania nightly
         # install still lands as "OpenCore-Patcher.app", only our own T2 releases
-        # install as "OpenCore-Patcher-T2.app" (see package.py's _files mapping).
-        _app_name = "OpenCore-Patcher.app" if self.url.endswith(".zip") else "OpenCore-Patcher-T2.app"
+        # install as "26x86.app" (see package.py's _files mapping).
+        _app_name = "OpenCore-Patcher.app" if self.url.endswith(".zip") else "26x86.app"
         try:
             logging.info(f"Aktualisierung beginnen: '/Library/Application Support/Dortania/{_app_name}'")
             logging.info(f"Launching update: '/Library/Application Support/Dortania/{_app_name}'")

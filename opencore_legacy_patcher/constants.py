@@ -19,12 +19,14 @@ class Constants:
         self.patcher_version:                 str = "4.0.0.18002.1"  # OpenCore-Legacy-Patcher-T2 # die richtige Version kennzeichen, damit nicht den Update-API mit unnötigen Anfragen zu überladen 
         self.patcher_version_label=self.patcher_version
         self.patcher_support_pkg_version:     str = "2.0.0"  # PatcherSupportPkg
-        self.copyright_date:                  str = "Copyright © 2020-2026 Dortania"
+        self.copyright_date:                  str = "Copyright © 2026 NiSeullent and 26x86 contributors"
 
         # URLs
-        self.url_patcher_support_pkg:         str = "https://github.com/YBronst/PatcherSupportPkg/download/"
+        self.url_patcher_support_pkg:         str = "https://github.com/NiSeullent/26x86-PatcherSupportPkg/download/"
+        self.url_metallib_support_pkg:        str = "https://github.com/NiSeullent/26x86-MetallibSupportPkg"
+        self.url_opencore_pkg:                str = "https://github.com/NiSeullent/26x86-OpenCorePkg"
         self.guide_link:                      str = "https://dortania.github.io/OpenCore-Legacy-Patcher/"
-        self.repo_link:                       str = "https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/"
+        self.repo_link:                       str = "https://github.com/NiSeullent/26x86/"
         self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.patcher_version}/AutoPkg-Assets-T2.pkg"
 
         # OpenCore Versioning
@@ -918,7 +920,7 @@ class Constants:
 
     @property
     def patcher_name(self) -> str: # sollte hier niemals T1 returnen, sonst es würde den Patcher selbst verwirren
-        return "OpenCore Legacy Patcher T2"
+        return "26x86"
 
     @property
     def patcher_full_name(self) -> str:

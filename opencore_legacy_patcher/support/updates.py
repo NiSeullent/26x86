@@ -182,12 +182,12 @@ class CheckBinaryUpdates:
         for asset in data_set["assets"]:
             logging.info("A new version is available")
             logging.info(f"Found asset: {asset['name']}")
-            if asset["name"] == "OpenCore-Patcher-T2.pkg":
+            if asset["name"] == "26x86.pkg":
                 self.latest_details = {
                     "Name": asset["name"],
                     "Version": latest_remote_version,
                     "Link": asset["browser_download_url"],
-                    "Github Link": f"https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/releases/{latest_remote_version}",
+                    "Github Link": f"https://github.com/NiSeullent/26x86/releases/{latest_remote_version}",
                 }
                 return self.latest_details
 

@@ -1,6 +1,6 @@
-# OpenCore Legacy Patcher License
+# 26x86 License Information
 
-This patcher is made of multiple external applications from different people and organizations. See each program for their licensing:
+26x86 is distributed under the [BSD 3-Clause license](../LICENSE.txt). This patcher bundles multiple external applications from different authors and organizations. See each component for its licensing:
 
 * BSD 3-Clause "New" or "Revised" License
   * [OpenCorePkg](https://github.com/acidanthera/OpenCorePkg/blob/master/LICENSE.txt)
@@ -22,4 +22,4 @@ This patcher is made of multiple external applications from different people and
   * Apple Binaries - Apple Inc.
   * All other patches - respective authors
 
-The remaining files within the OpenCore Legacy Patcher repository are distributed under the [BSD 4-Clause license](https://github.com/dortania/OpenCore-Legacy-Patcher/blob/main/LICENSE.txt).
+The 26x86 application source is derived from [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2) and [OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher), both under BSD 3-Clause. See also [NOTICE.md](../NOTICE.md), [THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md), and [CREDITS.md](../CREDITS.md).

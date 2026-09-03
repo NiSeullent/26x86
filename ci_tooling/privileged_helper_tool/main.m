@@ -1,6 +1,6 @@
 /*
     ------------------------------------------------
-    OpenCore Legacy Patcher Privileged Helper Tool
+    26x86 Privileged Helper Tool
     ------------------------------------------------
     Designed as an alternative to an XPC service,
     this tool is used to run commands as root.

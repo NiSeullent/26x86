@@ -1,5 +1,5 @@
 """
-generate_smbios.py: SMBIOS generation for OpenCore Legacy Patcher
+generate_smbios.py: SMBIOS generation for 26x86
 """
 
 import logging

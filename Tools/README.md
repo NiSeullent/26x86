@@ -1,6 +1,6 @@
 # OCLP T1 MBP14,3 — Tools
 
-Diagnostic and recovery tools for OpenCore Legacy Patcher T1 on MacBookPro14,3.
+Diagnostic and recovery tools for 26x86 T1 on MacBookPro14,3.
 
 ## Safety Classification
 

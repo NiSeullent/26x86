@@ -24,7 +24,7 @@ CRASH_URL:        str = ANALYTICS_SERVER + "/crash"
 VALID_ANALYTICS_ENTRIES: dict = {
     'KEY':                 str,               # Prevent abuse (embedded at compile time)
     'UNIQUE_IDENTITY':     str,               # Host's UUID as SHA1 hash
-    'APPLICATION_NAME':    str,               # ex. OpenCore Legacy Patcher
+    'APPLICATION_NAME':    str,               # ex. 26x86
     'APPLICATION_VERSION': str,               # ex. 0.2.0
     'OS_VERSION':          str,               # ex. 10.15.7
     'MODEL':               str,               # ex. MacBookPro11,5
@@ -50,7 +50,7 @@ class Analytics:
     def __init__(self, global_constants: constants.Constants) -> None:
         self.constants: constants.Constants = global_constants
         self.unique_identity = str(self.constants.computer.uuid_sha1)
-        self.application =     str("OpenCore Legacy Patcher")
+        self.application =     str("26x86")
         self.version =         str(self.constants.patcher_version)
         self.os =              str(self.constants.detected_os_version)
         self.model =           str(self.constants.computer.real_model)

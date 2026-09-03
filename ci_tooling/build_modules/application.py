@@ -21,7 +21,7 @@ class GenerateApplication:
         Initialize
         """
         self._pyinstaller = [sys.executable, "-m", "PyInstaller"]
-        self._application_output = Path("./dist/OpenCore-Patcher-T2.app")
+        self._application_output = Path("./dist/26x86.app")
 
         self._reset_pyinstaller_cache = reset_pyinstaller_cache
 
@@ -44,7 +44,7 @@ class GenerateApplication:
             print(f"Cleaning existing build: {self._application_output}")
             shutil.rmtree(self._application_output)
 
-        print("Generating OpenCore-Patcher-T2.app")
+        print("Generating 26x86.app")
         _args = self._pyinstaller + ["./OpenCore-Patcher-GUI.spec", "--noconfirm"]
         if self._reset_pyinstaller_cache:
             _args.append("--clean")

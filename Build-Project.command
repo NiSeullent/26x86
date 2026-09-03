@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build-Project.command: Generate OpenCore-Patcher-T2.app and OpenCore-Patcher-T2.pkg
+Build-Project.command: Generate 26x86.app and 26x86.pkg
 Optimiert für Sicherheit und Stabilität.
 """
 
@@ -123,7 +123,7 @@ def resolve_application_identity(requested: str, auto_detect: bool) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build OpenCore Legacy Patcher Suite", add_help=False)
+    parser = argparse.ArgumentParser(description="Build 26x86 Suite", add_help=False)
 
     # Signing & Notarization
     parser.add_argument("--application-signing-identity", type=str, help="Application Signing Identity")
@@ -186,11 +186,11 @@ def main() -> None:
                 git_commit_date=args.git_commit_date,
             ).generate()
 
-            check_file_exists(Path("dist/OpenCore-Patcher-T2.app"))
+            check_file_exists(Path("dist/26x86.app"))
             print("--- Signiere App ---")
             print("--- Sign the app ---")
             sign_notarize.SignAndNotarize(
-                path=Path("dist/OpenCore-Patcher-T2.app"),
+                path=Path("dist/26x86.app"),
                 signing_identity=application_signing_identity,
                 notarization_apple_id=args.notarization_apple_id,
                 notarization_password=notarization_password,
@@ -204,7 +204,7 @@ def main() -> None:
             print("--- Build packages ---")
             package.GeneratePackage().generate()
             
-            for pkg in ["OpenCore-Patcher-T2.pkg", "OpenCore-Patcher-Uninstaller.pkg"]:
+            for pkg in ["26x86.pkg", "OpenCore-Patcher-Uninstaller.pkg"]:
                 pkg_path = Path(f"dist/{pkg}")
                 check_file_exists(pkg_path)
                 print(f"--- Signiere {pkg} ---")

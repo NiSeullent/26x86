@@ -1,74 +1,59 @@
-# Build and run from source
+# 소스에서 빌드 및 실행
 
-OpenCore Legacy Patcher T2 at its core is a Python-based GUI/CLI-based application. In turn, to run the project from source, you simply need to invoke the OpenCore-Patcher-GUI.command file via Python.
+26x86의 핵심은 Python 기반 GUI/CLI 애플리케이션입니다. 소스에서 실행하려면 `OpenCore-Patcher-GUI.command`를 Python으로 실행하세요.
 
-For developers wishing to validate mainline changes, you may use this link: [GUI (Graphical Based App)](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/releases)
+검증된 빌드는 [26x86 Releases](https://github.com/NiSeullent/26x86/releases)를 참고하세요.
 
-* **Warning**:Untagged builds built from the latest commit are actively developed OpenCore Legacy Patcher T2 builds. These builds have not been tested, are not guaranteed to work, and are not guaranteed to be safe. They may have bugs that remain to be tested. Do not use untagged builds without a good reason to do so, and do not use them on your main machine. Additionally, these binaries should not be used without first consulting the [CHANGELOG](./CHANGELOG.md).
+* **경고:** 태그 없는 최신 커밋 빌드는 활발히 개발 중인 빌드입니다. 테스트·안전·동작이 보장되지 않습니다. 주력 Mac에서 사용하지 마세요. [CHANGELOG](./CHANGELOG.md)를 먼저 읽으세요.
+* **포럼 등에 해당 바이너리 링크를 공유하지 마세요.** 이 문서 또는 공식 Releases만 링크하세요.
+* 신뢰할 수 없는 출처의 재업로드 바이너리는 보안 위험이 있습니다.
 
-  **Do not share _any_ links to these binaries** in forums; please link to **this document only**.
-  * Additionally, do not reupload these binaries or download binaries from other sites. Using binaries from untrusted sources is a security issue, as they may have malware or exploitable vulnerabilities that are patched long time ago. 
-* Users running new builds of the project without understanding what has changed and the implications of installing software under active development are at a higher risk of bricking their installation as they do not read any warnings provided in the CHANGELOG. We wish to minimize these situations as much as possible.
+## 시작하기
 
-## Getting Started
+**Python 3.13.13 이상**이 필요합니다. [python.org](https://www.python.org/downloads/macos/)에서 받은 공식 빌드를 사용하세요.
 
-To start, ensure you have Python 3.13.13 or newer installed. Additionally, ensure that it was downloaded from the official source, [python.org](https://www.python.org/downloads/macos/).
+* Xcode·Command Line Tools에 포함된 Python은 신뢰성 문제로 **지원하지 않습니다**.
 
-* Python installations either preinstalled or provided with Xcode or the Xcode Command Line Tools are unsupported due to reliability issues.
-
-Once Python is installed, open Terminal and run the following:
+터미널에서:
 
 ```sh
-# Move into a directory to store the project
 cd ~/Developer
-# Clone project
-git clone https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2
-# Move into Project directory
-cd ./OpenCore-Legacy-Patcher
-# Install Python dependencies used by the project
+git clone https://github.com/NiSeullent/26x86
+cd ./26x86
 pip3 install -r requirements.txt
 ```
 
-If you have any installation errors, see the following troubleshooting options:
+설치 오류 시:
 
-* Use Python 3.13
-  * This project is optimized and tested against Python 3.13, and is built on this version.
-* Use .whl snapshots for installing additional dependencies
+* Python 3.13 사용 (본 프로젝트는 3.13 기준으로 테스트)
+* 의존성 `.whl` 스냅샷 사용
 
-## Running OpenCore Legacy Patcher
-
-To run the project from source, simply invoke via python3:
+## 26x86 실행
 
 ```sh
-# Launch GUI
+# GUI 실행
 python3 OpenCore-Patcher-GUI.command
 ```
 
-Note that the OpenCore-Patcher-GUI.command file can be run as both a GUI and a CLI utility for other programs to call. If no core arguments are passed, the GUI is initialized. Otherwise the CLI will start:
+인자 없이 실행하면 GUI가, 핵심 CLI 인자를 넘기면 CLI가 시작합니다. 한글 도움말 기본:
 
 ```sh
-# Launch CLI
-python3 OpenCore-Patcher-GUI.command --build --model iMac12,2 --verbose
+python3 OpenCore-Patcher-GUI.command --lang ko --build --model iMac12,2 --verbose
 ```
 
-Pass `-h` or `--help` for more information on supported CLI arguments.
+`-h` / `--help` 또는 `--lang ko --help`로 옵션을 확인하세요.
 
-## Generating prebuilt binaries
+## 사전 빌드 바이너리 생성
 
-The main goal of generating prebuilt binaries is to strip the requirement of a local Python installation for users. For developers, there's very little benefit besides enabling dark mode support in the GUI. For development, simply use the OpenCore-Patcher-GUI.command file with a Python 3 installation.
+일반 사용자에게 로컬 Python 없이 쓰게 하려는 목적입니다. 개발 중에는 `OpenCore-Patcher-GUI.command`로 충분합니다.
 
 ```sh
-# Install PyInstaller
 pip3 install pyinstaller
-# Move into project directory
-cd ~/Developer/OpenCore-Legacy-Patcher/
-# Create the pyinstaller based Application
+cd ~/Developer/26x86/
 python3 Build-Project.command
-# Open build folder
 open ./dist/
 ```
 
-Once done, you'll find the application generated at `./dist/OpenCore-Patcher.app` , alongside with the pkg installers:
+완료 후 `./dist/26x86.app` 및 pkg 설치 프로그램이 생성됩니다.
 
-<img width="1032" height="548" alt="Bildschirmfoto 2026-08-11 um 11 21 14" src="https://github.com/user-attachments/assets/6a00237a-d215-454e-8f08-8b28ede347b8" />
-
+워크스페이스 전체 개발환경은 [../docs/SETUP.md](../docs/SETUP.md)를 참고하세요. 영문: [../docs/SETUP.en.md](../docs/SETUP.en.md).

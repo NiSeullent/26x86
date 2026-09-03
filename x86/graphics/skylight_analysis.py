@@ -2,11 +2,16 @@
 Track B — SkyLight / WindowServer binary·symbol analysis & extreme-gated hooks.
 
 G contract: ``sys_patch_hooks``, ``serialize_track_detect_fields``.
-Formerly blocked/rejected candidates are **extreme-enabled** (``X86_EXTREME=1``
-or ``extreme=True``): Non-Metal SkyLight merge + experimental LUT byte patches
-expose dry-run → apply paths for spare-volume experiments.
+Extreme-enabled (``X86_EXTREME=1`` / ``extreme=True``): Non-Metal SkyLight merge
+scaffold + experimental LUT bytepatch dry-run → apply API.
 
-Mission Control owns shared-module wiring. This file is B-only.
+Role split vs Track L5-R (``x86.graphics.skylight_lut_rootpatch``, INTEGRATE
+``52f7298`` + L5 stage):
+  * **B** — analysis, nm fixtures, ``BYTE_PATCH_CANDIDATES``, dry-run/apply API
+  * **L5-R** — sys_patch ``MERGE`` / ``OVERWRITE`` root-volume recipes
+    (``BINARY_PATCH_CANDIDATES`` staging under ``L5-patched/``)
+
+Do not duplicate L5 OVERWRITE dicts here. Mission Control wires shared modules.
 """
 
 from __future__ import annotations
@@ -88,6 +93,16 @@ EVIDENCE_WS_CACHE_HELPER = (
 EVIDENCE_METAL_3802_SHADERS = (
     "opencore_legacy_patcher/sys_patch/patchsets/shared_patches/metal_3802.py"
 )
+# L5-R module (root-volume OVERWRITE/MERGE) — documentation cross-link only.
+EVIDENCE_L5R_ROOTPATCH = "x86/graphics/skylight_lut_rootpatch.py"
+EVIDENCE_L5R_STAGE_DOC = "docs/EXTREME-SkyLight-LUT-Rootpatch.stage-L5.md"
+
+# INTEGRATE 52f7298 coordination: B owns API; L5-R owns sys_patch recipes.
+ROLE_SPLIT_WITH_L5R = (
+    "B=analysis/bytepatch API (dry_run_byte_patch/apply_byte_patch); "
+    "L5-R=sys_patch MERGE/OVERWRITE root-volume recipes "
+    "(skylight_lut_rootpatch.BINARY_PATCH_CANDIDATES → L5-patched/)"
+)
 
 
 def extreme_enabled(
@@ -156,8 +171,17 @@ class BytePatchCandidate:
             raise ValueError(f"{self.patch_id}: empty find pattern")
 
 
-# Experimental same-length markers for fixture / spare-volume RE fills.
-# Real Tahoe private-LUT needles replace these via MC once RE lands.
+# ---------------------------------------------------------------------------
+# BYTE_PATCH_CANDIDATES — Track B analysis / bytepatch API (55c3802)
+#
+# Role split with L5-R (``skylight_lut_rootpatch.BINARY_PATCH_CANDIDATES``):
+#   * B   = scan + dry-run→apply helpers on a given Mach-O path (this table).
+#           Markers use prefix ``26X86_SL_*`` / public-string probes.
+#   * L5-R = sys_patch OVERWRITE/MERGE recipes that stage patched Mach-Os under
+#           ``L5-patched/`` (markers ``26X86_L5_*``). Do not emit PatchType
+#           OVERWRITE dicts from Track B — hand off needles to L5-R / MC.
+# Coordinated under INTEGRATE 52f7298 extreme mission; both require X86_EXTREME.
+# ---------------------------------------------------------------------------
 BYTE_PATCH_CANDIDATES: tuple[BytePatchCandidate, ...] = (
     BytePatchCandidate(
         patch_id="SL-LUT-MARKER-V1",
@@ -165,9 +189,10 @@ BYTE_PATCH_CANDIDATES: tuple[BytePatchCandidate, ...] = (
         target_path_hint=PATH_SKYLIGHT,
         find=b"26X86_SL_LUT_MARK_A",
         replace=b"26X86_SL_LUT_MARK_B",
-        evidence=(EVIDENCE_OCLP_T2_194, EVIDENCE_RESEARCH_A),
+        evidence=(EVIDENCE_OCLP_T2_194, EVIDENCE_RESEARCH_A, EVIDENCE_L5R_ROOTPATCH),
         notes=(
-            "Placeholder same-length marker for dry-run→apply path validation. "
+            "B API dry-run→apply validation marker (not an L5 OVERWRITE recipe). "
+            "L5-R sibling marker is L5-SL-LUT-MARKER-V1 under L5-patched/. "
             "Replace find/replace with RE-confirmed Tahoe needles before host apply."
         ),
     ),
@@ -177,10 +202,10 @@ BYTE_PATCH_CANDIDATES: tuple[BytePatchCandidate, ...] = (
         target_path_hint=PATH_SKYLIGHT,
         find=b"CGDisplayGammaTable\x00",
         replace=b"CGDisplayGammaTable\x00",  # identity — dry-run locates; apply is no-op
-        evidence=(EVIDENCE_RESEARCH_A,),
+        evidence=(EVIDENCE_RESEARCH_A, EVIDENCE_L5R_STAGE_DOC),
         notes=(
-            "Locate-only probe against public symbol C-string if present in binary. "
-            "Identity replace keeps apply safe until a real delta is RE'd."
+            "B locate-only probe (identity apply). L5-R owns CoreDisplay "
+            "L5-CD-GAMMA-PROBE-V1 as root-volume OVERWRITE staging, not this API."
         ),
     ),
 )
@@ -226,9 +251,9 @@ SKYLIGHT_HOOK_REGISTRY: tuple[SkylightHookCandidate, ...] = (
         requires_payload=True,
         requires_extreme=True,
         notes=(
-            "Extreme-only on Tahoe: emits Merge System Volume scaffold when "
-            "10.14.6-<xnu> payload exists. Stock non_metal.py still returns {}; "
-            "MC may wire this scaffold on spare volumes under X86_EXTREME=1."
+            "Extreme-only scaffold hint when 10.14.6-<xnu> payload exists. "
+            "Production MERGE/OVERWRITE recipes live in L5-R "
+            "(skylight_lut_rootpatch); B does not own sys_patch PatchType bodies."
         ),
     ),
     SkylightHookCandidate(
@@ -268,9 +293,9 @@ SKYLIGHT_HOOK_REGISTRY: tuple[SkylightHookCandidate, ...] = (
         requires_payload=False,
         requires_extreme=True,
         notes=(
-            "Extreme-enabled dry-run→apply via BYTE_PATCH_CANDIDATES. "
-            "Default patterns are markers/identity probes; fill RE needles before "
-            "host root apply."
+            "Extreme-enabled dry-run→apply via BYTE_PATCH_CANDIDATES (B API). "
+            "Root-volume sys_patch OVERWRITE of staged Mach-Os is L5-R "
+            "(BINARY_PATCH_CANDIDATES → L5-patched/). Fill RE needles before host apply."
         ),
     ),
 )

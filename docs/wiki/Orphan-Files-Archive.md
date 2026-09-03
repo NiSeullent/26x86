@@ -9,7 +9,7 @@
 | `docs/ARCHITECTURE-26x86.md` | 내부 설계서 → [Developer.md](./Developer.md) |
 | `docs/DEPENDENCY-AUDIT.md` | 개발자 감사 로그 |
 | `docs/CLEANROOM-ARCHITECTURE.md` | Developer.md로 통합 |
-| `docs/wiki/Migration-from-OCLP.md` | [Migration.md](./Migration.md)와 중복 |
+| `docs/wiki/Migration-from-OCLP.md` | [Migration-from-OCLP.md](./Migration-from-OCLP.md)와 중복 |
 
 ## 삭제된 빌드·진입점
 

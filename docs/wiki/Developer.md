@@ -26,7 +26,7 @@ python3 Build-Project.command
 ## 설정
 
 - `~/Library/Preferences/com.niseullent.26x86.plist` 또는 `~/Library/Application Support/26x86/config.json`
-- 이전 패처와 자동 패치 **동시 사용 금지** — [Migration.md](./Migration.md)
+- 이전 패처와 자동 패치 **동시 사용 금지** — [Migration-from-OCLP.md](./Migration-from-OCLP.md)
 
 ## 원본·라이선스
 

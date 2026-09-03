@@ -66,7 +66,7 @@
 - **로그:** `~/Library/Logs/26x86/`
 - **앱 설치(PKG):** `/Library/Application Support/26x86/26x86.app`
 
-OCLP에서 전환하거나 디스크 정리가 필요하면 [docs/wiki/Migration.md](./docs/wiki/Migration.md)를 참고하세요. 자세한 설정 경로는 [docs/wiki/Configuration.md](./docs/wiki/Configuration.md)를 참고하세요.
+OCLP에서 전환하거나 디스크 정리가 필요하면 [docs/wiki/Migration-from-OCLP.md](./docs/wiki/Migration-from-OCLP.md)를 참고하세요. 자세한 설정 경로는 [docs/wiki/Configuration.md](./docs/wiki/Configuration.md)를 참고하세요.
 
 ---
 

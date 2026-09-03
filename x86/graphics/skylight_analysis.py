@@ -679,6 +679,8 @@ def serialize_skylight_analysis_fields(
             if c.status is HookStatus.EXTREME or c.requires_extreme
         ],
         "byte_patch_candidates": byte_patch_candidate_table(),
+        "role_split_with_l5r": ROLE_SPLIT_WITH_L5R,
+        "l5r_rootpatch_module": EVIDENCE_L5R_ROOTPATCH,
         "evidence_asentientbot": EVIDENCE_ASENTIENTBOT,
         "evidence_oclp_1167": EVIDENCE_OCLP_1167,
         "research_doc": EVIDENCE_RESEARCH_A,
@@ -742,7 +744,8 @@ def sys_patch_hooks(
         "notes": (
             f"Extreme hooks ({ENV_EXTREME}=1): SL-FRAMEWORK-MERGE merge scaffold + "
             "SL-BYTEPATCH-LUT dry-run table; call apply_byte_patch(..., dry_run=False) "
-            "explicitly to write."
+            "explicitly to write. Root-volume OVERWRITE recipes: Track L5-R "
+            f"({EVIDENCE_L5R_ROOTPATCH}). Role: {ROLE_SPLIT_WITH_L5R}"
         ),
     }
 

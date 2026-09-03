@@ -52,6 +52,16 @@ class RegistryIntegrityTest(unittest.TestCase):
         self.assertIn("SL-BYTEPATCH-LUT", ids)
         self.assertIn("SL-FRAMEWORK-MERGE", ids)
 
+    def test_role_split_with_l5r_documented(self) -> None:
+        split = self.m.ROLE_SPLIT_WITH_L5R
+        self.assertIn("B=analysis/bytepatch API", split)
+        self.assertIn("L5-R=sys_patch MERGE/OVERWRITE", split)
+        fields = self.m.serialize_skylight_analysis_fields(25)
+        self.assertEqual(fields["role_split_with_l5r"], split)
+        blob = ANALYSIS_PATH.read_text(encoding="utf-8")
+        self.assertIn("Role split with L5-R", blob)
+        self.assertIn("L5-patched/", blob)
+
     def test_g_contract_exports(self) -> None:
         self.assertTrue(callable(self.m.sys_patch_hooks))
         self.assertTrue(callable(self.m.serialize_track_detect_fields))

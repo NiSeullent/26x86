@@ -104,6 +104,17 @@ class StageJHookTest(unittest.TestCase):
         self.assertEqual(stage.STAGE_ID, "J")
         self.assertIn("x86.graphics.shader_avx_gate", stage.TRACK_CANDIDATES)
 
+    def test_mc_merge_plan_targets_shared_detect(self) -> None:
+        stage = _load_stage()
+        plan = stage.mc_merge_plan()
+        self.assertEqual(plan["integrate_after"], "52f7298")
+        self.assertEqual(plan["queue_id"], "next:J-detect-stage")
+        paths = {t["path"] for t in plan["shared_targets"]}
+        self.assertIn("x86/graphics/detect.py", paths)
+        self.assertIn("x86/graphics/skylight_tracks.py", paths)
+        self.assertIn("serialize_shader_avx_fields", plan["snippets"]["detect.py"])
+        self.assertIn('"J"', plan["snippets"]["skylight_tracks.py"])
+
 
 class StandaloneScanSmokeTest(unittest.TestCase):
     def test_missing_path(self) -> None:

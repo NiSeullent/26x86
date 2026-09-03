@@ -3,11 +3,29 @@
 > **프로젝트:** 26x86 (`NiSeullent/26x86`)  
 > **작성일:** 2026-09-04  
 > **미션:** Autopilot / **극한도전** — Tahoe + pre-AVX + Vega 64 **및** Metal 3802 · Non-Metal도 **쓸 수 있는** 환경 (**중단 없음**)  
-> **Mission Control:** [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md) (트랙 A–N · O–Z)  
+> **Mission Control:** [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md) · [STAGE-WORKFLOW.md](./STAGE-WORKFLOW.md)  
+> **마지막 INTEGRATE:** `52f7298` — A docs · M 3802 · N Non-Metal · F PSP **live**  
+> **다음 큐:** H → J → L5-R/B → I↔K (D Tools diagnostics 승격됨)  
 > **로드맵:** [Tahoe-Graphics-Roadmap.md](./Tahoe-Graphics-Roadmap.md) Layer B  
-> **관련:** [Tahoe-Yellow-Screen-Research.md](./Tahoe-Yellow-Screen-Research.md) · [wiki/Mac-Pro-Tahoe-Yellow-Screen.md](./wiki/Mac-Pro-Tahoe-Yellow-Screen.md) · [wiki/Pre-AVX-Mac-Pro.md](./wiki/Pre-AVX-Mac-Pro.md)
+> **관련:** [Tahoe-Yellow-Screen-Research.md](./Tahoe-Yellow-Screen-Research.md) · [wiki/Mac-Pro-Tahoe-Yellow-Screen.md](./wiki/Mac-Pro-Tahoe-Yellow-Screen.md)
 
-트랙 **A**는 본 Research·Tracks·Roadmap만. **3802/Non-Metal 해금 코드는 트랙 M/N.**
+트랙 **A**는 문서 `.stage-A`만. 3802/Non-Metal **코드는 M/N 라이브** (재구현 금지).  
+루트패치는 **Tahoe (`is_tahoe`)만** — Sequoia에서 `X86_EXTREME`이어도 루트 no-op.
+
+---
+
+## INTEGRATE 스냅샷
+
+| 축 | 상태 |
+|----|------|
+| STAGE-WORKFLOW | **정식화** (`52f7298` + `9e896f3` touch-up) |
+| A 문서 | INTEGRATE |
+| M / N / F | Tahoe 옵트인 **live** |
+| D Tools diagnostics | **live** (`30203ab` promote) |
+
+### 다음 큐
+
+**H → J → L5-R/B → I↔K** (배포/루트 에이전트와 코드 충돌 시 문서만 선행)
 
 ---
 
@@ -16,23 +34,21 @@
 | # | 기준 | 상태 (문서 시점) |
 |---|------|------------------|
 | 1 | WindowServer **정상 색** | 미달 — compositor 본질 미해결 |
-| 2 | **가속** (31001 / **3802** / **Non-Metal**) | 31001 부분; 3802·NM은 **기본 차단**, 옵트인 대기 |
+| 2 | **가속** (31001 / **3802** / **Non-Metal**) | 31001 부분; **3802/NM = 기본 `{}` + 옵트인 live** (`52f7298`) — 실기 스모크 대기 |
 | 3 | **Safari** Pre-AVX Fix | 경로 존재 (cf7f26f) |
-| 4 | **재부팅 안정** | 실기 ≥2 cold boot 필요 |
+| 4 | **재부팅 안정** | 실기 ≥2 cold boot 필요 (Tahoe) |
 
-### 가드 정책 — 기본 경로 금지 / 옵트인 해금
+### 가드 정책 — 기본 경로 안전 / 옵트인 해금
 
-| 항목 | 기본 | 옵트인 (트랙 M/N 구현) |
-|------|------|------------------------|
-| **Metal 3802** Tahoe shared | **`return {}` 유지** | `X86_EXTREME=1` + `X86_TAHOE_3802=1` |
-| **Non-Metal** Tahoe shared | **`return {}` 유지** | `X86_EXTREME=1` + `X86_TAHOE_NONMETAL=1` |
-| 추측 CoreDisplay/SkyLight 바이트패치 | **금지** | 금지 |
-| EFI agdpmod 재구현 | **금지** | D=검증 |
+| 항목 | 기본 | 옵트인 |
+|------|------|--------|
+| **Metal 3802** Tahoe shared | **`return {}`** | `X86_EXTREME` + `X86_TAHOE_3802` |
+| **Non-Metal** Tahoe shared | **`return {}`** | `X86_EXTREME` + `X86_TAHOE_NONMETAL` |
+| SkyLight/CoreDisplay 바이트패치 | 기본 비활성 | extreme 옵트인 허용 (영구 절대금지 아님) |
+| EFI agdpmod 재구현 | D=검증만 | d3a7b87 유지 |
 
-OCLP 세대 해금 서사: [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md#oclp-세대-해금-서사).
-
-병렬 **트랙 ID(A–N)** 와 §5 **복구 후보(R\*)** 는 다른 네임스페이스다.
-
+OCLP 세대 해금: [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md).  
+트랙 ID(A–N)와 복구 후보(R\*)는 다른 네임스페이스.
 
 ---
 

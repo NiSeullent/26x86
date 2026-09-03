@@ -47,13 +47,41 @@ def macos_only_message(feature: str = "") -> str:
     return MACOS_ONLY_MESSAGE
 
 
+def qt_webengine_available() -> bool:
+    """True when a Qt Chromium (WebEngine) binding can be imported."""
+    try:
+        from PySide6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
+
+        return True
+    except Exception:
+        pass
+    for module in (
+        "PyQt6.QtWebEngineWidgets",
+        "PyQt5.QtWebEngineWidgets",
+    ):
+        try:
+            __import__(module)
+            return True
+        except Exception:
+            continue
+    return False
+
+
 def resolve_pywebview_gui() -> Optional[str]:
-    """Preferred pywebview backend for the current OS."""
+    """Preferred pywebview backend. Chromium first; Cocoa WebKit is last-resort on macOS."""
+    override = (os.environ.get("X86_WEBVIEW_GUI") or "").strip().lower()
+    if override:
+        return override
+
     if is_macos():
+        if qt_webengine_available():
+            return "qt"
         return "cocoa"
     if is_windows():
         return "edgechromium"
     if is_linux():
+        if qt_webengine_available():
+            return "qt"
         return "gtk"
     return None
 

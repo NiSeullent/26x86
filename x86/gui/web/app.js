@@ -32,32 +32,98 @@
     settingVerbose: document.getElementById("setting-verbose"),
   };
 
+  const QT_BRIDGE_METHODS = [
+    "get_app_info",
+    "get_steps",
+    "detect",
+    "get_macos_choices",
+    "set_target_os",
+    "get_patch_status",
+    "get_status",
+    "get_settings",
+    "save_settings",
+    "host_can_build",
+    "launch_wx_action",
+    "reveal_log",
+    "open_guide",
+  ];
+
+  function promisifyQtBridge(bridge) {
+    if (!bridge || bridge.__qtWrapped) {
+      return bridge;
+    }
+    const wrapped = { __qtWrapped: true };
+    QT_BRIDGE_METHODS.forEach((name) => {
+      wrapped[name] = function (...args) {
+        return new Promise((resolve, reject) => {
+          try {
+            const fn = bridge[name];
+            if (typeof fn !== "function") {
+              reject(new Error(`${name} is not available`));
+              return;
+            }
+            fn.apply(bridge, args.concat([(result) => resolve(result)]));
+          } catch (err) {
+            reject(err);
+          }
+        });
+      };
+    });
+    return wrapped;
+  }
+
+  function getBridgeApi() {
+    if (window.pywebview && window.pywebview.api) {
+      return window.pywebview.api;
+    }
+    return null;
+  }
+
+  function connectQtWebChannel() {
+    if (getBridgeApi()) {
+      return;
+    }
+    if (typeof QWebChannel === "undefined" || typeof qt === "undefined" || !qt.webChannelTransport) {
+      return;
+    }
+    new QWebChannel(qt.webChannelTransport, (channel) => {
+      if (channel.objects && channel.objects.bridge) {
+        window.pywebview = { api: promisifyQtBridge(channel.objects.bridge) };
+        window.dispatchEvent(new Event("pywebviewready"));
+      }
+    });
+  }
+
   function api(method, ...args) {
-    if (window.pywebview && window.pywebview.api && window.pywebview.api[method]) {
-      const result = window.pywebview.api[method](...args);
+    const surface = getBridgeApi();
+    if (surface && typeof surface[method] === "function") {
+      const result = surface[method](...args);
       return result && typeof result.then === "function" ? result : Promise.resolve(result);
     }
-    return Promise.reject(new Error("pywebview API unavailable"));
+    return Promise.reject(new Error("Python bridge API unavailable"));
   }
 
   function whenBridgeReady(callback) {
-    if (window.pywebview && window.pywebview.api) {
+    if (getBridgeApi()) {
       callback();
       return;
     }
 
+    connectQtWebChannel();
+
     let attempts = 0;
-    const maxAttempts = 120;
+    const maxAttempts = 200;
     const timer = window.setInterval(() => {
       attempts += 1;
-      if (window.pywebview && window.pywebview.api) {
+      connectQtWebChannel();
+      if (getBridgeApi()) {
         window.clearInterval(timer);
         callback();
       } else if (attempts >= maxAttempts) {
         window.clearInterval(timer);
         els.stepContent.innerHTML =
-          '<p class="lead">Python 브릿지에 연결하지 못했습니다. 앱을 다시 시작하거나 터미널에서 <code>python3 -m x86 wizard</code>를 실행해 주세요.</p>';
-        toast("pywebview API 연결 실패", "error");
+          '<p class="lead">Python 브릿지에 연결하지 못했습니다. Chromium(Qt WebEngine) 창이 열렸는지 확인하거나 터미널에서 <code>python3 -m x86 wizard</code>를 실행해 주세요.</p>';
+        toast("Python bridge API 연결 실패", "error");
       }
     }, 50);
 

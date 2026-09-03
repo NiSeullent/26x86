@@ -1,5 +1,6 @@
 requests
 pywebview>=5.0
+PySide6>=6.6; sys_platform == 'darwin'
 wxpython<4.2.5
 packaging
 markdown2
@@ -24,6 +25,7 @@ mac-signing-buddy; sys_platform == 'darwin'
 #   PYINSTALLER_COMPILE_BOOTLOADER=1 pip install --no-binary pyinstaller -r requirements.txt --verbose
 pyinstaller --no-binary=pyinstaller; sys_platform == 'darwin'
 
-# Windows/Linux GUI notes:
-# - pywebview on Windows needs Microsoft Edge WebView2 Runtime
-# - pywebview on Linux needs python3-gi / PyGObject (GTK) or PyQt5/PyQt6 (Qt)
+# GUI notes:
+# - macOS default: PySide6 Qt WebEngine (Chromium). Cocoa WKWebView is fallback only.
+# - Windows: pywebview + Microsoft Edge WebView2 Runtime (Chromium)
+# - Linux: PySide6/PyQt WebEngine or python3-gi / PyGObject (GTK)

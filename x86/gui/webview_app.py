@@ -1,5 +1,8 @@
 """
-pywebview shell for the HTML hybrid 26x86 wizard.
+HTML hybrid 26x86 wizard shell.
+
+Default: PySide6 Qt WebEngine (Chromium).
+Fallback: pywebview (Qt / Edge WebView2), then Cocoa WebKit on macOS only.
 """
 
 from __future__ import annotations
@@ -11,11 +14,11 @@ from typing import Any, Optional
 
 from x86.gui import bootstrap
 from x86.gui.bridge import WizardBridge
-from x86.platform import resolve_pywebview_gui
+from x86.platform import is_macos, resolve_pywebview_gui, qt_webengine_available
 
 
 class WebviewApi:
-    """JS-callable API surface (pywebview js_api)."""
+    """JS-callable API surface (pywebview js_api / Qt QWebChannel)."""
 
     def __init__(self, bridge: Optional[WizardBridge] = None) -> None:
         self._bridge = bridge or WizardBridge()
@@ -70,12 +73,42 @@ def _ensure_stdio_for_frozen_gui() -> None:
         sys.stderr = open(os.devnull, "w")
 
 
-def launch_webview_wizard(*, advanced: bool = False) -> None:
-    """Open the HTML hybrid wizard in a native pywebview window."""
-    import webview
+def _requested_backend() -> str:
+    return (os.environ.get("X86_GUI_BACKEND") or "auto").strip().lower()
 
+
+def _should_try_qt_chromium(requested: str) -> bool:
+    if requested in ("cocoa", "webkit", "pywebview", "edge", "edgechromium"):
+        return False
+    if requested in ("auto", "", "chromium", "qt", "webengine"):
+        return True
+    return requested == "chromium"
+
+
+def launch_webview_wizard(*, advanced: bool = False) -> None:
+    """Open the HTML hybrid wizard. Chromium is preferred; Cocoa is last-resort."""
     _ensure_stdio_for_frozen_gui()
     bootstrap.ensure_repo_on_path()
+    requested = _requested_backend()
+
+    if _should_try_qt_chromium(requested) and qt_webengine_available():
+        try:
+            from x86.gui.qt_chromium import launch_qt_chromium_wizard
+
+            logging.info("Launching HTML wizard with Qt WebEngine (Chromium)")
+            launch_qt_chromium_wizard(advanced=advanced)
+            return
+        except Exception:
+            logging.exception("Qt WebEngine (Chromium) failed; trying pywebview")
+            if requested in ("chromium", "qt", "webengine"):
+                raise
+
+    _launch_pywebview_wizard(advanced=advanced, requested=requested)
+
+
+def _launch_pywebview_wizard(*, advanced: bool, requested: str) -> None:
+    import webview
+
     bridge = WizardBridge()
     api = WebviewApi(bridge)
 
@@ -87,18 +120,53 @@ def launch_webview_wizard(*, advanced: bool = False) -> None:
         logging.warning("Advanced GUI unavailable: %s", result.get("error"))
 
     title = bridge.get_app_info()["title"]
-    window = webview.create_window(
-        title,
-        url=bridge.index_uri(),
-        js_api=api,
-        width=960,
-        height=720,
-        min_size=(760, 560),
-        resizable=True,
-        text_select=True,
-        background_color="#e8edf3",
-    )
-    webview.start(debug=False, gui=resolve_pywebview_gui(), http_server=True)
+    index_path = bridge.index_uri()
+    logging.info("pywebview wizard url=%s exists=%s", index_path, os.path.exists(index_path))
+
+    gui = resolve_pywebview_gui()
+    if requested in ("cocoa", "webkit"):
+        gui = "cocoa"
+    elif requested in ("edge", "edgechromium"):
+        gui = "edgechromium"
+    elif requested == "qt":
+        gui = "qt"
+
+    if requested in ("cocoa", "webkit"):
+        backends = ["cocoa"]
+    elif gui == "cocoa":
+        backends = ["qt", "cocoa"] if is_macos() else ["qt"]
+    else:
+        backends = [gui]
+        if is_macos() and gui != "cocoa":
+            backends.append("cocoa")
+
+    last_error: Optional[BaseException] = None
+    for index, backend in enumerate(backends):
+        try:
+            logging.info("Starting pywebview with gui=%s http_server=True", backend)
+            os.environ.setdefault("QT_API", "pyside6")
+            webview.create_window(
+                title,
+                url=index_path,
+                js_api=api,
+                width=960,
+                height=720,
+                min_size=(760, 560),
+                resizable=True,
+                text_select=True,
+                background_color="#e8edf3",
+            )
+            webview.start(debug=False, gui=backend, http_server=True)
+            return
+        except Exception as exc:
+            last_error = exc
+            logging.warning("pywebview gui=%s failed: %s", backend, exc)
+            if index == len(backends) - 1:
+                raise
+            continue
+
+    if last_error:
+        raise last_error
 
 
 def smoke_test_bridge() -> dict[str, Any]:
@@ -125,6 +193,9 @@ def smoke_test_bridge() -> dict[str, Any]:
     index_path = bridge.index_path()
     results["web_index"] = str(index_path)
     results["index_is_file_uri"] = bridge.index_uri().startswith("file://")
+    results["qt_chromium_available"] = qt_webengine_available()
+    results["pywebview_gui"] = resolve_pywebview_gui()
+    results["gui_backend_env"] = _requested_backend()
     return results
 
 

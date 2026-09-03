@@ -57,8 +57,9 @@ def launch_wizard(advanced: bool = False) -> None:
     """
     Start the default end-user wizard.
 
-    Default: HTML hybrid UI (pywebview).
-    Fallback: legacy wx wizard when ``X86_LEGACY_GUI=1`` or pywebview is unavailable.
+    Default: HTML hybrid UI on Chromium (PySide6 Qt WebEngine).
+    Fallback: pywebview (Qt / WebView2), then Cocoa WebKit, then legacy wx
+    when ``X86_LEGACY_GUI=1`` or the HTML shell cannot start.
     """
     _ensure_repo_root()
 
@@ -73,7 +74,7 @@ def launch_wizard(advanced: bool = False) -> None:
     except ImportError as exc:
         import logging
 
-        logging.warning("pywebview unavailable (%s); falling back to legacy wx wizard.", exc)
+        logging.warning("HTML wizard unavailable (%s); falling back to legacy wx wizard.", exc)
         _launch_legacy_wx(advanced=advanced)
 
 

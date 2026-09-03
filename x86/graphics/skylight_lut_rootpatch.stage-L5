@@ -1,0 +1,32 @@
+track=L5-R
+role=oclp_root_volume_skylight_coredisplay_OVERWRITE
+commit_prefix=feat(skylight-L5):
+integrates_with=B@55c3802,INTEGRATE@52f7298
+files=
+  x86/graphics/skylight_lut_rootpatch.py
+  x86/graphics/skylight_lut_rootpatch.stage-L5
+  x86/graphics/test_skylight_lut_rootpatch.stage-L5.py
+  docs/EXTREME-SkyLight-LUT-Rootpatch.stage-L5.md
+shared=none
+gate=X86_EXTREME=1
+mode_env=X86_EXTREME_SKYLIGHT_ROOTPATCH_MODE
+# overwrite (default) | merge
+slices_env=X86_EXTREME_SKYLIGHT_ROOTPATCH_SLICES
+# skylight,coredisplay,binary,all
+coredisplay_variant_env=X86_EXTREME_COREDISPLAY_VARIANT
+# mojave→10.14.4-24 | hs→10.13.6-24
+runtime_inject=forbidden
+task_for_pid=forbidden
+
+# Role split (B handoff):
+#   B  = BYTE_PATCH_CANDIDATES + dry_run/apply API (26X86_SL_*)
+#   L5 = BINARY_PATCH_CANDIDATES + PatchType OVERWRITE dicts (26X86_L5_* / L5-patched/)
+
+recipes=
+  OVERWRITE SkyLight.framework <- 10.14.6-24
+  OVERWRITE CoreDisplay.framework <- 10.14.4-24
+  OVERWRITE L5-patched Mach-O when present
+  optional MERGE via X86_EXTREME_SKYLIGHT_ROOTPATCH_MODE=merge
+
+# Track G INTEGRATE paste (do not edit skylight_tracks from L5):
+# TRACK_MODULE_CANDIDATES["L5"] = ("x86.graphics.skylight_lut_rootpatch",)

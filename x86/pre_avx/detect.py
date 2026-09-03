@@ -200,6 +200,8 @@ def build_detect_fields(
         model=model,
         notes=tuple(notes),
         xnu_major=xnu_major,
+        cpu_features=cpu_features,
+        cpu_leaf7_features=cpu_leaf7_features,
         host_is_macos=macos,
         cpu_flags=tuple(combined_flags),
     )
@@ -219,6 +221,7 @@ def serialize_detect_fields(fields: PreAvxDetectFields) -> dict[str, Any]:
         "pre_avx_mac_pro": fields.pre_avx_mac_pro,
         "recommended_metal_patch": fields.recommended_metal_patch,
         "avx_available": fields.avx_available,
+        "avx2_available": fields.has_avx2,
         "has_avx2": fields.has_avx2,
         "safari_pre_avx_fix_recommended": fields.safari_pre_avx_fix_recommended,
         "auto_pre_avx_patch": fields.auto_pre_avx_patch_enabled,

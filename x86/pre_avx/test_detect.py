@@ -76,13 +76,35 @@ class PreAvxPhase1DetectTest(unittest.TestCase):
             "pre_avx_mac_pro",
             "recommended_metal_patch",
             "avx_available",
+            "avx2_available",
             "has_avx2",
             "safari_pre_avx_fix_recommended",
             "auto_pre_avx_patch",
             "recommended_tahoe_graphics_policy",
+            "tahoe_blocked_patches",
             "safari26_preavx",
         ):
             self.assertIn(key, payload)
+        self.assertTrue(payload["avx_available"])
+        self.assertFalse(payload["avx2_available"])
+        self.assertEqual(payload["recommended_tahoe_graphics_policy"], "tahoe_gcn_efi_only")
+        self.assertIn("Metal 3802 Common", payload["tahoe_blocked_patches"])
+        self.assertIn("Non-Metal Common", payload["tahoe_blocked_patches"])
+
+    def test_macpro51_tahoe_blocked_patches(self) -> None:
+        fields = build_detect_fields(
+            "MacPro5,1",
+            cpu_features=MACPRO51_NO_AVX,
+            cpu_leaf7_features=[],
+            xnu_major=25,
+        )
+        payload = serialize_detect_fields(fields)
+        self.assertEqual(
+            payload["recommended_tahoe_graphics_policy"],
+            "tahoe_no_legacy_gpu_root_patch",
+        )
+        self.assertFalse(payload["avx2_available"])
+        self.assertGreater(len(payload["tahoe_blocked_patches"]), 0)
 
     def test_recommend_metal_from_gpu_name(self) -> None:
         self.assertEqual(

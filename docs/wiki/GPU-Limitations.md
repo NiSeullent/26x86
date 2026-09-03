@@ -21,6 +21,24 @@ macOS 26 Tahoe에서 **그래픽 패치가 미완료**된 GPU 클래스와 대�
 
 ---
 
+## Mac Pro 5,1 / 6,1 (Tahoe 노란 화면)
+
+Safari 크래시(AVX)와 WindowServer 노란 화면은 다릅니다.
+
+- **Safari SIGILL:** [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md)
+- **노란 화면 / 3802·Non-Metal 차단:** [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md) — MacPro6,1은 EFI agdpmod + AMD Legacy GCN kext
+
+---
+
+## 노란 화면 vs Safari AVX (이원화)
+
+- **전체 화면 노란/주황:** Tahoe **WindowServer compositor** 실패. GCN만이 아니라 **Polaris·Vega 64**(Mac Pro 소켓 애프터마켓 포함)에서도 발생. 공개: [OCLP-T2 #194](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/issues/194). Vega 64 재현은 **unpublished / reporter: 내부**.
+- **Safari만 크래시:** Pre-AVX JavaScriptCore — WindowServer와 무관.
+- 진단: `Tools/collect_graphics_diagnostics.command`, `python3 -m x86 detect --json` (`gpu_family`, `yellow_screen_risk`).
+- 상세: [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md)
+
+---
+
 ## 지원 모델 (참고)
 
 README의 주요 기능에 따르면, **지원 모델 한정**으로 Metal·Non-Metal GPU 그래픽 가속이 가능합니다. 본 페이지의 제한 대상 Mac은 해당 범위에 포함되지 않을 수 있습니다.

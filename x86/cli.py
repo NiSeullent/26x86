@@ -145,6 +145,7 @@ def cmd_detect(args: argparse.Namespace) -> int:
             "avx_available",
             "avx2_available",
             "has_avx2",
+            "tahoe_blocked_patches",
             "safari_pre_avx_fix_recommended",
             "auto_pre_avx_patch",
         )
@@ -163,6 +164,12 @@ def cmd_detect(args: argparse.Namespace) -> int:
             if payload.get("pre_avx_mac_pro"):
                 logging.info("  Pre-AVX Mac Pro: 예 (Metal 힌트: %s)", payload.get("recommended_metal_patch"))
                 logging.info("  AVX 사용 가능: %s", "예" if payload.get("avx_available") else "아니오")
+                logging.info("  AVX2 사용 가능: %s", "예" if payload.get("avx2_available") else "아니오")
+                if payload.get("recommended_tahoe_graphics_policy"):
+                    logging.info("  Tahoe 그래픽 정책: %s", payload["recommended_tahoe_graphics_policy"])
+                blocked = payload.get("tahoe_blocked_patches") or []
+                if blocked:
+                    logging.info("  Tahoe 차단 패치: %s", ", ".join(blocked[:4]) + ("…" if len(blocked) > 4 else ""))
         else:
             logging.info("%s 호스트 정보:", platform_label())
             logging.info("  플랫폼: %s", payload.get("platform"))

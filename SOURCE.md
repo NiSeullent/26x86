@@ -4,9 +4,7 @@
 
 검증된 빌드는 [26x86 Releases](https://github.com/NiSeullent/26x86/releases)를 참고하세요.
 
-* **경고:** 태그 없는 최신 커밋 빌드는 활발히 개발 중인 빌드입니다. 테스트·안전·동작이 보장되지 않습니다. 주력 Mac에서 사용하지 마세요. [CHANGELOG](./CHANGELOG.md)를 먼저 읽으세요.
-* **포럼 등에 해당 바이너리 링크를 공유하지 마세요.** 이 문서 또는 공식 Releases만 링크하세요.
-* 신뢰할 수 없는 출처의 재업로드 바이너리는 보안 위험이 있습니다.
+> **주의:** 소스·빌드 관련 경고는 [docs/wiki/Warnings.md](docs/wiki/Warnings.md)를 참고하세요.
 
 ## 시작하기
 

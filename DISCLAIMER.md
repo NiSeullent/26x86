@@ -2,6 +2,8 @@
 
 **26x86** — Better macOS 26 System for x86-Based Macintosh
 
+> **위키:** 요약·주의사항 통합 문서는 [docs/wiki/Disclaimer.md](docs/wiki/Disclaimer.md) · [docs/wiki/Warnings.md](docs/wiki/Warnings.md) · [docs/wiki/Home.md](docs/wiki/Home.md)를 참고하세요.
+
 ---
 
 ## 실험적 소프트웨어
@@ -55,6 +57,22 @@
 ## 문의 및 지원
 
 본 프로젝트는 **「있는 그대로」** 제공되며 공식적인 기술 지원을 보장하지 않습니다. 문제 발생 시 GitHub Issues 또는 커뮤니티를 통해 자발적으로 도움을 구할 수 있습니다.
+
+## 설정 파일 및 OCLP 분리
+
+26x86은 Dortania OpenCore Legacy Patcher(OCLP)와 **런타임 설정·Launch Services·앱 설치 경로를 공유하지 않습니다.**
+
+- **26x86 설정:** `~/Library/Preferences/com.niseullent.26x86.plist`
+- **로그:** `~/Library/Logs/26x86/`
+- **앱 설치(PKG):** `/Library/Application Support/26x86/26x86.app`
+
+이전에 OCLP 또는 OCLP-T2를 사용했다면, root 소유로 남아 있는 공유 설정 파일이 26x86 실행을 방해할 수 있습니다. 다음 명령으로 **OCLP 레거시 설정만** 제거할 수 있습니다(26x86 설정과 무관):
+
+```bash
+sudo rm '/Users/Shared/.com.dortania.opencore-legacy-patcher.plist'
+```
+
+자세한 내용은 [docs/wiki/Configuration.md](./docs/wiki/Configuration.md)를 참고하세요.
 
 ---
 

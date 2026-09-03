@@ -38,7 +38,7 @@ python3 OpenCore-Patcher-GUI.command
 | Git | `git --version` |
 | gh CLI | GitHub 인증 (선택) |
 
-> ⚠️ Xcode/CLT에 포함된 Python 3.9는 **지원하지 않습니다**. 반드시 python.org 또는 uv로 3.13을 설치하세요.
+> 개발 환경 주의사항(Python 3.9 비지원, VM 호스트 등): [wiki/Installation-Notes.md](./wiki/Installation-Notes.md) · [wiki/Warnings.md](./wiki/Warnings.md)
 
 ### 2. 저장소 클론
 
@@ -147,9 +147,7 @@ brew install --cask utm
 3. 디스크 이미지: macOS Recovery 또는 설치 ISO 마운트
 4. EFI 파티션에 26x86으로 생성한 OpenCore EFI 복사
 
-> ⚠️ Apple Silicon Mac에서는 x86 macOS VM이 제한됩니다. **Intel Mac 호스트**에서 테스트하는 것을 권장합니다.
-
-자세한 VM 설정은 [vm/README.md](../vm/README.md)를 참고하세요.
+자세한 VM 설정은 [vm/README.md](../vm/README.md)를 참고하세요. VM 호스트 제한은 [wiki/Installation-Notes.md](./wiki/Installation-Notes.md)를 참고하세요.
 
 ## 환경 변수
 
@@ -182,6 +180,7 @@ Acidanthera kext (Lilu, WhateverGreen 등)는 `payloads/Kexts/Update-Kexts.comma
 
 ## 관련 문서
 
-- [SOURCE.md](../26x86/SOURCE.md) — 소스에서 실행
-- [DISCLAIMER.md](../26x86/DISCLAIMER.md) — 면책사항
+- [wiki/Home.md](./wiki/Home.md) — 위키 목차 (주의사항·이슈·설치)
+- [SOURCE.md](../SOURCE.md) — 소스에서 실행
+- [DISCLAIMER.md](../DISCLAIMER.md) — 면책사항
 - [RESEARCH_INVENTORY.md](./RESEARCH_INVENTORY.md) — 연구 자료 목록

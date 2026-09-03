@@ -10,7 +10,7 @@
 
 - **Main repo:** https://github.com/NiSeullent/26x86
 - **Maintainer:** NiSeullent
-- **Status:** Experimental alpha — read [DISCLAIMER](../DISCLAIMER.md) (Korean) before use
+- **Status:** Experimental alpha — read [wiki/Warnings.md](./wiki/Warnings.md) and [DISCLAIMER](../DISCLAIMER.md) before use
 
 ## Korean vs English documentation
 
@@ -24,6 +24,7 @@
 | This overview | English | README.en.md |
 | Setup guide | English | [SETUP.en.md](./SETUP.en.md) |
 | Edition notes | EN + KO | [KOREAN_EDITION.md](./KOREAN_EDITION.md) |
+| Wiki (Korean) | Korean | [wiki/Home.md](./wiki/Home.md) |
 
 ## Quick links
 

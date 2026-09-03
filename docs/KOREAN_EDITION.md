@@ -10,7 +10,7 @@ This fork and workspace are tuned for **Korean-speaking users** while remaining 
 
 | Area | Default | Notes |
 |------|---------|--------|
-| **User documentation** | Korean | `26x86/README.md`, `SOURCE.md`, `DISCLAIMER.md`, legal notices, `docs/SETUP.md`, etc. |
+| **User documentation** | Korean | `README.md`, `SOURCE.md`, `DISCLAIMER.md`, `docs/wiki/`, `docs/SETUP.md`, etc. |
 | **GUI setup wizard** | Korean | `opencore_legacy_patcher/wizard/strings.py` |
 | **CLI help text** | Korean (`--lang ko`) | Default language for `--help`; use `--lang en` for English |
 | **English supplements** | Optional | `docs/README.en.md`, `docs/SETUP.en.md`, this file |
@@ -38,7 +38,7 @@ Not affiliated with Apple Inc. or Dortania.
 
 | 영역 | 기본값 | 설명 |
 |------|--------|------|
-| **사용자 문서** | 한국어 | `26x86/README.md`, `SOURCE.md`, `DISCLAIMER.md`, `docs/SETUP.md` 등 |
+| **사용자 문서** | 한국어 | `README.md`, `SOURCE.md`, `DISCLAIMER.md`, `docs/wiki/`, `docs/SETUP.md` 등 |
 | **GUI 설정 마법사** | 한국어 | `opencore_legacy_patcher/wizard/strings.py` |
 | **CLI 도움말** | 한국어 (`--lang ko`) | `--help` 기본; 영어는 `--lang en` |
 | **영문 보조 문서** | 선택 | `docs/README.en.md`, `docs/SETUP.en.md`, 본 파일 |

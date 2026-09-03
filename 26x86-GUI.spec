@@ -110,3 +110,17 @@ app = BUNDLE(coll,
                     "NSAllowsArbitraryLoads": False,
                 },
              })
+
+def _repair_qtwebengine_helpers(bundle: Path) -> None:
+    """PyInstaller leaves Helpers at Versions/Resources; Qt looks in Versions/Current."""
+    for rel in (
+        "Contents/Frameworks/PySide6/Qt/lib/QtWebEngineCore.framework",
+        "Contents/Resources/PySide6/Qt/lib/QtWebEngineCore.framework",
+    ):
+        fw = bundle / rel
+        src = fw / "Versions" / "Resources" / "Helpers"
+        dst = fw / "Versions" / "A" / "Helpers"
+        if src.exists() and not dst.exists():
+            os.symlink("../Resources/Helpers", dst)
+
+_repair_qtwebengine_helpers(SPEC_DIR / "dist" / "26x86.app")

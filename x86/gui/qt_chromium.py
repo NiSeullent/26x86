@@ -13,7 +13,8 @@ import sys
 import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
 
 from x86.gui.bridge import WizardBridge
 from x86.gui.webview_app import WebviewApi
@@ -30,9 +31,41 @@ def qt_chromium_available() -> bool:
         return False
 
 
+def _frozen_webengine_process() -> Optional[str]:
+    """Locate QtWebEngineProcess inside a PyInstaller .app (symlink layout varies)."""
+    if not getattr(sys, "frozen", False):
+        return None
+    roots: list[Path] = []
+    exe = Path(sys.executable).resolve()
+    if exe.parent.name == "MacOS":
+        roots.append(exe.parent.parent)  # Contents
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        roots.append(Path(meipass))
+        roots.append(Path(meipass).parent)
+    seen: set[Path] = set()
+    for root in roots:
+        if root in seen or not root.exists():
+            continue
+        seen.add(root)
+        for relative in (
+            "Frameworks/PySide6/Qt/lib/QtWebEngineCore.framework/Versions/Resources/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess",
+            "Resources/PySide6/Qt/lib/QtWebEngineCore.framework/Versions/Resources/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess",
+            "MacOS/QtWebEngineProcess",
+        ):
+            candidate = root / relative
+            if candidate.is_file():
+                return str(candidate)
+    return None
+
+
 def _prepare_qt_environment() -> None:
     os.environ.setdefault("QT_API", "pyside6")
     os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
+    process = _frozen_webengine_process()
+    if process:
+        os.environ["QTWEBENGINEPROCESS_PATH"] = process
+        logging.info("QtWebEngineProcess=%s", process)
     if getattr(sys, "frozen", False):
         os.environ.setdefault(
             "QTWEBENGINE_CHROMIUM_FLAGS",

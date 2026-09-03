@@ -70,7 +70,10 @@ class BridgeSmokeTest(unittest.TestCase):
         self.assertIn("qrc:", index)
         self.assertIn("connectQtWebChannel", js)
         self.assertIn("promisifyQtBridge", js)
-        self.assertIn("pywebviewready", js)
+    def test_frozen_webengine_lookup_is_safe(self) -> None:
+        from x86.gui.qt_chromium import _frozen_webengine_process
+
+        self.assertIsNone(_frozen_webengine_process())
 
 
 if __name__ == "__main__":

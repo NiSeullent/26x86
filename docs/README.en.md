@@ -1,39 +1,27 @@
 # 26x86 — Project Overview (English)
 
-> **Korean-Optimized Edition / 한글판 최적화**
->
-> This repository is maintained primarily for Korean-speaking users. User-facing documentation, the setup wizard, and CLI help default to **Korean**. These English pages are **supplementary**.
+> Korean is the primary language for user docs and the GUI. These pages are supplementary.
 
 ## What is 26x86?
 
-**26x86** is an experimental community fork focused on **macOS 26 Tahoe** (and related releases) on **x86-based Macs**, including Apple **T2** models. It builds on [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2) and Dortania’s [OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher).
+Experimental community patcher for **macOS 26 Tahoe** on **x86 Macs** (including T2). See [NOTICE.md](../NOTICE.md) and [Upstream-Repositories.md](./wiki/Upstream-Repositories.md) for upstream lineage.
 
-- **Main repo:** https://github.com/NiSeullent/26x86
-- **Maintainer:** NiSeullent
-- **Status:** Experimental alpha — read [DISCLAIMER](../DISCLAIMER.md) before use
+- **Repo:** https://github.com/NiSeullent/26x86
+- **Status:** Experimental alpha — read [DISCLAIMER](../DISCLAIMER.md)
 
-## Documentation map
+## Documentation
 
-| Document | Language | Path |
-|----------|----------|------|
-| Main README | Korean | [README.md](../README.md) |
-| **Wiki home** | Korean | [wiki/Home.md](./wiki/Home.md) |
-| **Architecture** | Korean + EN summary | [ARCHITECTURE-26x86.md](./ARCHITECTURE-26x86.md) |
-| Configuration | Korean + EN summary | [wiki/Configuration.md](./wiki/Configuration.md) |
-| OCLP migration | Korean + EN summary | [wiki/Migration-from-OCLP.md](./wiki/Migration-from-OCLP.md) |
-| Build from source | Korean | [SOURCE.md](../SOURCE.md) |
-| Dev environment | Korean | [SETUP.md](./SETUP.md) |
-| This overview | English | README.en.md |
-| Setup guide | English | [SETUP.en.md](./SETUP.en.md) |
-| Edition notes | EN + KO | [KOREAN_EDITION.md](./KOREAN_EDITION.md) |
-| English wiki index | English | [wiki/README.en.md](./wiki/README.en.md) |
+| Document | Path |
+|----------|------|
+| Wiki (Korean) | [wiki/Home.md](./wiki/Home.md) |
+| Migration | [wiki/Migration.md](./wiki/Migration.md) |
+| Dev setup | [SETUP.md](./SETUP.md) |
+| Run from source | [SOURCE.md](../SOURCE.md) |
 
-## Quick links
+## Quick start
 
-- Releases: https://github.com/NiSeullent/26x86/releases
-- Security: https://github.com/NiSeullent/26x86/security/policy
-- Dortania OCLP guide (upstream, English): https://dortania.github.io/OpenCore-Legacy-Patcher/
+```bash
+python3 -m x86 wizard
+```
 
-## Workspace layout
-
-The parent folder `26x86/` (Desktop workspace) may contain forked support packages (`26x86-OpenCorePkg`, `26x86-PatcherSupportPkg`, `26x86-MetallibSupportPkg`), scripts, and VM templates. See [SETUP.en.md](./SETUP.en.md).
+Releases: https://github.com/NiSeullent/26x86/releases

@@ -34,10 +34,6 @@ class Constants:
         self.app_support_dir:                  str = "/Library/Application Support/26x86"
         self.settings_plist_path:              Path = Path.home() / "Library/Preferences/com.niseullent.26x86.plist"
         self.app_support_path:                Path = Path.home() / "Library/Application Support/26x86"
-        # Legacy OCLP — user preferences may be read once for migration; shared plist is never touched
-        self.legacy_oclp_preferences_domain:    str = "com.dortania.opencore-legacy-patcher"
-        self.legacy_oclp_preferences_path:      Path = Path.home() / f"Library/Preferences/{self.legacy_oclp_preferences_domain}.plist"
-        self.legacy_oclp_shared_settings:      str = "/Users/Shared/.com.dortania.opencore-legacy-patcher.plist"
 
         # URLs
         self.url_patcher_support_pkg:         str = "https://github.com/NiSeullent/26x86-PatcherSupportPkg/download/"

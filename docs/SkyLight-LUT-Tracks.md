@@ -11,10 +11,11 @@
 | **A/F/G/M/N** | INTEGRATE done |
 | **B** | extreme_unlocked · `26X86_SL_*` vs L5 `26X86_L5_*` |
 | **D** | diagnostics live |
+| **E** | soft-import `metallib_renderbox` · RenderBox-25 gap probe |
 | **H** | INTEGRATE done `d1093ef` · N∥10.15.7 |
 | **I↔K** | linked · I root Tahoe-gated |
 | **J** | **INTEGRATE done** `33e506a` · detect-only · ∉ SYS_PATCH |
-| **L5-R** | recipes + soft-import + **is_tahoe wire done** |
+| **L5-R** | recipes + soft-import + **is_tahoe wire done** · Mach-O probe |
 
 ## 다음 큐
 

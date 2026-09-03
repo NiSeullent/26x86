@@ -38,7 +38,7 @@ def track_gaps() -> list[TrackGap]:
         TrackGap("B", "extreme_unlocked", "SL-BYTEPATCH-LUT; coordinate L5-R"),
         TrackGap("C", "connected", "colorsync/coredisplay"),
         TrackGap("D", "connected", "agdc; diagnostics live"),
-        TrackGap("E", "partial", "RenderBox-25 gap"),
+        TrackGap("E", "soft_import", "metallib_renderbox + RenderBox-25 gap docs/probe"),
         TrackGap("F", "integrated", "psp overlay dmg_mount/yellow_screen"),
         TrackGap("G", "connected", "skylight_lut_tracks"),
         TrackGap("H", "integrated", "IOSurface/CA; parallel with N under extreme"),

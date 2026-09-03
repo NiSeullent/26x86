@@ -39,9 +39,9 @@ TRACK_MODULE_CANDIDATES: dict[str, tuple[str, ...]] = {
         "x86.graphics.agdc_yellow",
     ),
     "E": (
+        "x86.graphics.metallib_renderbox",
         "x86.graphics.metallib_preflight",
         "x86.graphics.metallib_opaque",
-        "x86.graphics.metallib_renderbox",
     ),
     "F": (
         "x86.graphics.yellow_screen",

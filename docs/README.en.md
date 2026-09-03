@@ -14,7 +14,7 @@ Experimental community patcher for **macOS 26 Tahoe** on **x86 Macs** (including
 | Document | Path |
 |----------|------|
 | Wiki (Korean) | [wiki/Home.md](./wiki/Home.md) |
-| Migration | [wiki/Migration.md](./wiki/Migration.md) |
+| Migration | [wiki/Migration-from-OCLP.md](./wiki/Migration-from-OCLP.md) |
 | Dev setup | [SETUP.md](./SETUP.md) |
 | Run from source | [SOURCE.md](../SOURCE.md) |
 

@@ -62,7 +62,7 @@
 
 26x86은 Dortania OpenCore Legacy Patcher(OCLP)와 **런타임 설정·Launch Services·앱 설치 경로를 공유하지 않습니다.** OCLP 공유 plist를 **읽거나 쓰지 않으며**, OCLP plist 존재 여부와 **무관하게** 동작합니다.
 
-- **26x86 설정:** `~/Library/Preferences/com.sharhene777.26x86.plist`
+- **26x86 설정:** `~/Library/Preferences/com.niseullent.26x86.plist`
 - **로그:** `~/Library/Logs/26x86/`
 - **앱 설치(PKG):** `/Library/Application Support/26x86/26x86.app`
 

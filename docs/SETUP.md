@@ -23,7 +23,7 @@ cd ~/Desktop/26x86
 bash scripts/setup-dev.sh
 source .venv/bin/activate
 cd 26x86
-python3 OpenCore-Patcher-GUI.command
+python3 26x86.command
 ```
 
 ## 수동 설치
@@ -68,10 +68,10 @@ PYINSTALLER_COMPILE_BOOTLOADER=1 pip install --no-binary pyinstaller -r 26x86/re
 
 ```bash
 cd 26x86
-python3 OpenCore-Patcher-GUI.command --help     # CLI
-python3 OpenCore-Patcher-GUI.command              # GUI (마법사 모드)
-python3 OpenCore-Patcher-GUI.command --detect     # Mac 모델 감지
-python3 OpenCore-Patcher-GUI.command --build --model iMac11,2 --verbose
+python3 26x86.command --help     # CLI
+python3 26x86.command              # GUI (마법사 모드)
+python3 26x86.command --detect     # Mac 모델 감지
+python3 26x86.command --build --model iMac11,2 --verbose
 ```
 
 ## 빌드 환경

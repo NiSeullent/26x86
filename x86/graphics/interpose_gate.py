@@ -35,6 +35,19 @@ def extreme_opt_in() -> bool:
     return _truthy(os.environ.get(ENV_X86_EXTREME))
 
 
+def host_is_tahoe_for_root(
+    *,
+    xnu_major: int | None = None,
+    product_version: str | None = None,
+) -> bool:
+    """Root interpose recipes require Tahoe; Sequoia EXTREME stays staging-only."""
+    from .tahoe_gate import is_tahoe, probe_host_os
+
+    if xnu_major is not None or product_version is not None:
+        return is_tahoe(xnu_major=xnu_major, product_version=product_version)
+    return probe_host_os().is_tahoe
+
+
 def extreme_install_opt_in() -> bool:
     """True when live /Library (or similar) host writes are explicitly allowed."""
     return extreme_opt_in() and _truthy(os.environ.get(ENV_X86_EXTREME_INSTALL))
@@ -56,11 +69,16 @@ def lut_interpose_mode() -> str:
 
 def gate_blocks_reason(*, require_install: bool = False) -> str | None:
     """
-    ``require_install=False`` — recipe / staging apply (needs ``X86_EXTREME`` only).
+    ``require_install=False`` — recipe / staging apply (needs ``X86_EXTREME`` + Tahoe).
     ``require_install=True`` — live /Library LaunchDaemon or system plugins copy.
     """
     if not extreme_opt_in():
         return f"{ENV_X86_EXTREME}=1 required for Track I extreme interpose"
+    if not host_is_tahoe_for_root():
+        return (
+            "host is not Tahoe (macOS 26 / XNU ≥ 25); "
+            "Track I root interpose is no-op on Sequoia even with X86_EXTREME=1"
+        )
     if require_install and not extreme_install_opt_in():
         return (
             f"{ENV_X86_EXTREME_INSTALL}=1 required for live /Library "
@@ -71,9 +89,12 @@ def gate_blocks_reason(*, require_install: bool = False) -> str | None:
 
 
 def serialize_interpose_gate_fields() -> dict[str, Any]:
+    tahoe = host_is_tahoe_for_root()
     return {
         "x86_extreme": extreme_opt_in(),
         "x86_extreme_install": extreme_install_opt_in(),
+        "is_tahoe": tahoe,
+        "root_interpose_allowed": extreme_opt_in() and tahoe,
         "interpose_avx_mode": avx_interpose_mode(),
         "interpose_lut_mode": lut_interpose_mode(),
         "extreme_env_keys": [

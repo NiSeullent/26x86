@@ -166,18 +166,24 @@ def filter_nonmetal_tahoe_patches(
     *,
     xnu_major: int,
     environ: Optional[Mapping[str, str]] = None,
+    product_version: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     Gate Non-Metal shared patch dict for Tahoe (Track N refill).
 
-    Non-Tahoe: return patches unchanged.
+    Non-Tahoe: ``{}`` even when ``X86_EXTREME=1`` — stock Sequoia ``patches()``
+    returns ``base`` before calling this filter.
     Tahoe without opt-in: ``{}``.
     Tahoe with opt-in: keep only enabled stage keys — **must be non-empty**
     when at least Common is enabled (no permanent closed gate under opt-in).
     """
-    if xnu_major < TAHOE_XNU_MAJOR:
-        return dict(patches)
-    if not tahoe_nonmetal_opt_in(environ):
+    from x86.graphics.tahoe_gate import is_tahoe, nonmetal_root_unlocked
+
+    if not is_tahoe(xnu_major=xnu_major, product_version=product_version):
+        return {}
+    if not nonmetal_root_unlocked(
+        xnu_major=xnu_major, product_version=product_version, environ=environ
+    ):
         return {}
     allow = enabled_patch_keys(environ)
     return {k: v for k, v in patches.items() if k in allow}
@@ -227,8 +233,10 @@ def assess_nonmetal_tahoe_gate(
     skylight_old: Optional[bool] = None,
     repo_root: Optional[Path] = None,
 ) -> NonMetalTahoeGateReport:
+    from x86.graphics.tahoe_gate import is_tahoe
+
     env = environ if environ is not None else os.environ
-    tahoe = xnu_major >= TAHOE_XNU_MAJOR
+    tahoe = is_tahoe(xnu_major=xnu_major)
     stages = tuple(s for s in STAGE_ORDER if s in enabled_nonmetal_stages(env))
     opt_in = tahoe_nonmetal_opt_in(env)
     stub = (

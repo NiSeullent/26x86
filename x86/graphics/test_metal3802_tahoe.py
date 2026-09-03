@@ -63,11 +63,12 @@ class OptInGateTest(unittest.TestCase):
             {},
         )
 
-    def test_filter_passes_pre_tahoe(self) -> None:
+    def test_filter_noop_pre_tahoe(self) -> None:
         patches = {"Metal 3802 Common": {"ok": True}}
+        # Sequoia + filter call → {} (stock patches() returns base before filter).
         self.assertEqual(
-            filter_tahoe_3802_patches(patches, xnu_major=24, environ={}),
-            patches,
+            filter_tahoe_3802_patches(patches, xnu_major=24, environ={ENV_EXTREME: "1"}),
+            {},
         )
 
     def test_slice_common_only(self) -> None:
@@ -249,9 +250,9 @@ class StageSidecarTest(unittest.TestCase):
         shared = SHARED_METAL.read_text(encoding="utf-8")
         self.assertIn("filter_tahoe_3802_patches", stage)
         self.assertIn("X86_TAHOE_3802", stage)
-        # Shared in-tree file must keep the hard Tahoe {} guard (no opt-in yet).
-        self.assertNotIn("filter_tahoe_3802_patches", shared)
-        self.assertIn("return {}", shared)
+        # Live shared already MC-integrated — filter wired for Tahoe opt-in.
+        self.assertIn("filter_tahoe_3802_patches", shared)
+        self.assertIn("os_data.tahoe", shared)
 
     def test_stage_parses_as_python(self) -> None:
         tree = ast.parse(STAGE_M.read_text(encoding="utf-8"))

@@ -152,6 +152,10 @@ def root_volume_interpose_recipe(
     """
     if not extreme_opt_in():
         return {}
+    from .interpose_gate import host_is_tahoe_for_root
+
+    if not host_is_tahoe_for_root():
+        return {}
 
     from .interpose_apply import interpose_install_manifest
 

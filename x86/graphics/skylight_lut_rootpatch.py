@@ -8,7 +8,8 @@ Coordinates with Track B (``55c3802`` / ``skylight_analysis``):
 INTEGRATE ``52f7298`` + post-queue L5-R. Replaces refused WindowServer process
 inject. No ``task_for_pid`` / runtime pid inject.
 
-Gate: ``X86_EXTREME=1`` → non-empty patch dict on Tahoe (xnu ≥ 25).
+Gate: ``X86_EXTREME=1`` → non-empty patch dict **only on Tahoe**
+(``tahoe_gate.root_patches_allowed`` / xnu ≥ 25). Sequoia + extreme → ``{}``.
 Default → ``{}``. No permanent blocked path.
 
 Primary recipe (OCLP Non-Metal Sequoia-capped folders):
@@ -253,17 +254,26 @@ def assess_rootpatch_plan(
     search_roots: Optional[Iterable[Path]] = None,
     environ: Optional[Mapping[str, str]] = None,
     extreme: bool = False,
+    product_version: Optional[str] = None,
+    marketing_version: Optional[str] = None,
 ) -> RootPatchPlan:
+    from .tahoe_gate import is_tahoe, root_patches_allowed
+
     env = environ if environ is not None else os.environ
+    version = product_version if product_version is not None else marketing_version
+    tahoe = is_tahoe(xnu_major=xnu_major, product_version=version)
     on = extreme_enabled(env, flag=extreme)
     mode = patch_install_mode(env)
     slices = tuple(s for s in ALL_SLICES if s in parse_enabled_slices(env))
     notes: list[str] = []
-    if xnu_major < TAHOE_XNU_MAJOR:
-        notes.append("Pre-Tahoe: L5 rootpatch returns {}.")
+    if not tahoe:
+        notes.append(
+            "Non-Tahoe host: L5 OVERWRITE/MERGE returns {} "
+            f"(even with {ENV_EXTREME}=1)."
+        )
     if not on:
         notes.append(f"Set {ENV_EXTREME}=1 to emit OVERWRITE/MERGE patch dict.")
-    else:
+    elif tahoe:
         notes.append(
             f"Mode={mode} (set {ENV_MODE}=merge for softer MERGE). "
             f"B={TRACK_B_COMMIT} owns bytepatch API; L5-R owns sys_patch recipes."
@@ -275,7 +285,7 @@ def assess_rootpatch_plan(
     cd_res = resolve_coredisplay_payload(
         xnu_major, search_roots=search_roots, environ=env
     )
-    if on and xnu_major >= TAHOE_XNU_MAJOR:
+    if on and tahoe:
         if SLICE_SKYLIGHT in slices and not sk_res:
             notes.append(f"SkyLight PSP {sk_folder} missing — folder name still emitted.")
         if SLICE_COREDISPLAY in slices and not cd_res:
@@ -283,14 +293,18 @@ def assess_rootpatch_plan(
                 f"CoreDisplay PSP {cd_folder} missing — folder name still emitted."
             )
 
-    would = bool(on and xnu_major >= TAHOE_XNU_MAJOR and slices)
+    would = bool(
+        on
+        and root_patches_allowed(xnu_major=xnu_major, product_version=version)
+        and slices
+    )
     return RootPatchPlan(
         xnu_major=xnu_major,
         extreme=on,
         mode=mode,
-        slices=slices if on else (),
-        skylight_folder=sk_folder if on else None,
-        coredisplay_folder=cd_folder if on else None,
+        slices=slices if (on and tahoe) else (),
+        skylight_folder=sk_folder if (on and tahoe) else None,
+        coredisplay_folder=cd_folder if (on and tahoe) else None,
         skylight_present=bool(sk_res),
         coredisplay_present=bool(cd_res),
         would_emit=would,
@@ -346,18 +360,22 @@ def build_rootpatch_dict(
     environ: Optional[Mapping[str, str]] = None,
     extreme: bool = False,
     require_payload_on_disk: bool = False,
+    product_version: Optional[str] = None,
+    marketing_version: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     Build OCLP-shaped patch dict.
 
     ``X86_EXTREME=1`` on Tahoe fills OVERWRITE (default) entries for SkyLight +
-    CoreDisplay with Sequoia-capped PSP folder names.
+    CoreDisplay with Sequoia-capped PSP folder names. Sequoia + EXTREME → ``{}``.
     """
     plan = assess_rootpatch_plan(
         xnu_major,
         search_roots=search_roots,
         environ=environ,
         extreme=extreme,
+        product_version=product_version,
+        marketing_version=marketing_version,
     )
     if not plan.would_emit:
         return {}
@@ -475,14 +493,17 @@ def sys_patch_hooks(
     """
     Track G contract: ``sys_patch_hooks(xnu_major, xnu_minor, marketing_version)``.
 
-    ``X86_EXTREME=1`` → OVERWRITE SkyLight + CoreDisplay on Tahoe.
+    ``X86_EXTREME=1`` → OVERWRITE SkyLight + CoreDisplay **only on Tahoe**.
+    Sequoia (or any non-Tahoe) → ``{}`` even when extreme is set.
     """
-    del xnu_minor, marketing_version
+    del xnu_minor
     return build_rootpatch_dict(
         xnu_major,
         search_roots=search_roots,
         environ=environ,
         extreme=extreme,
+        marketing_version=marketing_version or None,
+        product_version=marketing_version or None,
     )
 
 

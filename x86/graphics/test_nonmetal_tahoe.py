@@ -105,11 +105,13 @@ class FilterRefillTest(unittest.TestCase):
         self.assertIn("Non-Metal Common", filled)
         self.assertFalse(filled == {})
 
-    def test_sequoia_unchanged(self) -> None:
+    def test_sequoia_noop(self) -> None:
         base = self._base()
         self.assertEqual(
-            filter_nonmetal_tahoe_patches(base, xnu_major=24, environ={}),
-            base,
+            filter_nonmetal_tahoe_patches(
+                base, xnu_major=24, environ={ENV_EXTREME: "1"}
+            ),
+            {},
         )
 
 
@@ -128,10 +130,10 @@ class StageSidecarTest(unittest.TestCase):
             stage,
         )
 
-    def test_live_shared_untouched(self) -> None:
+    def test_live_shared_integrated(self) -> None:
         shared = SHARED_COMMON.read_text(encoding="utf-8")
-        self.assertNotIn("filter_nonmetal_tahoe_patches", shared)
-        self.assertIn("return {}", shared)
+        self.assertIn("filter_nonmetal_tahoe_patches", shared)
+        self.assertIn("os_data.tahoe", shared)
 
     def test_stage_parses(self) -> None:
         tree = ast.parse(STAGE_COMMON.read_text(encoding="utf-8"))
@@ -182,13 +184,16 @@ class StageNInjectionTest(unittest.TestCase):
         self.assertIn("Non-Metal IOAccelerator Common", hooks)
         self.assertIn("Non-Metal CoreDisplay Common", hooks)
 
-    def test_live_still_empty_on_tahoe(self) -> None:
-        with mock.patch.dict(
-            "os.environ", {ENV_NONMETAL: "1"}, clear=False
-        ):
+    def test_live_default_empty_opt_in_fills(self) -> None:
+        with mock.patch.dict("os.environ", {}, clear=True):
             self.assertEqual(
                 NonMetal(TAHOE_XNU_MAJOR, 0, "25A").patches(), {}
             )
+        with mock.patch.dict(
+            "os.environ", {ENV_NONMETAL: "1"}, clear=False
+        ):
+            filled = NonMetal(TAHOE_XNU_MAJOR, 0, "25A").patches()
+            self.assertIn("Non-Metal Common", filled)
 
 
 class FixtureTest(unittest.TestCase):

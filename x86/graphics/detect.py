@@ -244,6 +244,16 @@ def serialize_graphics_detect_fields(
             )
         )
 
+    # Tahoe-only root-patch gate summary for detect --json.
+    from x86.graphics.tahoe_gate import serialize_root_patch_gates
+
+    if "root_patch_gates" not in payload:
+        payload["root_patch_gates"] = serialize_root_patch_gates(
+            xnu_major=xnu_major,
+            product_version=os_version,
+            assume_tahoe=assume_tahoe,
+        )
+
     # Track G: soft-merge B/C/D/E detect extras (missing modules → no-op).
     from .skylight_tracks import (
         merge_optional_detect_fields,

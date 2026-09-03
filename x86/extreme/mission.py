@@ -37,36 +37,37 @@ def track_gaps() -> list[TrackGap]:
         TrackGap("A", "integrated", "STAGE-WORKFLOW + Tracks"),
         TrackGap("B", "extreme_unlocked", "SL-BYTEPATCH-LUT; coordinate L5-R"),
         TrackGap("C", "connected", "colorsync/coredisplay"),
-        TrackGap("D", "connected", "agdc; stage-D diagnostics pending"),
+        TrackGap("D", "connected", "agdc; diagnostics live"),
         TrackGap("E", "partial", "RenderBox-25 gap"),
         TrackGap("F", "integrated", "psp overlay dmg_mount/yellow_screen"),
         TrackGap("G", "connected", "skylight_lut_tracks"),
-        TrackGap("H", "extreme_open", "IOSurface/CA; parallel with N under extreme"),
+        TrackGap("H", "integrated", "IOSurface/CA; parallel with N under extreme"),
         TrackGap(
             "I",
             "apply_live",
-            "interpose_apply on EXTREME; INSTALL for /Library; TODO K --extreme link",
+            "interpose_apply on EXTREME+Tahoe; INSTALL for /Library",
         ),
-        TrackGap("J", "landed", "graphics AVX != Safari SIGILL; stage-J detect queue"),
-        TrackGap("K", "landed", "E2E profile; application_entry mix-in note"),
+        TrackGap("J", "integrated", "shader_avx detect soft-merge 33e506a"),
+        TrackGap("K", "landed", "E2E profile --extreme → interpose_apply"),
         TrackGap("L", "landed", "L5=refused_by_agent; L5-R root-volume patchset"),
-        TrackGap("M", "integrated", "metal_3802 live opt-in"),
-        TrackGap("N", "integrated", "non_metal* live opt-in; parallel H under extreme"),
+        TrackGap("M", "integrated", "metal_3802 live opt-in + tahoe_gate"),
+        TrackGap("N", "integrated", "non_metal* live opt-in + tahoe_gate"),
     ]
 
 
 def integrate_queue() -> list[str]:
-    """MC waits only on H/J while deploy/Tahoe-root agent owns the rest."""
+    """Post J+gate: deploy owns app/PKG; research gaps remain."""
     return [
         "done:A-docs",
         "done:M-3802",
         "done:N-nonmetal",
         "done:F-psp",
-        "waiting:H-iosurface-stage",
-        "waiting:J-detect-stage",
+        "done:H-iosurface-stage",
+        "done:J-detect-stage",
+        "done:tahoe-gate-sweep",
         "deferred:D-diagnostics-deploy-agent",
         "deferred:L5R-B-deploy-agent",
-        "deferred:I-K-extreme-deploy-agent",
+        "deferred:app-pkg-deploy-agent",
         "host_gate:root_patches_require_is_tahoe",
         "host_gate:sequoia_extreme_root_noop",
     ]

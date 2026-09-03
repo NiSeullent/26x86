@@ -83,13 +83,9 @@ _FAMILY_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 def is_tahoe_os(os_version: Optional[str] = None, xnu_major: Optional[int] = None) -> bool:
     """True when the target OS is macOS 26 Tahoe (XNU 25+ or 26.x product version)."""
-    if xnu_major is not None and xnu_major >= 25:
-        return True
-    if os_version:
-        text = str(os_version).strip()
-        if text.startswith("26.") or text == "26":
-            return True
-    return False
+    from x86.graphics.tahoe_gate import is_tahoe
+
+    return is_tahoe(xnu_major=xnu_major, os_version=os_version)
 
 
 def _gpu_arch_token(gpu: Any) -> str:

@@ -259,17 +259,23 @@ def filter_tahoe_3802_patches(
     *,
     xnu_major: int,
     environ: Optional[Mapping[str, str]] = None,
+    product_version: Optional[str] = None,
 ) -> dict[str, Any]:
     """
-    Gate LegacyMetal3802 patch dict for Tahoe.
+    Gate LegacyMetal3802 root-patch dict (Tahoe-only unlock).
 
-    Non-Tahoe: return patches unchanged.
+    Non-Tahoe (e.g. Sequoia): ``{}`` even when ``X86_EXTREME=1`` — stock
+    Sequoia ``patches()`` returns ``base`` *before* calling this filter.
     Tahoe without opt-in: ``{}``.
     Tahoe with opt-in: keep only enabled slice keys.
     """
-    if xnu_major < TAHOE_XNU_MAJOR:
-        return dict(patches)
-    if not is_tahoe_3802_opt_in(environ):
+    from x86.graphics.tahoe_gate import is_tahoe, metal3802_root_unlocked
+
+    if not is_tahoe(xnu_major=xnu_major, product_version=product_version):
+        return {}
+    if not metal3802_root_unlocked(
+        xnu_major=xnu_major, product_version=product_version, environ=environ
+    ):
         return {}
     allow = enabled_patch_keys(environ)
     return {k: v for k, v in patches.items() if k in allow}

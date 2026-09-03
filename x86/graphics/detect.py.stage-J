@@ -1,6 +1,24 @@
-# Track J — proposed patch for x86/graphics/detect.py
-# MC applies; Track J must not edit detect.py. Base: 52f7298.
-# After payload.update(yellow) in serialize_graphics_detect_fields:
+# =============================================================================
+# detect.py.stage-J — Track J MC-merge candidate (NOT live until MC promotes)
+# =============================================================================
+# TARGET:  x86/graphics/detect.py
+# FN:      serialize_graphics_detect_fields
+# BASE:    d1093ef (post H iosurface INTEGRATE; yellow→G path unchanged)
+# RULE:    Track J must NOT edit detect.py directly — MC pastes this block.
+#
+# ANCHOR (live d1093ef):
+#   ...
+#   payload.update(yellow)
+#   <<<< INSERT HERE >>>>
+#   # Track G: soft-merge B/C/D/E detect extras (missing modules → no-op).
+#   from .skylight_tracks import (
+#       merge_optional_detect_fields,
+#       serialize_skylight_lut_tracks,
+#   )
+#   ...
+#
+# EFFECT: detect --json gains nested key "shader_avx" (Track J gate summary).
+# =============================================================================
 
     from x86.graphics.shader_avx_gate import serialize_shader_avx_fields
 

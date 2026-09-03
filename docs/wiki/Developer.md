@@ -36,7 +36,9 @@ python3 -m x86 wizard
 
 ## 그래픽·compositor Research
 
-- [Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md) — RenderBox metallib 게이트, SkyLightPlugins 프로토콜
+- [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md) — Autopilot/극한도전 Mission Control · 트랙 A–L
+- [Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md) — 합성 파이프라인 · 성공 기준
+- [Tahoe-Graphics-Roadmap.md](../Tahoe-Graphics-Roadmap.md) — Layer B compositor
 - [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md)
 
 ## 설정

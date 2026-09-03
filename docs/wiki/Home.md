@@ -39,6 +39,8 @@ python3 -m x86 status
 | [Safari-PreAVX-Fix.md](./Safari-PreAVX-Fix.md) | MacPro5,1 Safari 26 Pre-AVX RestrictEvents |
 | [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md) | Mac Pro Tahoe 노란 화면 |
 | [Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md) | SkyLight / LUT / RenderBox 합성 Research·PoC |
+| [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md) | 극한도전 Mission Control · 트랙 A–L |
+| [Tahoe-Graphics-Roadmap.md](../Tahoe-Graphics-Roadmap.md) | Tahoe 그래픽 Layer A/B 로드맵 |
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 주의 |
 | [Installation-Notes.md](./Installation-Notes.md) | 설치·업그레이드 |
 | [Configuration.md](./Configuration.md) | 설정 경로 |

@@ -62,6 +62,25 @@ Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다 (커널 패닉).
 
 ---
 
+## SkyLight LUT 트랙 (극한도전 · A–L)
+
+**Autopilot / 극한도전:** Tahoe + pre-AVX + Vega 64 → 정상 색 · Metal/OpenGL · Safari Pre-AVX · 재부팅 안정.  
+소유권·Mission Control: [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md).  
+`python3 -m x86 detect --json` 의 `skylight_lut_tracks` 필드(트랙 G)가 연결 상태를 요약할 수 있습니다.
+
+| 트랙 | 역할 |
+|------|------|
+| **A** | 문서·Mission Control — Research · Tracks · Roadmap |
+| **B–C** | SkyLight/WS 심볼 · CoreDisplay/ColorSync/ICC |
+| **D** | AGDC 검증만 (EFI agdpmod **재작성 금지**) |
+| **E–F** | RenderBox/31001 · PSP Tahoe 오버레이 |
+| **G** | 루트패치 통합 · detect · 테스트 |
+| **H–L** | Plugins 로더 · UI · #234 분리 · 3802(가드) · 재부팅/KDK |
+
+Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다.
+
+---
+
 ## 관련 문서
 
 - [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md) — Safari AVX / RestrictEvents
@@ -69,4 +88,5 @@ Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다 (커널 패닉).
 - [Warnings.md](./Warnings.md)
 - [docs/Tahoe-Yellow-Screen-Research.md](../Tahoe-Yellow-Screen-Research.md)
 - [docs/Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md) — SkyLight/LUT/RenderBox 심층·PoC
+- [docs/SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md) — 극한도전 Mission Control · A–L
 - [docs/Tahoe-Graphics-Roadmap.md](../Tahoe-Graphics-Roadmap.md) — Layer B compositor

@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="26x86 M to N arrow">
+  <defs>
+    <!-- macOS Tahoe-ish: soft light gray -> pale blue / lavender -->
+    <radialGradient id="tahoeBg" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#F2F3F7"/>
+      <stop offset="45%" stop-color="#D8E4FF"/>
+      <stop offset="100%" stop-color="#DECFFF"/>
+    </radialGradient>
+  </defs>
+  <!-- Logo symbol background -->
+  <circle cx="64" cy="64" r="60" fill="url(#tahoeBg)"/>
+
+  <!-- Foreground (keep geometry identical to previous logo) -->
   <!-- Shared down-right baseline: y = 76 + (x - 8) * (18 / 104) -->
   <g fill="#1A1D26">
     <!-- M: all three lower vertices on the baseline -->

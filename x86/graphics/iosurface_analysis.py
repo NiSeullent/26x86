@@ -1,14 +1,12 @@
 """
 Track H — IOSurface gate / fallback analysis for Tahoe Metal AMD (Vega).
 
-IOSurface sits between CA/Metal drawables and WindowServer. Non-Metal Common
-merges Catalina IOSurface.framework/kext and removes IOGPUFamily — OCLP
-hard-guards that on Tahoe (KP). Pre-AVX + Vega 64 should keep Metal 31001
-stock Tahoe IOSurface. PSP Catalina IOSurface has no AVX string markers;
-documented AVX2 graphics gate is AMD OpenCL/GL (12.5 non-AVX2.0).
+Default (no extreme): recommend stock Tahoe Metal IOSurface.
+Extreme double latch (``X86_EXTREME=1`` + ``X86_EXTREME_IOSURFACE_CA=1``):
+Non-Metal IOSurface framework/kext experiments are **open** (KP risk on host).
 
-Never: lift full Non-Metal Common, useMetal=no, or remove IOGPU on Metal Vega.
-Does not modify sys_patch / detect / efi_builder (integration via *.stage-H).
+No permanent blocked=True code path. Shared sys_patch/detect untouched
+(integration via ``*.stage-H`` only).
 """
 
 from __future__ import annotations
@@ -34,10 +32,11 @@ AVX_STRING_NEEDLES: tuple[bytes, ...] = (b"AVX", b"avx", b"vzeroupper", b"vmovap
 class IOSurfaceGateReport:
     xnu_major: int
     metal_path_recommended: bool
-    non_metal_iosurface_blocked_on_tahoe: bool
+    non_metal_iosurface_experiment_open: bool
     framework_payload: Optional[str]
     kext_payload: Optional[str]
     payload_framework_present: bool
+    payload_kext_present: bool
     avx_markers_in_payload: dict[str, int] = field(default_factory=dict)
     notes: tuple[str, ...] = ()
     evidence_urls: tuple[str, ...] = EVIDENCE_URLS
@@ -49,8 +48,11 @@ def is_extreme_enabled(environ: Optional[dict[str, str]] = None) -> bool:
 
 
 def is_extreme_iosurface_ca_opt_in(environ: Optional[dict[str, str]] = None) -> bool:
+    """Double latch opens Non-Metal IOSurface / QuartzCore experiments."""
     env = environ if environ is not None else os.environ
-    return is_extreme_enabled(env) and str(env.get("X86_EXTREME_IOSURFACE_CA", "")).strip() == "1"
+    return is_extreme_enabled(env) and str(
+        env.get("X86_EXTREME_IOSURFACE_CA", "")
+    ).strip() == "1"
 
 
 def iosurface_framework_payload_folder(xnu_major: int) -> str:
@@ -81,6 +83,22 @@ def resolve_iosurface_framework_payload(
     return None
 
 
+def resolve_iosurface_kext_payload(
+    search_roots: Optional[Iterable[Path]] = None,
+) -> Optional[str]:
+    """Non-Metal Common uses IOSurface.kext from ``10.15.7``."""
+    rel = Path("System/Library/Extensions/IOSurface.kext")
+    for root in _search_roots(search_roots):
+        candidate = root / IOSURFACE_KEXT_PAYLOAD / rel
+        if candidate.is_dir() or (candidate / "Contents" / "Info.plist").is_file():
+            return IOSURFACE_KEXT_PAYLOAD
+        # binary may sit under MacOS/
+        binary = candidate / "Contents" / "MacOS" / "IOSurface"
+        if binary.is_file():
+            return IOSURFACE_KEXT_PAYLOAD
+    return None
+
+
 def scan_avx_markers(path: Path) -> dict[str, int]:
     try:
         data = path.read_bytes()
@@ -90,39 +108,56 @@ def scan_avx_markers(path: Path) -> dict[str, int]:
 
 
 def analyze_iosurface_gates(
-    xnu_major: int, *, has_metal_amd: bool = True, search_roots: Optional[Iterable[Path]] = None
+    xnu_major: int,
+    *,
+    has_metal_amd: bool = True,
+    search_roots: Optional[Iterable[Path]] = None,
+    environ: Optional[dict[str, str]] = None,
 ) -> IOSurfaceGateReport:
     notes: list[str] = []
-    tahoe = xnu_major >= TAHOE_XNU_MAJOR
+    experiment_open = is_extreme_iosurface_ca_opt_in(environ)
     folder = resolve_iosurface_framework_payload(xnu_major, search_roots=search_roots)
+    kext_folder = resolve_iosurface_kext_payload(search_roots=search_roots)
     avx: dict[str, int] = {}
     if folder is not None:
         for root in _search_roots(search_roots):
-            binary = root / folder / "System/Library/Frameworks/IOSurface.framework/Versions/A/IOSurface"
+            binary = (
+                root
+                / folder
+                / "System/Library/Frameworks/IOSurface.framework/Versions/A/IOSurface"
+            )
             if binary.is_file():
                 avx = scan_avx_markers(binary)
                 break
-    if tahoe:
+
+    if experiment_open:
         notes.append(
-            "Tahoe: Non-Metal Common IOSurface.kext/framework + IOGPU REMOVE is safety-guarded (KP). "
-            "Metal Vega must keep stock IOSurface."
+            "Extreme latch on: Non-Metal IOSurface.framework/kext experiment is open "
+            "(host KP / ABI risk — spare machine only)."
         )
-    if has_metal_amd:
-        notes.append("Metal 31001 host: do not merge Catalina IOSurface or remove IOGPUFamily.")
+    else:
+        notes.append(
+            "Default: stock Tahoe Metal IOSurface. Set X86_EXTREME=1 and "
+            "X86_EXTREME_IOSURFACE_CA=1 to open Non-Metal IOSurface experiments."
+        )
+    if has_metal_amd and not experiment_open:
+        notes.append("Metal 31001 default path prefers stock Tahoe IOSurface.")
     if avx:
         notes.append(f"Payload AVX string markers (informational): {avx}")
     else:
         notes.append(
-            "Catalina IOSurface payload has no AVX string markers; AVX2 graphics SIGILL risk is "
-            "documented in AMD OpenCL/GL (12.5 non-AVX2.0), not IOSurface."
+            "Catalina IOSurface payload has no AVX string markers; AVX2 graphics SIGILL "
+            "risk is documented in AMD OpenCL/GL (12.5 non-AVX2.0), not IOSurface."
         )
+
     return IOSurfaceGateReport(
         xnu_major=xnu_major,
-        metal_path_recommended=has_metal_amd or tahoe,
-        non_metal_iosurface_blocked_on_tahoe=tahoe,
+        metal_path_recommended=has_metal_amd and not experiment_open,
+        non_metal_iosurface_experiment_open=experiment_open,
         framework_payload=folder or iosurface_framework_payload_folder(xnu_major),
-        kext_payload=IOSURFACE_KEXT_PAYLOAD if folder else None,
+        kext_payload=kext_folder,
         payload_framework_present=folder is not None,
+        payload_kext_present=kext_folder is not None,
         avx_markers_in_payload=avx,
         notes=tuple(notes),
     )
@@ -136,12 +171,19 @@ def serialize_iosurface_fields(
     environ: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
     major = TAHOE_XNU_MAJOR if xnu_major is None else int(xnu_major)
-    report = analyze_iosurface_gates(major, has_metal_amd=has_metal_amd, search_roots=search_roots)
+    report = analyze_iosurface_gates(
+        major,
+        has_metal_amd=has_metal_amd,
+        search_roots=search_roots,
+        environ=environ,
+    )
     return {
         "iosurface_metal_path_recommended": report.metal_path_recommended,
-        "iosurface_non_metal_blocked_on_tahoe": report.non_metal_iosurface_blocked_on_tahoe,
+        "iosurface_non_metal_experiment_open": report.non_metal_iosurface_experiment_open,
         "iosurface_framework_payload": report.framework_payload,
+        "iosurface_kext_payload": report.kext_payload,
         "iosurface_payload_present": report.payload_framework_present,
+        "iosurface_kext_payload_present": report.payload_kext_present,
         "iosurface_avx_markers": dict(report.avx_markers_in_payload),
         "iosurface_notes": list(report.notes),
         "iosurface_evidence_urls": list(report.evidence_urls),

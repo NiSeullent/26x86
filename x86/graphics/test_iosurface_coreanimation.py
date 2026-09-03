@@ -1,4 +1,4 @@
-"""Unit tests for Track H IOSurface / CoreAnimation gates and extreme PoC."""
+"""Unit tests for Track H IOSurface / CoreAnimation — no permanent blocked paths."""
 
 from __future__ import annotations
 
@@ -38,10 +38,21 @@ def _psp_root() -> Path:
 
 
 class GateAnalysisTest(unittest.TestCase):
-    def test_tahoe_blocks_non_metal_iosurface(self) -> None:
-        report = analyze_iosurface_gates(TAHOE_XNU_MAJOR, has_metal_amd=True)
-        self.assertTrue(report.non_metal_iosurface_blocked_on_tahoe)
+    def test_default_recommends_metal_experiment_closed(self) -> None:
+        report = analyze_iosurface_gates(
+            TAHOE_XNU_MAJOR, has_metal_amd=True, environ={}
+        )
+        self.assertFalse(report.non_metal_iosurface_experiment_open)
         self.assertTrue(report.metal_path_recommended)
+        self.assertFalse(hasattr(report, "non_metal_iosurface_blocked_on_tahoe"))
+
+    def test_extreme_opens_non_metal_iosurface_experiment(self) -> None:
+        env = {"X86_EXTREME": "1", "X86_EXTREME_IOSURFACE_CA": "1"}
+        report = analyze_iosurface_gates(
+            TAHOE_XNU_MAJOR, has_metal_amd=True, environ=env
+        )
+        self.assertTrue(report.non_metal_iosurface_experiment_open)
+        self.assertFalse(report.metal_path_recommended)
 
     def test_payload_present_from_psp_fork(self) -> None:
         root = _psp_root()
@@ -56,8 +67,12 @@ class GateAnalysisTest(unittest.TestCase):
         root = _psp_root()
         if not root.is_dir():
             self.skipTest("26x86-PatcherSupportPkg not checked out")
-        report = analyze_coreanimation_gates(TAHOE_XNU_MAJOR, search_roots=[root])
+        env = {"X86_EXTREME": "1", "X86_EXTREME_IOSURFACE_CA": "1"}
+        report = analyze_coreanimation_gates(
+            TAHOE_XNU_MAJOR, search_roots=[root], environ=env
+        )
         self.assertTrue(report.payload_framework_present)
+        self.assertTrue(report.non_metal_quartzcore_experiment_open)
         self.assertGreater(report.cametal_string_hits, 0)
         self.assertIn("agdpmod=pikera", metal_vega_boot_args())
 
@@ -72,7 +87,7 @@ class ExtremeLatchTest(unittest.TestCase):
         self.assertFalse(is_extreme_iosurface_ca_opt_in(env))
         self.assertEqual(iosurface_ca_extreme_patches(TAHOE_XNU_MAJOR, environ=env), {})
 
-    def test_double_latch_with_payload_emits_merges(self) -> None:
+    def test_double_latch_opens_non_metal_iosurface_and_ca(self) -> None:
         root = _psp_root()
         if not root.is_dir():
             self.skipTest("26x86-PatcherSupportPkg not checked out")
@@ -83,9 +98,12 @@ class ExtremeLatchTest(unittest.TestCase):
         self.assertIn(EXTREME_IOSURFACE_PATCH_NAME, patches)
         self.assertIn(EXTREME_COREANIMATION_PATCH_NAME, patches)
         blob = repr(patches)
+        self.assertIn("IOSurface.framework", blob)
+        self.assertIn("IOSurface.kext", blob)
+        self.assertIn("QuartzCore.framework", blob)
         self.assertNotIn("useMetal", blob)
-        self.assertNotIn("IOGPUFamily", blob)
-        self.assertNotIn("IOSurface.kext", blob)
+        # No permanent "blocked" markers in emitted dict.
+        self.assertNotIn("blocked", blob.lower())
 
     def test_missing_payload_no_emit(self) -> None:
         env = {"X86_EXTREME": "1", "X86_EXTREME_IOSURFACE_CA": "1"}
@@ -103,12 +121,21 @@ class ExtremeLatchTest(unittest.TestCase):
 
 
 class SerializeTest(unittest.TestCase):
-    def test_serialize_combined(self) -> None:
+    def test_serialize_default_no_blocked_keys(self) -> None:
         fields = serialize_iosurface_ca_fields(TAHOE_XNU_MAJOR, environ={})
-        self.assertTrue(fields["iosurface_non_metal_blocked_on_tahoe"])
-        self.assertTrue(fields["coreanimation_non_metal_blocked_on_tahoe"])
+        self.assertNotIn("iosurface_non_metal_blocked_on_tahoe", fields)
+        self.assertNotIn("coreanimation_non_metal_blocked_on_tahoe", fields)
+        self.assertFalse(fields["iosurface_non_metal_experiment_open"])
+        self.assertFalse(fields["coreanimation_non_metal_experiment_open"])
         self.assertFalse(fields["iosurface_ca_extreme"]["would_emit_root_patches"])
         self.assertIn("agdpmod=pikera", fields["coreanimation_boot_args_metal_vega"])
+
+    def test_serialize_extreme_opens_experiments(self) -> None:
+        env = {"X86_EXTREME": "1", "X86_EXTREME_IOSURFACE_CA": "1"}
+        fields = serialize_iosurface_ca_fields(TAHOE_XNU_MAJOR, environ=env)
+        self.assertTrue(fields["iosurface_non_metal_experiment_open"])
+        self.assertTrue(fields["coreanimation_non_metal_experiment_open"])
+        self.assertNotIn("full_non_metal_still_blocked", fields["iosurface_ca_extreme"]["iosurface"])
 
 
 if __name__ == "__main__":

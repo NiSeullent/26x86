@@ -1,9 +1,9 @@
 """
 Track H — CoreAnimation / QuartzCore gate analysis (Tahoe Metal AMD).
 
-Non-Metal Common merges QuartzCore.framework from 10.15.7-<xnu> (Sequoia-capped).
-Metal 3802 QuartzCore default.metallib is NOT for Metal 31001 Vega.
-Integration into shared sys_patch lives only as *.stage-H — do not overwrite live trees.
+Default: stock Tahoe QuartzCore. Extreme double latch opens Non-Metal
+QuartzCore.framework experiment (no permanent blocked=True path).
+Integration into shared sys_patch: ``*.stage-H`` only.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ CA_DEBUG_ENV_HINTS: tuple[str, ...] = (
 class CoreAnimationGateReport:
     xnu_major: int
     metal_path_recommended: bool
-    non_metal_quartzcore_blocked_on_tahoe: bool
+    non_metal_quartzcore_experiment_open: bool
     framework_payload: Optional[str]
     payload_framework_present: bool
     avx_markers_in_payload: dict[str, int] = field(default_factory=dict)
@@ -85,16 +85,24 @@ def metal_vega_boot_args() -> tuple[str, ...]:
 
 
 def analyze_coreanimation_gates(
-    xnu_major: int, *, has_metal_amd: bool = True, search_roots: Optional[Iterable[Path]] = None
+    xnu_major: int,
+    *,
+    has_metal_amd: bool = True,
+    search_roots: Optional[Iterable[Path]] = None,
+    environ: Optional[dict[str, str]] = None,
 ) -> CoreAnimationGateReport:
     notes: list[str] = []
-    tahoe = xnu_major >= TAHOE_XNU_MAJOR
+    experiment_open = is_extreme_iosurface_ca_opt_in(environ)
     folder = resolve_quartzcore_framework_payload(xnu_major, search_roots=search_roots)
     avx: dict[str, int] = {}
     cametal = 0
     if folder is not None:
         for root in _search_roots(search_roots):
-            binary = root / folder / "System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore"
+            binary = (
+                root
+                / folder
+                / "System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore"
+            )
             if binary.is_file():
                 avx = scan_avx_markers(binary)
                 try:
@@ -103,30 +111,35 @@ def analyze_coreanimation_gates(
                     data = b""
                 cametal = data.count(b"CAMetal")
                 break
-    if tahoe:
+
+    if experiment_open:
         notes.append(
-            "Tahoe: Non-Metal QuartzCore.framework merge is part of blocked Non-Metal Common "
-            "(KP with IOGPU REMOVE)."
+            "Extreme latch on: Non-Metal QuartzCore.framework experiment is open "
+            "(ABI / WindowServer crash risk)."
         )
-    if has_metal_amd:
+    else:
         notes.append(
-            "Metal 31001 Vega: keep Tahoe QuartzCore; do not install Metal 3802 QuartzCore "
-            "default.metallib as a CA fix."
+            "Default: stock Tahoe QuartzCore. Double latch opens Non-Metal CA experiment."
+        )
+    if has_metal_amd and not experiment_open:
+        notes.append(
+            "Metal 31001 Vega default prefers Tahoe QuartzCore over Metal 3802 "
+            "QuartzCore default.metallib."
         )
     if cametal:
         notes.append(
-            f"Catalina QuartzCore payload contains CAMetal markers ({cametal}); "
-            "ABI vs Tahoe WindowServer unproven — extreme-only."
+            f"Catalina QuartzCore payload contains CAMetal markers ({cametal})."
         )
     if not any(avx.get(k, 0) for k in ("AVX", "avx", "vzeroupper")):
         notes.append(
-            "QuartzCore Non-Metal payload lacks AVX string markers; compiler AVX2 gates remain "
-            "in AMD OpenCL/GL non-AVX2.0 (already on Vega path)."
+            "QuartzCore Non-Metal payload lacks AVX string markers; compiler AVX2 gates "
+            "remain in AMD OpenCL/GL non-AVX2.0 (already on Vega path)."
         )
+
     return CoreAnimationGateReport(
         xnu_major=xnu_major,
-        metal_path_recommended=has_metal_amd or tahoe,
-        non_metal_quartzcore_blocked_on_tahoe=tahoe,
+        metal_path_recommended=has_metal_amd and not experiment_open,
+        non_metal_quartzcore_experiment_open=experiment_open,
         framework_payload=folder or quartzcore_framework_payload_folder(xnu_major),
         payload_framework_present=folder is not None,
         avx_markers_in_payload=avx,
@@ -144,10 +157,15 @@ def serialize_coreanimation_fields(
     environ: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
     major = TAHOE_XNU_MAJOR if xnu_major is None else int(xnu_major)
-    report = analyze_coreanimation_gates(major, has_metal_amd=has_metal_amd, search_roots=search_roots)
+    report = analyze_coreanimation_gates(
+        major,
+        has_metal_amd=has_metal_amd,
+        search_roots=search_roots,
+        environ=environ,
+    )
     return {
         "coreanimation_metal_path_recommended": report.metal_path_recommended,
-        "coreanimation_non_metal_blocked_on_tahoe": report.non_metal_quartzcore_blocked_on_tahoe,
+        "coreanimation_non_metal_experiment_open": report.non_metal_quartzcore_experiment_open,
         "coreanimation_framework_payload": report.framework_payload,
         "coreanimation_payload_present": report.payload_framework_present,
         "coreanimation_avx_markers": dict(report.avx_markers_in_payload),

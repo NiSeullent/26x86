@@ -19,8 +19,8 @@ from ...shared_patches.tahoe_iosurface_ca import iosurface_ca_patches
 
 | Variable | Effect |
 |----------|--------|
-| (unset) | no-op |
-| `X86_EXTREME=1` | status/boot combo only |
-| `X86_EXTREME=1` + `X86_EXTREME_IOSURFACE_CA=1` | surgical IOSurface+QuartzCore MERGE if PSP payload present |
+| (unset) | no-op (Metal stock IOSurface/CA) |
+| `X86_EXTREME=1` | status only — still no MERGE |
+| `X86_EXTREME=1` + `X86_EXTREME_IOSURFACE_CA=1` | Non-Metal IOSurface.framework+kext and QuartzCore MERGE if PSP present |
 
-Promote `tahoe_iosurface_ca.py.stage-H` → `tahoe_iosurface_ca.py` then apply wires.
+No permanent blocked gate in Track H. Promote `tahoe_iosurface_ca.py.stage-H` first.

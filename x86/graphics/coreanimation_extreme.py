@@ -1,8 +1,8 @@
 """
-Track H — Extreme QuartzCore / CoreAnimation userland merge PoC.
+Track H — Extreme QuartzCore / CoreAnimation PoC (double latch).
 
-Latch: X86_EXTREME=1 + X86_EXTREME_IOSURFACE_CA=1 + payload present.
-Merges QuartzCore.framework only; never Metal 3802 metallib / Enforcement.
+``X86_EXTREME=1`` + ``X86_EXTREME_IOSURFACE_CA=1`` + payload → MERGE
+QuartzCore.framework. No permanent blocked path.
 """
 
 from __future__ import annotations
@@ -52,13 +52,9 @@ def extreme_boot_combination(*, environ: Optional[dict[str, str]] = None) -> dic
         "x86_extreme": is_extreme_enabled(environ),
         "boot_args": list(metal_vega_boot_args()),
         "avoid_boot_args": ["-igfxvesa", "ngfxgl=1"],
-        "avoid_defaults": [
-            "defaults write … com.apple.CoreDisplay useMetal -boolean no",
-            "defaults write … com.apple.CoreDisplay useIOP -boolean no",
-        ],
         "notes": [
             "agdpmod remains the primary AGDC yellow mitigation (Track D / EFI).",
-            "QuartzCore merge is ABI-experimental; expect WindowServer crash if mismatched.",
+            "Extreme QuartzCore merge is ABI-experimental on Tahoe WindowServer.",
         ],
     }
 
@@ -69,16 +65,23 @@ def extreme_coreanimation_status(
     search_roots: Optional[Iterable[Path]] = None,
     environ: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
-    report = analyze_coreanimation_gates(xnu_major, has_metal_amd=True, search_roots=search_roots)
-    patches = extreme_coreanimation_merge_patches(xnu_major, search_roots=search_roots, environ=environ)
+    report = analyze_coreanimation_gates(
+        xnu_major,
+        has_metal_amd=True,
+        search_roots=search_roots,
+        environ=environ,
+    )
+    patches = extreme_coreanimation_merge_patches(
+        xnu_major, search_roots=search_roots, environ=environ
+    )
     return {
         "extreme_enabled": is_extreme_enabled(environ),
         "extreme_iosurface_ca_opt_in": is_extreme_iosurface_ca_opt_in(environ),
+        "non_metal_quartzcore_experiment_open": report.non_metal_quartzcore_experiment_open,
         "would_emit_merge": bool(patches),
         "patch_name": EXTREME_COREANIMATION_PATCH_NAME if patches else None,
         "payload_folder": report.framework_payload,
         "payload_present": report.payload_framework_present,
         "boot_combination": extreme_boot_combination(environ=environ),
-        "full_non_metal_still_blocked": True,
         "notes": list(report.notes),
     }

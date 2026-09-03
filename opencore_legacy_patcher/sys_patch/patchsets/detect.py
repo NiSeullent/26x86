@@ -73,6 +73,11 @@ from ...detections import (
     device_probe
 )
 
+from x86.graphics.detect import (
+    detect_pre_avx_mac_pro,
+    should_strip_tahoe_legacy_gpu_patches,
+)
+
 
 class HardwarePatchsetSettings(StrEnum):
     """
@@ -163,6 +168,9 @@ class HardwarePatchsetDetection:
 
         self.can_patch         = False
         self.can_unpatch       = False
+
+        self.pre_avx_report          = None
+        self.graphics_policy_warnings: list[str] = []
 
         self._detect()
 
@@ -439,6 +447,60 @@ class HardwarePatchsetDetection:
         return present_hardware
 
 
+    def _apply_tahoe_pre_avx_graphics_policy(
+        self,
+        present_hardware: list[BaseHardware],
+        device_properties: dict,
+    ) -> list[BaseHardware]:
+        """
+        Gate Metal 3802 / Non-Metal hardware on Tahoe for pre-AVX Mac Pro hosts.
+
+        Shared 3802/Non-Metal patches are already empty on Tahoe; this removes
+        matching hardware variants so users are not misled into expecting root GPU
+        acceleration. MacPro6,1 + GCN should rely on EFI agdpmod and GCN kexts.
+        """
+        if self._xnu_major < os_data.tahoe.value:
+            return present_hardware
+
+        model = self._constants.computer.real_model
+        report = detect_pre_avx_mac_pro(model, xnu_major=self._xnu_major)
+        self.pre_avx_report = report
+
+        if not report.is_mac_pro:
+            return present_hardware
+
+        device_properties["Graphics Policy: pre_avx_mac_pro"] = report.is_pre_avx2_mac_pro_like
+        device_properties["Graphics Policy: avx_available"] = report.has_avx1
+        device_properties["Graphics Policy: avx2_available"] = report.has_avx2
+        device_properties[f"Graphics Policy: {report.recommended_tahoe_graphics_policy}"] = True
+
+        self.graphics_policy_warnings = list(report.notes)
+
+        if not should_strip_tahoe_legacy_gpu_patches(report):
+            return present_hardware
+
+        strip_subclasses = {
+            HardwareVariantGraphicsSubclass.METAL_3802_GRAPHICS,
+            HardwareVariantGraphicsSubclass.NON_METAL_GRAPHICS,
+        }
+
+        for hardware in list(present_hardware):
+            sub_variant = hardware.hardware_variant_graphics_subclass()
+            if sub_variant not in strip_subclasses:
+                continue
+            logging.warning(
+                "Tahoe graphics policy: stripping %s for %s (%s)",
+                hardware.name(),
+                model,
+                report.recommended_tahoe_graphics_policy,
+            )
+            for note in report.notes:
+                logging.warning("  %s", note)
+            present_hardware.remove(hardware)
+
+        return present_hardware
+
+
     def _handle_missing_network_connection(self, requirements: dict, device_properties: dict) -> tuple[dict, dict]:
         """
         Sync network connection requirements
@@ -519,6 +581,10 @@ class HardwarePatchsetDetection:
 
         if self._validation is False:
             present_hardware = self._strip_incompatible_hardware(present_hardware)
+            present_hardware = self._apply_tahoe_pre_avx_graphics_policy(
+                present_hardware,
+                device_properties,
+            )
 
         # Second pass to determine requirements
         for item in present_hardware:

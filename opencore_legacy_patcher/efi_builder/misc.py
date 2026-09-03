@@ -134,12 +134,27 @@ class BuildMiscellaneous:
         """RestrictEvents Handler."""
         OCLP_UUID = "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102"
         block_args = ",".join(self._re_generate_block_arguments())
-        patch_args = ",".join(self._re_generate_patch_arguments())
+        patch_tokens = self._re_generate_patch_arguments()
+        re_version = self.constants.restrictevents_version
+        re_path = self.constants.restrictevents_path
+
+        try:
+            from x86.patch.safari26_preavx import apply_to_misc_builder, merge_jsc_tokens
+
+            preavx = apply_to_misc_builder(self)
+            if preavx.should_apply and preavx.kext_path is not None:
+                re_version = preavx.kext_version
+                re_path = preavx.kext_path
+                patch_tokens = merge_jsc_tokens(patch_tokens)
+        except Exception:
+            logging.exception("Safari 26 Pre-AVX Fix evaluation failed; using stock RestrictEvents")
+
+        patch_args = ",".join(patch_tokens)
 
         if block_args:
             logging.info(f"- Setting RestrictEvents block arguments: {block_args}")
             support.BuildSupport(self.model, self.constants, self.config).enable_kext(
-                "RestrictEvents.kext", self.constants.restrictevents_version, self.constants.restrictevents_path
+                "RestrictEvents.kext", re_version, re_path
             )
             self._set_nvram_value(OCLP_UUID, "revblock", block_args, overwrite=True)
 
@@ -149,7 +164,7 @@ class BuildMiscellaneous:
         if patch_args:
             logging.info(f"- Setting RestrictEvents patch arguments: {patch_args}")
             support.BuildSupport(self.model, self.constants, self.config).enable_kext(
-                "RestrictEvents.kext", self.constants.restrictevents_version, self.constants.restrictevents_path
+                "RestrictEvents.kext", re_version, re_path
             )
             self._set_nvram_value(OCLP_UUID, "revpatch", patch_args, overwrite=True)
 

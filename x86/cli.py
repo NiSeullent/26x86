@@ -53,11 +53,21 @@ def _emit_json(data: dict[str, Any]) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-def _serialize_detect_payload(computer: Any) -> dict[str, Any]:
+def _serialize_detect_payload(computer: Any, model_override: Optional[str] = None) -> dict[str, Any]:
     from opencore_legacy_patcher.datasets import smbios_data
+    from x86.pre_avx.detect import build_detect_fields, serialize_detect_fields
+    from x86.settings import SettingsStore, read_auto_pre_avx_patch
 
     if not is_macos():
-        return non_mac_detect_payload()
+        payload = non_mac_detect_payload()
+        model = model_override or payload.get("model") or "unknown"
+        payload["model"] = model
+        payload["real_model"] = model
+        payload["build_model"] = model
+        auto_pre_avx_patch = read_auto_pre_avx_patch(SettingsStore().load())
+        fields = build_detect_fields(model, auto_pre_avx_patch=auto_pre_avx_patch, xnu_major=25)
+        payload.update(serialize_detect_fields(fields))
+        return payload
 
     model = computer.real_model
     marketing = smbios_data.smbios_dictionary.get(model, {}).get("Marketing Name", model)
@@ -73,7 +83,31 @@ def _serialize_detect_payload(computer: Any) -> dict[str, Any]:
             }
         )
 
-    return {
+    xnu_major = None
+    try:
+        from opencore_legacy_patcher.detections import os_probe
+
+        xnu_major = os_probe.OSProbe().detect_kernel_major()
+    except Exception:
+        pass
+
+    auto_pre_avx_patch = read_auto_pre_avx_patch(SettingsStore().load())
+    cpu_features = None
+    cpu_leaf7_features = None
+    if getattr(computer, "cpu", None) is not None:
+        cpu_features = getattr(computer.cpu, "flags", None)
+        cpu_leaf7_features = getattr(computer.cpu, "leafs", None)
+
+    fields = build_detect_fields(
+        model,
+        gpus=getattr(computer, "gpus", None),
+        cpu_features=cpu_features,
+        cpu_leaf7_features=cpu_leaf7_features,
+        auto_pre_avx_patch=auto_pre_avx_patch,
+        xnu_major=xnu_major,
+    )
+
+    payload = {
         "platform": "macOS",
         "host_is_mac": True,
         "model": model,
@@ -86,6 +120,8 @@ def _serialize_detect_payload(computer: Any) -> dict[str, Any]:
         "os_build": _sw_vers("buildVersion"),
         "host_is_hackintosh": getattr(computer, "firmware_vendor", None) not in (None, "Apple"),
     }
+    payload.update(serialize_detect_fields(fields))
+    return payload
 
 
 def cmd_detect(args: argparse.Namespace) -> int:
@@ -97,14 +133,24 @@ def cmd_detect(args: argparse.Namespace) -> int:
         computer = Computer.probe()
         payload = _serialize_detect_payload(computer)
     else:
-        payload = non_mac_detect_payload()
-        if args.model:
-            payload["model"] = args.model
-            payload["real_model"] = args.model
-            payload["build_model"] = args.model
+        payload = _serialize_detect_payload(None, model_override=args.model)
 
     store = SettingsStore()
-    store.record_detect(str(payload["model"]))
+    detect_extra = {
+        key: payload[key]
+        for key in (
+            "pre_avx_mac_pro",
+            "recommended_metal_patch",
+            "recommended_tahoe_graphics_policy",
+            "avx_available",
+            "avx2_available",
+            "has_avx2",
+            "safari_pre_avx_fix_recommended",
+            "auto_pre_avx_patch",
+        )
+        if key in payload
+    }
+    store.record_detect(str(payload["model"]), extra=detect_extra)
 
     if args.json:
         _emit_json(payload)
@@ -114,12 +160,28 @@ def cmd_detect(args: argparse.Namespace) -> int:
             logging.info("  모델: %s", payload["model"])
             logging.info("  제품명: %s", payload["marketing_name"])
             logging.info("  CPU: %s", payload["cpu"] or "N/A")
+            if payload.get("pre_avx_mac_pro"):
+                logging.info("  Pre-AVX Mac Pro: 예 (Metal 힌트: %s)", payload.get("recommended_metal_patch"))
+                logging.info("  AVX 사용 가능: %s", "예" if payload.get("avx_available") else "아니오")
         else:
             logging.info("%s 호스트 정보:", platform_label())
             logging.info("  플랫폼: %s", payload.get("platform"))
             logging.info("  Mac 하드웨어 감지: 불가")
             logging.info("  CPU: %s", payload.get("cpu") or "N/A")
             logging.info("  안내: %s", MACOS_ONLY_MESSAGE)
+            safari = payload.get("safari26_preavx") or {}
+            if safari.get("eligible_model"):
+                logging.info(
+                    "  Safari 26 Pre-AVX Fix: 이 호스트에서는 적용하지 않습니다. "
+                    "MacPro5,1에서 EFI 빌드 시 자동 적용됩니다."
+                )
+        safari = payload.get("safari26_preavx") or {}
+        if safari:
+            logging.info(
+                "  Safari 26 Pre-AVX Fix: %s (%s)",
+                "적용 예정" if safari.get("should_apply") else "건너뜀",
+                safari.get("reason"),
+            )
         logging.info(
             "  OS: %s (%s)",
             payload["os_version"] or "N/A",
@@ -189,6 +251,8 @@ def _patch_status_payload() -> dict[str, Any]:
         HardwarePatchsetDetection,
         HardwarePatchsetValidation,
     )
+    from x86.pre_avx.detect import build_detect_fields, serialize_detect_fields
+    from x86.settings import SettingsStore
 
     global_constants = constants_module.Constants()
     os_data = os_probe.OSProbe()
@@ -197,10 +261,11 @@ def _patch_status_payload() -> dict[str, Any]:
     global_constants.detected_os_version = os_data.detect_os_version()
     global_constants.computer = device_probe.Computer.probe()
 
-    patches = HardwarePatchsetDetection(
+    patchset = HardwarePatchsetDetection(
         constants=global_constants,
         validation=True,
-    ).device_properties
+    )
+    patches = patchset.device_properties
 
     active = [
         patch_name.split(": ", 1)[1]
@@ -208,6 +273,7 @@ def _patch_status_payload() -> dict[str, Any]:
         if patches[patch_name] is True
         and not patch_name.startswith("Validation")
         and not patch_name.startswith("Settings")
+        and not patch_name.startswith("Graphics Policy")
     ]
     validations = {
         key.split("Validation: ", 1)[1]: value
@@ -215,8 +281,27 @@ def _patch_status_payload() -> dict[str, Any]:
         if key.startswith("Validation:")
     }
 
+    model = global_constants.custom_model or global_constants.computer.real_model
+    auto_pre_avx_patch = SettingsStore().read("auto_pre_avx_patch", True)
+    cpu_features = None
+    cpu_leaf7_features = None
+    if getattr(global_constants.computer, "cpu", None) is not None:
+        cpu_features = getattr(global_constants.computer.cpu, "flags", None)
+        cpu_leaf7_features = getattr(global_constants.computer.cpu, "leafs", None)
+
+    detect_fields = serialize_detect_fields(
+        build_detect_fields(
+            model,
+            gpus=getattr(global_constants.computer, "gpus", None),
+            cpu_features=cpu_features,
+            cpu_leaf7_features=cpu_leaf7_features,
+            auto_pre_avx_patch=bool(auto_pre_avx_patch),
+            xnu_major=global_constants.detected_os,
+        )
+    )
+
     return {
-        "model": global_constants.custom_model or global_constants.computer.real_model,
+        "model": model,
         "os_version": global_constants.detected_os_version,
         "os_build": global_constants.detected_os_build,
         "last_patched_version": global_constants.computer.oclp_sys_version,
@@ -225,6 +310,8 @@ def _patch_status_payload() -> dict[str, Any]:
         "can_patch": not patches.get(HardwarePatchsetValidation.PATCHING_NOT_POSSIBLE, False),
         "can_unpatch": not patches.get(HardwarePatchsetValidation.UNPATCHING_NOT_POSSIBLE, False),
         "validations": validations,
+        "graphics_policy_warnings": patchset.graphics_policy_warnings,
+        **detect_fields,
     }
 
 
@@ -287,7 +374,7 @@ def cmd_wizard(args: argparse.Namespace) -> int:
         return 0
 
     if not is_macos():
-        logging.error("GUI를 시작할 수 없습니다. `pip install pywebview wxpython` 설치를 확인하세요.")
+        logging.error("GUI를 시작할 수 없습니다. `pip install PySide6 pywebview wxpython` 설치를 확인하세요.")
         return 1
 
     from opencore_legacy_patcher.application_entry import main as oclp_main

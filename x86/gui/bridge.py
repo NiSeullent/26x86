@@ -175,7 +175,22 @@ class WizardBridge:
         if not is_macos():
             payload["macos_only_note"] = MACOS_ONLY_MESSAGE
 
-        self._settings.record_detect(payload["model"])
+        detect_extra = {
+            key: payload[key]
+            for key in (
+                "pre_avx_mac_pro",
+                "recommended_metal_patch",
+                "recommended_tahoe_graphics_policy",
+                "avx_available",
+                "avx2_available",
+                "has_avx2",
+                "tahoe_blocked_patches",
+                "safari_pre_avx_fix_recommended",
+                "auto_pre_avx_patch",
+            )
+            if key in payload
+        }
+        self._settings.record_detect(payload["model"], extra=detect_extra)
         return {"ok": True, "detect": payload}
 
     def get_patch_status(self) -> dict[str, Any]:
@@ -195,6 +210,9 @@ class WizardBridge:
 
             if not patch.get("can_patch"):
                 lines.append("현재 상태에서는 패치를 적용할 수 없습니다 (SIP 등 확인 필요).")
+
+            for warning in patch.get("graphics_policy_warnings") or []:
+                lines.append(f"⚠ {warning}")
 
             return {"ok": True, "patch": patch, "summary": "\n".join(lines)}
         except Exception as exc:

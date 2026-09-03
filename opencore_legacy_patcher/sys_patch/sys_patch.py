@@ -836,6 +836,24 @@ class PatchSysVolume:
         """
         logging.info("- Running Preflight Checks before patching")
 
+        try:
+            from x86.graphics.detect import detect_pre_avx_mac_pro
+
+            report = detect_pre_avx_mac_pro(
+                self.constants.computer.real_model,
+                xnu_major=self.constants.detected_os,
+            )
+            if (
+                self.constants.detected_os >= os_data.os_data.tahoe.value
+                and report.is_mac_pro
+                and report.notes
+            ):
+                logging.warning("- Tahoe Pre-AVX Mac Pro graphics policy:")
+                for note in report.notes:
+                    logging.warning("  %s", note)
+        except Exception as error:
+            logging.debug("Graphics policy preflight skipped: %s", error)
+
         # Validate all required files exist
         for patch in required_patches:
             for method_type in [

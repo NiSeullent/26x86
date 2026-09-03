@@ -23,7 +23,24 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "auto_patch": False,
     "verbose_logging": False,
     "last_detect": None,
+    # Pre-AVX Mac Pro 자동 패치 (Safari26 RestrictEvents + revpatch=jsc). 기본 ON.
+    "auto_pre_avx_patch": True,
+    # Legacy alias — read via read_auto_pre_avx_patch().
+    "safari26_preavx_fix": True,
 }
+
+
+def read_auto_pre_avx_patch(settings: Optional[dict[str, Any]] = None) -> bool:
+    """Return whether automatic Pre-AVX / Safari26 EFI patches are enabled."""
+    if settings is None:
+        settings = SettingsStore().load()  # type: ignore[name-defined]
+    if "auto_pre_avx_patch" in settings:
+        value = settings["auto_pre_avx_patch"]
+    else:
+        value = settings.get("safari26_preavx_fix", True)
+    if isinstance(value, str):
+        return value.strip().lower() not in {"0", "false", "off", "no", "disabled"}
+    return bool(value)
 
 
 def _resolve_config_path() -> Path:

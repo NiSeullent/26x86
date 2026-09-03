@@ -1,8 +1,16 @@
 (() => {
   "use strict";
 
+  const DEFAULT_STEPS = [
+    { id: "welcome", title: "시작", heading: "26x86에 오신 것을 환영합니다", desc: "오래된 Mac에서 최신 macOS를 사용할 수 있도록 단계별로 안내합니다." },
+    { id: "detect", title: "1. 내 Mac 확인", heading: "내 Mac 확인", desc: "하드웨어 정보를 확인합니다." },
+    { id: "build", title: "2. 패치 생성", heading: "패치 생성", desc: "OpenCore EFI를 만듭니다." },
+    { id: "patch", title: "3. 설치·패치", heading: "설치·패치", desc: "EFI 설치와 루트 패치를 진행합니다." },
+    { id: "done", title: "4. 완료", heading: "설정이 완료되었습니다", desc: "필요하면 루트 패치를 적용하세요." },
+  ];
+
   const state = {
-    steps: [],
+    steps: DEFAULT_STEPS.slice(),
     currentStep: 0,
     appInfo: null,
     detect: null,
@@ -11,6 +19,7 @@
     canBuild: true,
     buildCompleted: false,
     busy: false,
+    bridgeReady: false,
   };
 
   const els = {
@@ -121,9 +130,13 @@
         callback();
       } else if (attempts >= maxAttempts) {
         window.clearInterval(timer);
-        els.stepContent.innerHTML =
-          '<p class="lead">Python 브릿지에 연결하지 못했습니다. Chromium(Qt WebEngine) 창이 열렸는지 확인하거나 터미널에서 <code>python3 -m x86 wizard</code>를 실행해 주세요.</p>';
-        toast("Python bridge API 연결 실패", "error");
+        const banner = document.getElementById("boot-banner");
+        if (banner) {
+          banner.innerHTML = "Python 브릿지에 아직 연결되지 않았습니다. 창은 정상입니다.";
+        }
+        setStatus("브릿지 대기 시간 초과");
+        toast("Python bridge API 연결 실패 — UI는 표시됩니다", "error");
+        try { bindGlobalActions(); renderStepContent(); } catch (_) {}
       }
     }, 50);
 
@@ -448,6 +461,9 @@
       els.logoFallback.hidden = true;
     }
 
+    state.bridgeReady = true;
+    const banner = document.getElementById("boot-banner");
+    if (banner) banner.remove();
     renderStepContent();
     setStatus(appInfo.status_ready);
   }
@@ -497,11 +513,18 @@
     });
   }
 
+  document.addEventListener("DOMContentLoaded", () => {
+    try { renderStepper(); setStatus("UI 로딩 중…"); } catch (_) {}
+  });
+
   whenBridgeReady(() => {
     bindGlobalActions();
     loadInitialData().catch((err) => {
       toast(String(err.message || err), "error");
-      els.stepContent.innerHTML = `<p class="lead">UI를 초기화하지 못했습니다. Python 브릿지를 확인해 주세요.</p>`;
+      const banner = document.getElementById("boot-banner");
+      if (banner) banner.textContent = "Python 데이터를 불러오지 못했습니다. UI 골격은 표시됩니다.";
+      setStatus("데이터 로드 실패");
+      renderStepContent();
     });
   });
 })();

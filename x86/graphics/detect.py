@@ -201,8 +201,11 @@ def serialize_graphics_detect_fields(
     agdpmod_present: Optional[bool] = None,
     probe_host_agdpmod: bool = False,
     assume_tahoe: bool = False,
+    agdp_on_correct_gfx0: Optional[bool] = None,
+    yellow_symptoms: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """JSON-friendly graphics policy fields for `x86 detect --json`."""
+    from .agdc_diagnose import serialize_agdc_diagnose_fields
     from .yellow_screen import serialize_yellow_screen_fields
 
     report = detect_pre_avx_mac_pro(
@@ -220,15 +223,32 @@ def serialize_graphics_detect_fields(
         "tahoe_blocked_patches": list(report.tahoe_blocked_patches),
         "graphics_policy_notes": list(report.notes),
     }
-    payload.update(
-        serialize_yellow_screen_fields(
-            model,
-            gpu_archs=gpu_archs,
-            os_version=os_version,
-            xnu_major=xnu_major,
-            agdpmod_present=agdpmod_present,
-            probe_host_agdpmod=probe_host_agdpmod,
-            assume_tahoe=assume_tahoe,
-        )
+    yellow = serialize_yellow_screen_fields(
+        model,
+        gpu_archs=gpu_archs,
+        os_version=os_version,
+        xnu_major=xnu_major,
+        agdpmod_present=agdpmod_present,
+        probe_host_agdpmod=probe_host_agdpmod,
+        assume_tahoe=assume_tahoe,
     )
+    payload.update(yellow)
+
+    # Track D — extend only; never replace yellow_screen_risk.
+    present = yellow.get("agdpmod_detected", agdpmod_present)
+    agdc = serialize_agdc_diagnose_fields(
+        model,
+        gpu_archs=gpu_archs,
+        os_version=os_version,
+        xnu_major=xnu_major,
+        agdpmod_present=present,
+        agdp_on_correct_gfx0=agdp_on_correct_gfx0,
+        assume_tahoe=assume_tahoe,
+        symptoms=yellow_symptoms,
+    )
+    for key, value in agdc.items():
+        if key == "yellow_screen_risk":
+            continue
+        if key not in payload:
+            payload[key] = value
     return payload

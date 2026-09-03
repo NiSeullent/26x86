@@ -12,6 +12,16 @@ from .detect import (
     should_strip_tahoe_legacy_gpu_patches,
     tahoe_blocked_patch_ids,
 )
+from .metallib_opaque import (
+    opaque_shader_windowserver_relationship,
+    probe_window_server_opaque_cache,
+    serialize_opaque_shader_fields,
+)
+from .metallib_preflight import (
+    assess_metallib_gaps,
+    gated_metal_31001_common_patches,
+    serialize_metallib_preflight_fields,
+)
 from .skylight_lut import (
     enumerate_evidence_skylight_plugins,
     resolve_renderbox_metallib_payload,
@@ -36,14 +46,20 @@ __all__ = [
     "STOCK_GCN_AGDP_MODELS",
     "TAHOE_BLOCKED_PATCH_IDS",
     "TAHOE_XNU_MAJOR",
+    "assess_metallib_gaps",
     "classify_gpu_family",
     "detect_pre_avx_mac_pro",
     "enumerate_evidence_skylight_plugins",
+    "gated_metal_31001_common_patches",
+    "opaque_shader_windowserver_relationship",
+    "probe_window_server_opaque_cache",
     "read_cpu_features_from_sysctl",
     "recommended_efi_graphics_fixes",
     "resolve_legacy_amd_mtl_payload",
     "resolve_renderbox_metallib_payload",
     "serialize_graphics_detect_fields",
+    "serialize_metallib_preflight_fields",
+    "serialize_opaque_shader_fields",
     "serialize_skylight_lut_fields",
     "serialize_yellow_screen_fields",
     "should_disable_window_server_caching",

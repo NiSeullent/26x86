@@ -1,8 +1,11 @@
 """
 HTML hybrid 26x86 wizard shell.
 
-Default: PySide6 Qt WebEngine (Chromium).
-Fallback: pywebview (Qt / Edge WebView2), then Cocoa WebKit on macOS only.
+Default on macOS: pywebview Cocoa (WebKit). Qt WebEngine is opt-in via
+``X86_GUI_BACKEND=qt`` — Chromium/Metal aborts on flashed Mac Pro + Vega.
+
+Always serve the wizard over local HTTP (never file://) so WKWebView can
+load CSS/JS and the shell paints before the Python bridge is ready.
 """
 
 from __future__ import annotations
@@ -10,6 +13,9 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import threading
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Optional
 
 from x86.gui import bootstrap
@@ -63,8 +69,21 @@ class WebviewApi:
         return self._bridge.open_guide()
 
 
+class _QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
+        logging.debug("wizard http: " + format, *args)
+
+
+def start_wizard_http_server(directory) -> ThreadingHTTPServer:
+    """Serve wizard static files on 127.0.0.1 (daemon thread)."""
+    handler = partial(_QuietHandler, directory=str(directory))
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True, name="26x86-wizard-http")
+    thread.start()
+    return httpd
+
+
 def _ensure_stdio_for_frozen_gui() -> None:
-    """PyInstaller windowed apps may have no stdout/stderr; bottle needs them."""
     if not getattr(sys, "frozen", False):
         return
     if sys.stdout is None:
@@ -78,15 +97,12 @@ def _requested_backend() -> str:
 
 
 def _should_try_qt_chromium(requested: str) -> bool:
-    if requested in ("cocoa", "webkit", "pywebview", "edge", "edgechromium"):
-        return False
-    if requested in ("auto", "", "chromium", "qt", "webengine"):
-        return True
-    return requested == "chromium"
+    """Chromium is never the default; Vega/Metal hosts abort in QWebEnginePage."""
+    return requested in ("chromium", "qt", "webengine")
 
 
 def launch_webview_wizard(*, advanced: bool = False) -> None:
-    """Open the HTML hybrid wizard. Chromium is preferred; Cocoa is last-resort."""
+    """Open the HTML hybrid wizard. macOS default is Cocoa WebKit."""
     _ensure_stdio_for_frozen_gui()
     bootstrap.ensure_repo_on_path()
     requested = _requested_backend()
@@ -95,13 +111,11 @@ def launch_webview_wizard(*, advanced: bool = False) -> None:
         try:
             from x86.gui.qt_chromium import launch_qt_chromium_wizard
 
-            logging.info("Launching HTML wizard with Qt WebEngine (Chromium)")
+            logging.info("Launching HTML wizard with Qt WebEngine (Chromium, opt-in)")
             launch_qt_chromium_wizard(advanced=advanced)
             return
         except Exception:
-            logging.exception("Qt WebEngine (Chromium) failed; trying pywebview")
-            if requested in ("chromium", "qt", "webengine"):
-                raise
+            logging.exception("Qt WebEngine (Chromium) failed; trying pywebview cocoa")
 
     _launch_pywebview_wizard(advanced=advanced, requested=requested)
 
@@ -119,35 +133,32 @@ def _launch_pywebview_wizard(*, advanced: bool, requested: str) -> None:
             return
         logging.warning("Advanced GUI unavailable: %s", result.get("error"))
 
-    title = bridge.get_app_info()["title"]
-    index_path = bridge.index_uri()
-    logging.info("pywebview wizard url=%s exists=%s", index_path, os.path.exists(index_path))
+    web_root = bridge.web_root()
+    index_path = bridge.index_path()
+    if not index_path.exists():
+        raise FileNotFoundError(f"Wizard HTML missing: {index_path}")
+
+    httpd = start_wizard_http_server(web_root)
+    port = httpd.server_address[1]
+    url = f"http://127.0.0.1:{port}/index.html"
+    logging.info("pywebview wizard url=%s root=%s exists=%s", url, web_root, index_path.exists())
 
     gui = resolve_pywebview_gui()
-    if requested in ("cocoa", "webkit"):
+    if is_macos():
         gui = "cocoa"
     elif requested in ("edge", "edgechromium"):
         gui = "edgechromium"
-    elif requested == "qt":
-        gui = "qt"
 
-    if requested in ("cocoa", "webkit"):
-        backends = ["cocoa"]
-    elif gui == "cocoa":
-        backends = ["qt", "cocoa"] if is_macos() else ["qt"]
-    else:
-        backends = [gui]
-        if is_macos() and gui != "cocoa":
-            backends.append("cocoa")
+    backends = ["cocoa"] if is_macos() else [gui or "gtk"]
+    title = bridge.get_app_info()["title"]
 
-    last_error: Optional[BaseException] = None
+    last_error = None
     for index, backend in enumerate(backends):
         try:
-            logging.info("Starting pywebview with gui=%s http_server=True", backend)
-            os.environ.setdefault("QT_API", "pyside6")
-            webview.create_window(
+            logging.info("Starting pywebview with gui=%s url=%s", backend, url)
+            window = webview.create_window(
                 title,
-                url=index_path,
+                url=url,
                 js_api=api,
                 width=960,
                 height=720,
@@ -156,25 +167,43 @@ def _launch_pywebview_wizard(*, advanced: bool, requested: str) -> None:
                 text_select=True,
                 background_color="#e8edf3",
             )
-            webview.start(debug=False, gui=backend, http_server=True)
+
+            def _shutdown_http() -> None:
+                try:
+                    httpd.shutdown()
+                except Exception:
+                    logging.debug("wizard http shutdown failed", exc_info=True)
+
+            try:
+                window.events.closed += _shutdown_http
+            except Exception:
+                pass
+
+            webview.start(debug=False, gui=backend, http_server=False)
             return
         except Exception as exc:
             last_error = exc
             logging.warning("pywebview gui=%s failed: %s", backend, exc)
             if index == len(backends) - 1:
+                try:
+                    httpd.shutdown()
+                except Exception:
+                    pass
                 raise
             continue
 
+    try:
+        httpd.shutdown()
+    except Exception:
+        pass
     if last_error:
         raise last_error
 
 
 def smoke_test_bridge() -> dict[str, Any]:
-    """Headless bridge checks (no GUI)."""
     bootstrap.ensure_repo_on_path()
     bridge = WizardBridge()
     results: dict[str, Any] = {"ok": True, "checks": {}}
-
     for name, fn in (
         ("app_info", bridge.get_app_info),
         ("steps", bridge.get_steps),
@@ -189,10 +218,8 @@ def smoke_test_bridge() -> dict[str, Any]:
         except Exception as exc:
             results["ok"] = False
             results["checks"][name] = {"ok": False, "error": str(exc)}
-
-    index_path = bridge.index_path()
-    results["web_index"] = str(index_path)
-    results["index_is_file_uri"] = bridge.index_uri().startswith("file://")
+    results["web_index"] = str(bridge.index_path())
+    results["index_is_file_uri"] = False
     results["qt_chromium_available"] = qt_webengine_available()
     results["pywebview_gui"] = resolve_pywebview_gui()
     results["gui_backend_env"] = _requested_backend()
@@ -203,11 +230,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     if argv and argv[0] == "--smoke":
         import json
-
         payload = smoke_test_bridge()
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0 if payload["ok"] else 1
-
     launch_webview_wizard(advanced="--advanced" in argv)
     return 0
 

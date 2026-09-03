@@ -24,7 +24,7 @@ python -m x86 wizard              # 기본 GUI (마법사)
 
 고급 레거시 메뉴: `X86_ADVANCED=1 python -m x86 wizard` (점진 폐기 예정)
 
-아키텍처 상세: [CLEANROOM-ARCHITECTURE.md](../CLEANROOM-ARCHITECTURE.md)
+아키텍처 상세: [ARCHITECTURE-26x86.md](../ARCHITECTURE-26x86.md)
 
 ---
 
@@ -39,7 +39,7 @@ python -m x86 wizard              # 기본 GUI (마법사)
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 전용 주의 (SIP, APFS, 다운로드) |
 | [Installation-Notes.md](./Installation-Notes.md) | 클린 설치, 업그레이드, 개발 환경 |
 | [Configuration.md](./Configuration.md) | 설정 경로, App Support, launchd, `26x86.*` 키 |
-| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | OCLP 1회 자동 마이그레이션, 공존 주의 |
+| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | 이전 패처에서 전환 (OCLP plist 불필요) |
 | [Orphan-Files-Archive.md](./Orphan-Files-Archive.md) | 제거·보관된 고아 파일 목록 |
 | [Upstream-Repositories.md](./Upstream-Repositories.md) | **원본 저장소 전체** — OCLP, OCLP-T2, Acidanthera, moraea 등 |
 | [README.en.md](./README.en.md) | English wiki index |

@@ -1,5 +1,5 @@
 """
-26x86 clean-room package.
+26x86 application package.
 
 Runtime entry: ``python -m x86 <command>``
 """

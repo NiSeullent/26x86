@@ -10,9 +10,9 @@
 
 | Page | Topic |
 |------|--------|
-| [Warnings.md](./Warnings.md) | All cautions: C2D, GPU, T2 SIP, Hackintosh, clean-room notes |
+| [Warnings.md](./Warnings.md) | All cautions: C2D, GPU, T2 SIP, Hackintosh, 26x86 settings notes |
 | [Configuration.md](./Configuration.md) | `config.json`, `com.niseullent.26x86`, launchd |
-| [Migration.md](./Migration.md) | OCLP → 26x86 (JSON settings, new CLI) |
+| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | 이전 패처에서 26x86으로 전환 |
 | [Known-Issues.md](./Known-Issues.md) | T2 progress, known bugs |
 | [Disclaimer.md](./Disclaimer.md) | Disclaimer summary → [DISCLAIMER.md](../../DISCLAIMER.md) |
 | [GPU-Limitations.md](./GPU-Limitations.md) | Metal 8302, Non-Metal |
@@ -22,7 +22,7 @@
 
 ## Architecture
 
-- [CLEANROOM-ARCHITECTURE.md](../CLEANROOM-ARCHITECTURE.md) — `x86/` package, JSON settings, wizard-first CLI (Korean)
+- [ARCHITECTURE-26x86.md](../ARCHITECTURE-26x86.md) — `x86/` package, JSON settings, wizard-first CLI (Korean)
 
 ## Project docs (English supplements)
 

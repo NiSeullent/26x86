@@ -1,12 +1,12 @@
 """
-paths.py: Filesystem paths for 26x86 (bundle ID com.niseullent.26x86).
+paths.py: Filesystem paths for 26x86 (bundle ID com.sharhene777.26x86).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-BUNDLE_ID: str = "com.niseullent.26x86"
+BUNDLE_ID: str = "com.sharhene777.26x86"
 APP_NAME: str = "26x86"
 APP_BUNDLE_NAME: str = "26x86.app"
 
@@ -40,7 +40,7 @@ class Paths:
 
     @staticmethod
     def user_preferences_plist() -> Path:
-        return Path.home() / "Library/Preferences/com.niseullent.26x86.plist"
+        return Path.home() / "Library/Preferences/com.sharhene777.26x86.plist"
 
     @staticmethod
     def user_cache_dir() -> Path:

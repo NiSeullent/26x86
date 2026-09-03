@@ -1,19 +1,35 @@
-# MC stage — Tahoe-only root-patch note (병합용)
+# MC stage — Tahoe-only root-patch + WIP 큐
 
 > **파일:** `docs/EXTREME-Tahoe-Rootpatch-HostGate.md.stage-MC`  
-> MC가 정식 `EXTREME-Tahoe-PreAVX-Vega64.md`에 이미 반영. 이 stage는 감사/재적용용.
+> 정식 갭: `docs/EXTREME-Tahoe-PreAVX-Vega64.md` · Tracks: `docs/SkyLight-LUT-Tracks.md`
 
 ## 한 줄
 
-루트패치는 **macOS 26 Tahoe (`is_tahoe`)에서만** 동작. Sequoia 호스트에서 `X86_EXTREME=1`이어도 루트패치 **no-op**.
+루트패치·L5 OVERWRITE·K extreme 실주입은 **macOS 26 Tahoe (`is_tahoe`)에서만**.  
+Sequoia + `X86_EXTREME=1` → 루트 **no-op**. 구현 진입점: `x86/graphics/tahoe_gate.py`.
 
-## 소유 분리
+## 소유 분리 (본 WIP 보강 라운드)
 
 | 소유 | 범위 |
 |------|------|
-| **배포/루트 전담 에이전트** | Tahoe-only 루트패치 게이트, 이 Mac 앱·PKG 설치 |
-| **MC** | EXTREME/Tracks 갭, H/J stage INTEGRATE 대기 목록 |
+| **Sweep** | 메인 INTEGRATE — `tahoe_gate` land, L5/M `is_tahoe` wire, **J** detect stage→live |
+| **MC** | EXTREME/Tracks/stage-MC 갭·큐만 · **코드 INTEGRATE race 금지** |
+| **배포 전담** | 앱·PKG · 실기 L5-patched 스테이징 |
 
-## INTEGRATE (MC)
+## 미결 (Sweep 체크리스트)
 
-지금은 **H · J stage만** 대기. D / L5-R / I↔K 코드는 배포 에이전트와 충돌 없게 보류.
+- [ ] `tahoe_gate.py` tracked + push
+- [ ] `skylight_lut_rootpatch.py` → `is_tahoe` / `root_patches_allowed`
+- [ ] `metal3802_tahoe.py` → gate import (Non-Tahoe `{}`)
+- [ ] **J** `detect.py` / `shader_avx_detect` / tracks stage merge (`3800bf8` base)
+- [ ] (선택) N IOSurface 10.15.7 prefer when H latch
+
+## 이미 landed (재 INTEGRATE 금지)
+
+`d1093ef` H+L5 soft-import · `a5c9d94` L5 recipes · `cfd2458` I↔K · D Tools
+
+## 변경 이력
+
+| 날짜 | 내용 |
+|------|------|
+| 2026-09-04 | WIP Sweep: MC=docs only; H 완료 → J+gate가 Sweep 메인 |

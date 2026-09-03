@@ -1,8 +1,9 @@
 # STAGE WORKFLOW — 파일 독재 금지
 
 > **파일:** `docs/STAGE-WORKFLOW.md` (정식)  
-> **승격:** `52f7298` · H/L5 INTEGRATE (본 패스) · D Tools  
-> **추가 변경:** 트랙은 `*.stage-<TRACK>` 만; 원본은 MC만
+> **승격:** `52f7298` · H/L5 `d1093ef` · D Tools  
+> **WIP 라운드:** Sweep=메인 INTEGRATE (J+`tahoe_gate`) · MC=갭 문서만  
+> **추가 변경:** 트랙은 `*.stage-<TRACK>` 만; live 원본은 INTEGRATE 담당만
 
 ## 목적
 
@@ -21,4 +22,5 @@
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-09-04 | WIP Sweep: MC docs-only; J+gate → Sweep |
 | 2026-09-04 | 정식화 · H promote · L5 soft-import · Tahoe gate |

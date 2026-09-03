@@ -101,13 +101,21 @@ def _should_try_qt_chromium(requested: str) -> bool:
     return requested in ("chromium", "qt", "webengine")
 
 
+def _qt_chromium_available() -> bool:
+    """Safe wrapper — find_spec can raise when PySide6 is absent (py3.9)."""
+    try:
+        return bool(qt_webengine_available())
+    except Exception:
+        return False
+
+
 def launch_webview_wizard(*, advanced: bool = False) -> None:
     """Open the HTML hybrid wizard. macOS default is Cocoa WebKit."""
     _ensure_stdio_for_frozen_gui()
     bootstrap.ensure_repo_on_path()
     requested = _requested_backend()
 
-    if _should_try_qt_chromium(requested) and qt_webengine_available():
+    if _should_try_qt_chromium(requested) and _qt_chromium_available():
         try:
             from x86.gui.qt_chromium import launch_qt_chromium_wizard
 
@@ -220,9 +228,11 @@ def smoke_test_bridge() -> dict[str, Any]:
             results["checks"][name] = {"ok": False, "error": str(exc)}
     results["web_index"] = str(bridge.index_path())
     results["index_is_file_uri"] = False
-    results["qt_chromium_available"] = qt_webengine_available()
+    results["qt_chromium_available"] = _qt_chromium_available()
     results["pywebview_gui"] = resolve_pywebview_gui()
     results["gui_backend_env"] = _requested_backend()
+    results["macos_default_cocoa"] = is_macos() and resolve_pywebview_gui() == "cocoa"
+    results["qt_opt_in_only"] = not _should_try_qt_chromium(_requested_backend())
     return results
 
 

@@ -45,22 +45,34 @@ class BridgeSmokeTest(unittest.TestCase):
 
     def test_webview_smoke_helper(self) -> None:
         from x86.gui.webview_app import smoke_test_bridge
+        from x86.platform import is_macos
 
         payload = smoke_test_bridge()
         self.assertTrue(payload["ok"], json.dumps(payload, ensure_ascii=False))
         self.assertIn("qt_chromium_available", payload)
         self.assertIn("pywebview_gui", payload)
+        self.assertTrue(payload["qt_opt_in_only"])
+        if is_macos():
+            self.assertEqual(payload["pywebview_gui"], "cocoa")
+            self.assertTrue(payload["macos_default_cocoa"])
 
-    def test_macos_gui_prefers_qt_not_cocoa(self) -> None:
-        from x86.platform import is_macos, qt_webengine_available, resolve_pywebview_gui
+    def test_macos_gui_defaults_to_cocoa(self) -> None:
+        from x86.gui.webview_app import (
+            _requested_backend,
+            _should_try_qt_chromium,
+            launch_webview_wizard,
+        )
+        from x86.platform import is_macos, resolve_pywebview_gui
 
         if not is_macos():
             self.skipTest("macOS-only backend preference")
-        gui = resolve_pywebview_gui()
-        if qt_webengine_available():
-            self.assertEqual(gui, "qt")
-        else:
-            self.assertEqual(gui, "cocoa")
+        self.assertEqual(resolve_pywebview_gui(), "cocoa")
+        self.assertEqual(_requested_backend(), "auto")
+        self.assertFalse(_should_try_qt_chromium("auto"))
+        self.assertFalse(_should_try_qt_chromium(_requested_backend()))
+        self.assertTrue(_should_try_qt_chromium("qt"))
+        # Cocoa+HTTP is the default entry; Chromium only via X86_GUI_BACKEND.
+        self.assertIn("cocoa", (launch_webview_wizard.__doc__ or "").lower())
 
     def test_html_bootstraps_qt_or_pywebview_bridge(self) -> None:
         from x86.gui.bridge import WizardBridge

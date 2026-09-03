@@ -56,4 +56,4 @@ open ./dist/
 
 완료 후 `./dist/26x86.app` 및 pkg 설치 프로그램이 생성됩니다.
 
-워크스페이스 전체 개발환경은 [../docs/SETUP.md](../docs/SETUP.md)를 참고하세요. 영문: [../docs/SETUP.en.md](../docs/SETUP.en.md).
+워크스페이스 전체 개발환경은 [./docs/SETUP.en.md](./docs/SETUP.en.md)를 참고하세요. 영문: [./docs/SETUP.en.md](./docs/SETUP.en.md).

@@ -98,8 +98,7 @@ T2·비-T2 x86 Mac 모두에서 macOS 26 Tahoe 호환성 개선을 목표로 합
 
 - Dortania 가이드(영문): [OpenCore Legacy Patcher Guide](https://dortania.github.io/OpenCore-Legacy-Patcher/)
 - 소스 실행: [SOURCE.md](./SOURCE.md) (한국어)
-- 개발환경(한국어): [docs/SETUP.md](./docs/SETUP.md)
-- 영문 개요: [docs/README.en.md](./docs/README.en.md)
+- 영문 보조 문서: [docs/README.en.md](./docs/README.en.md) · [docs/SETUP.en.md](./docs/SETUP.en.md) · [docs/KOREAN_EDITION.md](./docs/KOREAN_EDITION.md)
 - 한글판 최적화 안내: [docs/KOREAN_EDITION.md](./docs/KOREAN_EDITION.md)
 
 ## 지원

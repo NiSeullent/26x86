@@ -1,62 +1,52 @@
-# Third-Party Licenses
+# 서드파티 라이선스 (Third-Party Licenses)
 
-This document lists the licenses of major third-party components used by 26x86.
-Full copyright notices from upstream projects are retained in `LICENSE.txt` and `NOTICE.md`.
+26x86이 사용하는 주요 서드파티 구성 요소의 라이선스 목록입니다. 업스트림 전체 저작권 고지는 `LICENSE.txt`, `NOTICE.md`에 유지됩니다.
 
 ---
 
-## Project Lineage
+## 프로젝트 계보
 
-### 26x86 (this repository)
+### 26x86 (본 저장소)
 
-- **License:** BSD 3-Clause
-- **Copyright:** Copyright (c) 2026 NiSeullent and 26x86 contributors.
-- **Upstream:** Derived from OpenCore Legacy Patcher T2 and OpenCore Legacy Patcher.
+- **라이선스:** BSD 3-Clause
+- **저작권:** Copyright (c) 2026 NiSeullent and 26x86 contributors.
+- **업스트림:** OpenCore Legacy Patcher T2 및 OpenCore Legacy Patcher에서 파생
 
 ### OpenCore Legacy Patcher T2
 
-- **Repository:** https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2
-- **License:** BSD 3-Clause
-- **Copyright:** Copyright (c) 2020–2025 Dhinak G, Mykola Grymalyuk, and individual contributors.
+- **저장소:** https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2
+- **라이선스:** BSD 3-Clause
+- **저작권:** Copyright (c) 2020–2025 Dhinak G, Mykola Grymalyuk, and individual contributors.
 
 ### OpenCore Legacy Patcher (Dortania)
 
-- **Repository:** https://github.com/dortania/OpenCore-Legacy-Patcher
-- **License:** BSD 3-Clause (4-clause variant in upstream; 3-clause core terms apply)
-- **Copyright:** Copyright (c) 2020–2025 Dhinak G, Mykola Grymalyuk, and individual contributors.
+- **저장소:** https://github.com/dortania/OpenCore-Legacy-Patcher
+- **라이선스:** BSD 3-Clause
+- **저작권:** Copyright (c) 2020–2025 Dhinak G, Mykola Grymalyuk, and individual contributors.
 
 ### OpenCorePkg-add-T2-support
 
-- **Repository:** https://github.com/albert-mueller/OpenCorePkg-add-T2-support
-- **License:** BSD 3-Clause
-- **Copyright:**
-  - Copyright (c) 2016–2017, The HermitCrabs Lab
-  - Copyright (c) 2016–2020, Download-Fritz
-  - Copyright (c) 2017–2020, savvas
-  - Copyright (c) 2016–2020, vit9696
+- **저장소:** https://github.com/albert-mueller/OpenCorePkg-add-T2-support
+- **라이선스:** BSD 3-Clause
+- **저작권:** HermitCrabs Lab, Download-Fritz, savvas, vit9696 등 (저장소 참조)
 
 ### PatcherSupportPkg
 
-- **Repository:** https://github.com/hackdoc/PatcherSupportPkg
-- **License:** All rights reserved to respective authors (no redistribution license file)
-- **Copyright:**
-  - Copyright (c) 2017–2021, Apple.inc
-  - Copyright (c) 2020–2021, ASentientBot
-  - Copyright (c) 2019–2021, dosdude1
-  - Copyright (c) 2021, Khronokernel
+- **저장소:** https://github.com/hackdoc/PatcherSupportPkg
+- **라이선스:** 각 저자 권리 (별도 LICENSE 파일 없음 — 저장소 정책 준수)
 
 ### MetallibSupportPkg
 
-- **Repository:** https://github.com/dortania/MetallibSupportPkg
-- **License:** No explicit LICENSE file in the repository at time of fork; treat as all-rights-reserved unless otherwise stated by Dortania.
-- **Purpose:** Metal Library (`.metallib`) patching utilities for legacy GPU support.
+- **저장소:** https://github.com/dortania/MetallibSupportPkg
+- **라이선스:** 포크 시점 LICENSE 미확인 시 Dortania 저장소 정책 따름
+- **용도:** 레거시 GPU `.metallib` 패치
 
 ---
 
-## Bootloader and Kexts (Acidanthera)
+## 부트로더 및 Kext (Acidanthera)
 
-| Component | License | URL |
-|-----------|---------|-----|
+| 구성 요소 | 라이선스 | URL |
+|-----------|----------|-----|
 | OpenCorePkg | BSD 3-Clause | https://github.com/acidanthera/OpenCorePkg |
 | Lilu | BSD 3-Clause | https://github.com/acidanthera/Lilu |
 | WhateverGreen | BSD 3-Clause | https://github.com/acidanthera/WhateverGreen |
@@ -70,31 +60,26 @@ Full copyright notices from upstream projects are retained in `LICENSE.txt` and 
 
 ---
 
-## Other Bundled Components
+## 기타 번들 구성 요소
 
-| Component | License | Notes |
-|-----------|---------|-------|
+| 구성 요소 | 라이선스 | 비고 |
+|-----------|----------|------|
 | Innie | BSD 3-Clause | https://github.com/cdf/Innie |
-| AAAMouSSE | All rights reserved | Syncretic — closed source |
-| telemetrap | All rights reserved | Syncretic — closed source |
-| SurPlus | See repository | https://github.com/reenigneorcim/SurPlus |
-| AMFIPass | See author | Dhinak G |
-| Apple binaries (kexts, frameworks) | Apple Proprietary | Apple Inc. |
-| Non-Metal / 3802 Metal patch sets | See respective authors | moraea and contributors |
+| AAAMouSSE | All rights reserved | Syncretic — 폐쇄 소스 |
+| telemetrap | All rights reserved | Syncretic — 폐쇄 소스 |
+| SurPlus | 저장소 참조 | https://github.com/reenigneorcim/SurPlus |
+| AMFIPass | 저자 참조 | Dhinak G |
+| Apple 바이너리 | Apple Proprietary | Apple Inc. |
+| Non-Metal / 3802 Metal 패치 | 각 저자 | moraea 등 |
 
-For a detailed component list, see also [docs/LICENSE.md](./docs/LICENSE.md).
+상세 목록: [docs/LICENSE.md](./docs/LICENSE.md)
 
 ---
 
-## BSD 3-Clause Summary
+## BSD 3-Clause 요약
 
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that:
-
-1. Redistributions of source code retain the copyright notice, conditions, and disclaimer.
-2. Redistributions in binary form reproduce the copyright notice, conditions, and disclaimer in documentation.
-3. Advertising materials acknowledge Dortania, OpenCore Legacy Patcher contributors, and the 26x86 project (where applicable).
-4. Neither project names nor contributor names may be used for endorsement without permission.
+소스·바이너리 형태로 재배포·사용 가능하나, (1) 저작권·조건·면책 유지, (2) 바이너리 배포 시 문서에 동일 고지, (3) 해당 시 Dortania·OCLP·26x86 표기, (4) 무단 보증·승인 금지.
 
 **THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.**
 
-See `LICENSE.txt` for the full legal text.
+전문: `LICENSE.txt`

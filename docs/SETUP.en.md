@@ -1,68 +1,57 @@
 # 26x86 Development Setup (English)
 
-> **Korean-Optimized Edition** — GUI and primary docs default to Korean. Use `--lang en` for English CLI help.
+> **Korean-Optimized Edition / 한글판 최적화** — The canonical setup guide is in Korean: [SETUP (workspace)](../../docs/SETUP.md) — Korean canonical guide in monorepo. This file is an English summary for international contributors.
 
-## Workspace Layout
+## Directory layout
 
 ```
-26x86/                      # Main patcher (this repo)
-26x86-MetallibSupportPkg/   # Metal library patches
-26x86-PatcherSupportPkg/    # Universal binaries
-26x86-OpenCorePkg/          # OpenCore bootloader fork
+~/Desktop/26x86/
+├── 26x86/                      # Main patcher (Python GUI/CLI)
+├── 26x86-MetallibSupportPkg/
+├── 26x86-PatcherSupportPkg/
+├── 26x86-OpenCorePkg/
+├── .venv/                      # Local Python venv (not committed)
+├── scripts/
+├── docs/
+└── vm/
+```
+
+## Quick start
+
+```bash
+cd ~/Desktop/26x86
+bash scripts/setup-dev.sh
+source .venv/bin/activate
+cd 26x86
+python3 OpenCore-Patcher-GUI.command
 ```
 
 ## Requirements
 
-| Item | Version |
-|------|---------|
-| macOS host | 15.x+ recommended |
-| Python | **3.13+** (not Xcode bundled 3.9) |
-| Xcode CLT | For native OpenCore builds |
+| Item | Notes |
+|------|--------|
+| macOS | 15.x (Sequoia) or newer recommended |
+| Python | **3.13+** from python.org or `uv python install 3.13` |
+| Xcode CLT | `xcode-select --install` |
+| Git | required |
+| gh CLI | optional, for GitHub |
 
-## One-Shot Setup
+## Korean UI default
 
-```bash
-git clone https://github.com/NiSeullent/26x86.git
-cd ..   # parent workspace
-bash scripts/setup-dev.sh   # if using full workspace clone
-```
+- The **GUI wizard** uses Korean strings (`opencore_legacy_patcher/wizard/strings.py`).
+- **CLI** help defaults to Korean; use `--lang en` for English help:
+  ```bash
+  python3 OpenCore-Patcher-GUI.command --lang en --help
+  ```
 
-## Manual Setup
+## Building OpenCore / support forks
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv python install 3.13
-python3.13 -m venv .venv
-source .venv/bin/activate
-pip install -r 26x86/requirements.txt
-```
+Use workspace scripts under `scripts/` (see Korean [SETUP (workspace)](../../docs/SETUP.md) — Korean canonical guide in monorepo for full commands): `setup-dev.sh`, `build-opencore.sh`.
 
-With PyInstaller bootloader rebuild:
+## VM testing
 
-```bash
-PYINSTALLER_COMPILE_BOOTLOADER=1 pip install --no-binary pyinstaller -r 26x86/requirements.txt
-```
+See [../vm/README.md](../vm/README.md) (Korean) or UTM docs. Real hardware validation is still required for T2 and GPU patches.
 
-## Run
+## Secrets
 
-```bash
-cd 26x86
-python3 OpenCore-Patcher-GUI.command              # Korean wizard GUI (default)
-python3 OpenCore-Patcher-GUI.command --advanced_gui
-python3 OpenCore-Patcher-GUI.command --lang en --help
-python3 OpenCore-Patcher-GUI.command --detect --json
-python3 OpenCore-Patcher-GUI.command --build --model iMac11,2
-```
-
-## Build OpenCore
-
-```bash
-cd 26x86-OpenCorePkg
-./build_oc.tool
-# Copy OpenCore-RELEASE.zip to 26x86/payloads/OpenCore/
-```
-
-## Korean Documentation
-
-- [SETUP.md](./SETUP.md) — Full Korean setup guide
-- [KOREAN_EDITION.md](./KOREAN_EDITION.md) — What “Korean-optimized” means
+Copy `.env.example` to `.env` locally; **never commit `.env`**.

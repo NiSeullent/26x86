@@ -72,7 +72,7 @@ def _help_text(lang: str) -> dict:
     }
 
 
-def build_parser(lang: str = "en") -> argparse.ArgumentParser:
+def build_parser(lang: str = "ko") -> argparse.ArgumentParser:
     h = _help_text(lang)
     parser = argparse.ArgumentParser(
         prog="OpenCore-Patcher-GUI.command",
@@ -149,7 +149,7 @@ def parse_cli_args(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
 
     # Pre-scan for language before building parser help text
-    lang = "en"
+    lang = "ko"
     for i, arg in enumerate(argv):
         if arg == "--lang" and i + 1 < len(argv):
             lang = argv[i + 1]
@@ -159,7 +159,7 @@ def parse_cli_args(argv=None):
             break
 
     if lang not in ("ko", "en"):
-        lang = "en"
+        lang = "ko"
 
     if "--help" in argv or "-h" in argv:
         build_parser(lang).print_help()

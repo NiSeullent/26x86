@@ -6,6 +6,7 @@ import wx
 import logging
 import threading
 import webbrowser
+from pathlib import Path
 
 from .. import constants
 from ..datasets import smbios_data, os_data
@@ -103,7 +104,7 @@ class WizardFrame(wx.Frame):
         header_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         logo_path = str(self.constants.icns_resource_path / "OC-Patcher.icns")
-        if wx.FileExists(logo_path):
+        if Path(logo_path).exists():
             logo = wx.StaticBitmap(header, bitmap=wx.Bitmap(logo_path, wx.BITMAP_TYPE_ICON))
             logo.SetSize((48, 48))
             header_sizer.Add(logo, 0, wx.ALL, 10)

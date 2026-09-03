@@ -1,92 +1,77 @@
-# Credits
+# 기여자 (Credits)
 
 ## 26x86
 
-**26x86** — Better macOS 26 System for x86-Based Macintosh
+**26x86** — x86 기반 Mac을 위한 더 나은 macOS 26 시스템
 
-26x86 is a community fork focused on macOS 26 (Tahoe) support for x86-based Macs, including Apple T2-equipped models. This project builds upon the work of many contributors across the OpenCore Legacy Patcher ecosystem.
+26x86은 Apple T2를 포함한 x86 Mac에서 macOS 26 (Tahoe) 지원에 초점을 맞춘 커뮤니티 포크입니다. OpenCore Legacy Patcher 생태계의 많은 기여자 작업 위에 구축되었습니다.
 
-- **Maintainer:** [NiSeullent](https://github.com/NiSeullent)
-- **Repository:** https://github.com/NiSeullent/26x86
-- **Upstream fork:** [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2) by [Albert Müller](https://github.com/albert-mueller/)
-- **Original project:** [OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher) by [Dortania](https://github.com/dortania)
-
----
-
-## Fork and T2 Support
-
-* [Albert Müller](https://github.com/albert-mueller/)
-  * Main author of OpenCore Legacy Patcher T2; T2 Mac support, security fixes, and patches
-* [vytska69](https://github.com/vytska69)
-  * [T2 chip patches](https://github.com/vytska69/OpenCore-Legacy-Patcher)
-  * [Secure Enclave Processor (SEP) timeout patches](https://github.com/vytska69/OpenCore-Legacy-Patcher)
-* [nxvid](https://github.com/nxvid/OpenCore-Legacy-Patcher-T2/)
-  * Documenting and fixing sbvmm injection issues on T2 Macs
-* [GUTY345](https://github.com/GUTY345)
-  * USB-Map.plist syntax and SMBIOS spoofing fixes on T2 Macs
-  * [Graphics acceleration on Intel UHD 630](https://github.com/GUTY345/OpenCore-Legacy-patcher-t2chip-fixBugs/tree/main)
-  * [macOS 26 Tahoe compatibility fixes](https://github.com/GUTY345/OpenCore-Legacy-patcher-t2chip-fixBugs/tree/main)
-* [kodeaqua](https://github.com/kodeaqua)
-  * MacBook Air 2018–2019 hardware research for boot issues
-* [peltorio](https://github.com/peltorio/)
-  * GitHub Actions macOS runner fix
+- **메인테이너:** [NiSeullent](https://github.com/NiSeullent)
+- **저장소:** https://github.com/NiSeullent/26x86
+- **업스트림 포크:** [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2) — [Albert Müller](https://github.com/albert-mueller/)
+- **원본 프로젝트:** [OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher) — [Dortania](https://github.com/dortania)
 
 ---
 
-## OpenCore Legacy Patcher (Dortania) — Core Authors
+## 포크 및 T2 지원
 
-* [Acidanthera](https://github.com/Acidanthera)
-  * OpenCorePkg and core kexts and tools
-* [DhinakG](https://github.com/DhinakG) — Main co-author
-* [Khronokernel](https://github.com/Khronokernel) — Main co-author; debugging and code contributions
-* [gandolf243](https://github.com/gandolf243) — UI redesign; bug fixes and testing
-* [DrDonk](https://github.com/DrDonk) — AppleKeyStore patch; testing
-* [TheRaddish1313](https://github.com/TheRaddish1313) — Framebuffer and boot args fixes
+* [Albert Müller](https://github.com/albert-mueller/) — OCLP-T2 주 저자; T2 지원·보안 수정·패치
+* [vytska69](https://github.com/vytska69) — [T2 칩 패치](https://github.com/vytska69/OpenCore-Legacy-Patcher), [SEP 타임아웃 패치](https://github.com/vytska69/OpenCore-Legacy-Patcher)
+* [nxvid](https://github.com/nxvid/OpenCore-Legacy-Patcher-T2/) — T2 Mac sbvmm 주입 이슈 문서화·수정
+* [GUTY345](https://github.com/GUTY345) — USB-Map.plist, SMBIOS 스푸핑, [UHD 630 그래픽](https://github.com/GUTY345/OpenCore-Legacy-patcher-t2chip-fixBugs/tree/main), [macOS 26 호환 수정](https://github.com/GUTY345/OpenCore-Legacy-patcher-t2chip-fixBugs/tree/main)
+* [kodeaqua](https://github.com/kodeaqua) — MacBook Air 2018–2019 부팅 이슈 하드웨어 조사
+* [peltorio](https://github.com/peltorio/) — GitHub Actions macOS runner 수정
+
+---
+
+## OpenCore Legacy Patcher (Dortania) — 핵심 저자
+
+* [Acidanthera](https://github.com/Acidanthera) — OpenCorePkg 및 핵심 kext·도구
+* [DhinakG](https://github.com/DhinakG) — 공동 주 저자
+* [Khronokernel](https://github.com/Khronokernel) — 공동 주 저자; 디버깅·코드 기여
+* [gandolf243](https://github.com/gandolf243) — UI 재설계; 버그 수정·테스트
+* [DrDonk](https://github.com/DrDonk) — AppleKeyStore 패치; 테스트
+* [TheRaddish1313](https://github.com/TheRaddish1313) — Framebuffer·boot args 수정
 * [vit9696](https://github.com/vit9696)
-* [Jazzzny](https://github.com/Jazzzny) — Vaulting, GUI/backend, UEFI research, documentation
-* [Mr.Macintosh](https://mrmacintosh.com) — Architecture and troubleshooting
-* [mario_bros_tech](https://github.com/mariobrostech) and the Unsupported Mac Discord
-  * Catalyst that started OpenCore Legacy Patcher
+* [Jazzzny](https://github.com/Jazzzny) — Vaulting, GUI/백엔드, UEFI 연구, 문서
+* [Mr.Macintosh](https://mrmacintosh.com) — 아키텍처·트러블슈팅
+* [mario_bros_tech](https://github.com/mariobrostech) 및 Unsupported Mac Discord — OCLP 시작 계기
 
 ---
 
-## macOS 26 / Metal / Graphics
+## macOS 26 / Metal / 그래픽
 
-* [EduCovas](https://github.com/covasedu)
-  * [non-Metal patch set](https://github.com/moraea/non-metal-frameworks)
-  * [3802 Metal patch set](https://github.com/moraea/misc-patches/tree/main/3802-Metal-15) and [MetallibSupportPkg](https://github.com/dortania/MetallibSupportPkg)
-  * Metal bundle patches, IOSurface patches, legacy Wi-Fi, T1 patch set, USB 1 patch
-* [ASentientBot](https://github.com/ASentientBot) / [ASentientHedgehog](https://github.com/moosethegoose2213)
-  * non-Metal and Metal bundle interposer work
-* [pyquick](https://github.com/pyquick) and [hackdoc](https://github.com/hackdoc)
-  * [Metallib support on macOS 26](https://github.com/hackdoc/OCLP-R)
-* [YBronst](https://github.com/YBronst/OCLP-Plus) — Modern wireless on macOS 26 Tahoe
-* [stephandeutsch](https://github.com/stephandeutsch/OpenCore-Legacy-Patcher/) — USB 1.1 compatibility with Sequoia and Tahoe
-* [Ausdauersportler](https://github.com/Ausdauersportler) — iMac Metal GPU upgrade patch set
-* [flagers](https://github.com/flagersgit) — Nvidia Web Driver research; non-Metal patches
+* [EduCovas](https://github.com/covasedu) — [non-Metal](https://github.com/moraea/non-metal-frameworks), [3802 Metal](https://github.com/moraea/misc-patches/tree/main/3802-Metal-15), [MetallibSupportPkg](https://github.com/dortania/MetallibSupportPkg), IOSurface·Wi-Fi·T1·USB 1 패치
+* [ASentientBot](https://github.com/ASentientBot) / [ASentientHedgehog](https://github.com/moosethegoose2213) — non-Metal·Metal bundle interposer
+* [pyquick](https://github.com/pyquick), [hackdoc](https://github.com/hackdoc) — [macOS 26 Metallib](https://github.com/hackdoc/OCLP-R)
+* [YBronst](https://github.com/YBronst/OCLP-Plus) — Tahoe 모던 무선
+* [stephandeutsch](https://github.com/stephandeutsch/OpenCore-Legacy-Patcher/) — USB 1.1 (Sequoia/Tahoe)
+* [Ausdauersportler](https://github.com/Ausdauersportler) — iMac Metal GPU 업그레이드
+* [flagers](https://github.com/flagersgit) — Nvidia Web Driver·non-Metal
 
 ---
 
-## Hardware, Legacy, and Utilities
+## 하드웨어·레거시·유틸리티
 
-* [cdf](https://github.com/cdf) — Mac Pro OpenCore patch set; [Innie](https://github.com/cdf/Innie)
+* [cdf](https://github.com/cdf) — Mac Pro 패치; [Innie](https://github.com/cdf/Innie)
 * [Syncretic](https://forums.macrumors.com/members/syncretic.1173816/) — [AAAMouSSE](https://forums.macrumors.com/threads/mp3-1-others-sse-4-2-emulation-to-enable-amd-metal-driver.2206682/), [telemetrap](https://forums.macrumors.com/threads/mp3-1-others-sse-4-2-emulation-to-enable-amd-metal-driver.2206682/post-28447707), [SurPlus](https://github.com/reenigneorcim/SurPlus)
-* [dosdude1](https://github.com/dosdude1) — [Original GUI](https://github.com/dortania/OCLP-GUI); legacy patcher groundwork
+* [dosdude1](https://github.com/dosdude1) — [원 GUI](https://github.com/dortania/OCLP-GUI)
 * [parrotgeek1](https://github.com/parrotgeek1) — [VMM Patch Set](https://github.com/dortania/OpenCore-Legacy-Patcher/blob/4a8f61a01da72b38a4b2250386cc4b497a31a839/payloads/Config/config.plist#L1222-L1281)
-* [BarryKN](https://github.com/BarryKN) — Legacy patcher groundwork
-* [arter97](https://github.com/arter97/) — [SimpleMSR](https://github.com/arter97/SimpleMSR/)
+* [BarryKN](https://github.com/BarryKN), [arter97](https://github.com/arter97/) — [SimpleMSR](https://github.com/arter97/SimpleMSR/)
 * [joevt](https://github.com/joevt) — [FixPCIeLinkrate](https://github.com/joevt/joevtApps)
 
 ---
 
-## Community and Hardware Donors
+## 커뮤니티·하드웨어 기증
 
-* MacRumors and Unsupported Mac Communities — Testing and issue reporting
-* [JohnD](https://forums.macrumors.com/members/johnd.53633/), [SpiGAndromeda](https://github.com/SpiGAndromeda), [turbomacs](https://github.com/turbomacs), [vinaypundith](https://forums.macrumors.com/members/vinaypundith.1212357/), [ThatStella7922](https://github.com/ThatStella7922), zephar, jazo97, and others who donated hardware for testing
-* **Apple** — macOS and many kexts, frameworks, and binaries reimplemented into newer OSes
+* MacRumors·Unsupported Mac 커뮤니티 — 테스트·이슈 보고
+* [JohnD](https://forums.macrumors.com/members/johnd.53633/), [SpiGAndromeda](https://github.com/SpiGAndromeda), [turbomacs](https://github.com/turbomacs), [vinaypundith](https://forums.macrumors.com/members/vinaypundith.1212357/), [ThatStella7922](https://github.com/ThatStella7922), zephar, jazo97 등 하드웨어 기증
+* **Apple** — macOS 및 kext·프레임워크
 
 ---
 
-## License Acknowledgement
+## 라이선스 표기
 
-This product includes software developed by Dortania, OpenCore Legacy Patcher contributors, and the 26x86 project. See [LICENSE.txt](./LICENSE.txt), [NOTICE.md](./NOTICE.md), and [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).
+This product includes software developed by Dortania, OpenCore Legacy Patcher contributors, and the 26x86 project.
+
+자세한 내용: [LICENSE.txt](./LICENSE.txt), [NOTICE.md](./NOTICE.md), [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).

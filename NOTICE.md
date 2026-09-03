@@ -1,39 +1,41 @@
-# NOTICE
+# 고지 (NOTICE)
 
 ## 26x86
 
-26x86 is a community fork derived from [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2), which itself builds upon [OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher) by Dortania.
+26x86은 [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2)에서 파생된 커뮤니티 포크이며, T2 프로젝트는 Dortania의 [OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher)를 기반으로 합니다.
 
-This project provides macOS 26 (Tahoe) support and related tooling for x86-based Macintosh computers, including Apple T2-equipped models.
+본 프로젝트는 Apple T2를 포함한 x86 Macintosh에서 **macOS 26 (Tahoe)** 지원 및 관련 도구를 제공합니다.
 
-## Upstream Projects
+## 업스트림 프로젝트
 
-The following upstream projects form the foundation of this software. Their respective copyright notices and license terms are retained in `LICENSE.txt`, `THIRD_PARTY_LICENSES.md`, and the original source repositories.
+다음 프로젝트가 본 소프트웨어의 기반입니다. 각각의 저작권 고지 및 라이선스 조건은 `LICENSE.txt`, `THIRD_PARTY_LICENSES.md`, 원본 저장소에 유지됩니다.
 
-| Project | Repository | License |
-|---------|------------|---------|
+| 프로젝트 | 저장소 | 라이선스 |
+|---------|--------|----------|
 | OpenCore Legacy Patcher T2 | [albert-mueller/OpenCore-Legacy-Patcher-T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2) | BSD 3-Clause |
 | OpenCore Legacy Patcher | [dortania/OpenCore-Legacy-Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher) | BSD 3-Clause |
-| OpenCorePkg (T2 support fork) | [albert-mueller/OpenCorePkg-add-T2-support](https://github.com/albert-mueller/OpenCorePkg-add-T2-support) | BSD 3-Clause |
-| PatcherSupportPkg | [hackdoc/PatcherSupportPkg](https://github.com/hackdoc/PatcherSupportPkg) | All rights reserved (see repository) |
-| MetallibSupportPkg | [dortania/MetallibSupportPkg](https://github.com/dortania/MetallibSupportPkg) | No explicit license file (see repository) |
+| OpenCorePkg (T2 지원 포크) | [albert-mueller/OpenCorePkg-add-T2-support](https://github.com/albert-mueller/OpenCorePkg-add-T2-support) | BSD 3-Clause |
+| PatcherSupportPkg | [hackdoc/PatcherSupportPkg](https://github.com/hackdoc/PatcherSupportPkg) | 저장소 정책 참조 |
+| MetallibSupportPkg | [dortania/MetallibSupportPkg](https://github.com/dortania/MetallibSupportPkg) | 저장소 정책 참조 |
 | OpenCorePkg | [acidanthera/OpenCorePkg](https://github.com/acidanthera/OpenCorePkg) | BSD 3-Clause |
-| Lilu and related kexts | [acidanthera](https://github.com/acidanthera) | BSD 3-Clause / GPL 2.0 (see individual projects) |
+| Lilu 및 관련 kext | [acidanthera](https://github.com/acidanthera) | BSD 3-Clause / GPL 2.0 등 |
 
-## Required Acknowledgements
+## 필수 표기 (BSD 3-Clause)
 
-In compliance with the BSD 3-Clause license inherited from the upstream projects:
+업스트림 BSD 3-Clause 조건에 따라:
 
 > This product includes software developed by Dortania, OpenCore Legacy Patcher contributors, and the 26x86 project.
 
-## Trademarks
+(본 제품에는 Dortania, OpenCore Legacy Patcher 기여자 및 26x86 프로젝트가 개발한 소프트웨어가 포함됩니다.)
 
-- **macOS**, **Apple**, and related product names are trademarks of Apple Inc.
-- **OpenCore**, **OpenCorePkg**, and **Lilu** are products of their respective authors and communities.
-- **26x86** is the branding used by this fork. It is not affiliated with, endorsed by, or sponsored by Apple Inc. or Dortania.
+## 상표
 
-## Additional Information
+- **macOS**, **Apple** 및 관련 제품명은 Apple Inc.의 상표입니다.
+- **OpenCore**, **OpenCorePkg**, **Lilu**는 각 저자·커뮤니티의 프로젝트입니다.
+- **26x86**은 본 포크의 브랜드이며 Apple Inc. 또는 Dortania와 **제휴·승인·후원 관계가 없습니다**.
 
-For contributor attributions, see [CREDITS.md](./CREDITS.md).
-For third-party dependency licenses, see [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).
-For usage disclaimers (Korean), see [DISCLAIMER.md](./DISCLAIMER.md).
+## 추가 정보
+
+- 기여자: [CREDITS.md](./CREDITS.md)
+- 서드파티 라이선스: [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)
+- 면책 조항: [DISCLAIMER.md](./DISCLAIMER.md)

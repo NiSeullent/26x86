@@ -1,33 +1,56 @@
-# 26x86 — Korean-Optimized Edition / 한글판 최적화
+# Korean-Optimized Edition / 한글판 최적화
+
+---
 
 ## English
 
-**26x86** is distributed as a **Korean-optimized edition** (*한글판 최적화*). This means:
+### What “Korean-Optimized Edition” means
 
-| Area | Korean optimization |
-|------|---------------------|
-| **GUI** | Default wizard UI uses Korean labels, tooltips, and error messages |
-| **CLI** | `--lang ko` is the recommended default; help text available in Korean |
-| **Documentation** | Primary docs (`README.md`, `SETUP.md`, `DISCLAIMER.md`, etc.) are written in Korean |
-| **Support flow** | Step-by-step wizard: detect Mac → select macOS → build → install EFI → root patch |
+This fork and workspace are tuned for **Korean-speaking users** while remaining fully usable with English where needed.
 
-English supplementary docs (`README.en.md`, `SETUP.en.md`) describe the same project for international contributors. They do **not** replace the Korean primary documentation.
+| Area | Default | Notes |
+|------|---------|--------|
+| **User documentation** | Korean | `26x86/README.md`, `SOURCE.md`, `DISCLAIMER.md`, legal notices, `docs/SETUP.md`, etc. |
+| **GUI setup wizard** | Korean | `opencore_legacy_patcher/wizard/strings.py` |
+| **CLI help text** | Korean (`--lang ko`) | Default language for `--help`; use `--lang en` for English |
+| **English supplements** | Optional | `docs/README.en.md`, `docs/SETUP.en.md`, this file |
 
-Upstream lineage: fork of [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2) → rebranded **26x86** for macOS 26 Tahoe on x86 Macs.
+Upstream technical content (OpenCore, kext names, model identifiers) stays in English as in the wider OCLP ecosystem.
+
+### For international contributors
+
+- Read [README.en.md](./README.en.md) and [SETUP.en.md](./SETUP.en.md).
+- Primary maintainer communication may include Korean; GitHub Issues accept English.
+- Do not replace Korean docs with English-only versions; add or update English **supplements** instead.
+
+### Branding
+
+**26x86** — Better macOS 26 System for x86-Based Macintosh  
+Not affiliated with Apple Inc. or Dortania.
 
 ---
 
 ## 한국어
 
-**26x86**은 **한글판 최적화** 에디션으로 배포됩니다.
+### 「한글판 최적화」란?
 
-| 영역 | 한글화 내용 |
-|------|-------------|
-| **GUI** | 5단계 마법사, 한국어 버튼·툴팁·오류 메시지 |
-| **CLI** | `--lang ko` 한국어 도움말, `--detect` / `--build` / `--patch` 등 |
-| **문서** | README, 셋업, 면책, 크레딧 등 주 문서는 한국어 |
-| **사용 흐름** | Mac 확인 → macOS 선택 → 패치 생성 → EFI 설치 → 루트 패치 |
+본 포크·워크스페이스는 **한국어 사용자**를 우선으로 문서·UI·CLI 도움말을 구성합니다. 필요 시 영어 옵션을 그대로 사용할 수 있습니다.
 
-영문 보조 문서는 해외 기여자·참고용이며, 한국어 문서를 대체하지 않습니다.
+| 영역 | 기본값 | 설명 |
+|------|--------|------|
+| **사용자 문서** | 한국어 | `26x86/README.md`, `SOURCE.md`, `DISCLAIMER.md`, `docs/SETUP.md` 등 |
+| **GUI 설정 마법사** | 한국어 | `opencore_legacy_patcher/wizard/strings.py` |
+| **CLI 도움말** | 한국어 (`--lang ko`) | `--help` 기본; 영어는 `--lang en` |
+| **영문 보조 문서** | 선택 | `docs/README.en.md`, `docs/SETUP.en.md`, 본 파일 |
 
-원본: [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2) 포크 → x86 Mac용 **26x86** 리브랜딩.
+OpenCore·kext·SMBIOS 식별자 등 업스트림 기술 용어는 OCLP 생태계와 같이 영문을 유지합니다.
+
+### 영문 문서 위치
+
+- 프로젝트 개요: [README.en.md](./README.en.md)
+- 개발 셋업 요약: [SETUP.en.md](./SETUP.en.md)
+
+### 브랜딩
+
+**26x86** — x86 기반 Mac을 위한 더 나은 macOS 26 시스템  
+Apple Inc.·Dortania와 제휴·승인·후원 관계 없음.

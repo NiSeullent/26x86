@@ -29,3 +29,7 @@ python3 -m x86.graphics.interpose_apply
 ./payloads/Kexts/Community/Extreme-Interpose/scripts/apply.sh
 python3 -m unittest x86.graphics.test_interpose
 ```
+
+## Track K 연계 (INTEGRATE)
+
+K `--extreme` → `macpro5_vega64_tahoe.run_interpose_apply` → `apply_extreme_interpose` (`98e2528`).

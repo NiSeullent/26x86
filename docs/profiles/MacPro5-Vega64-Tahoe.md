@@ -34,3 +34,7 @@ python -m x86.profiles apply macpro5-vega64-tahoe --extreme   # 또는 X86_EXTRE
 | `x86/cli.profile.stage-K.md` | 공유 CLI 병합 제안(비적용) |
 
 공유 파일(`x86/cli.py` 등)은 직접 수정하지 않습니다.
+
+## Extreme / Track I
+
+`--extreme` → inlined `run_interpose_apply` → `apply_extreme_interpose` (52f7298 + 98e2528).

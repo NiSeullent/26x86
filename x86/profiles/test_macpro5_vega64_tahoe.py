@@ -119,10 +119,33 @@ class ApplyOrderTest(unittest.TestCase):
 
     def test_extreme_env(self) -> None:
         self.assertNotIn("extreme.hooks", apply_profile(dry_run=True, environ={})["order"])
-        self.assertIn(
-            "extreme.hooks",
-            apply_profile(dry_run=True, environ={"X86_EXTREME": "1"})["order"],
-        )
+        report = apply_profile(dry_run=True, environ={"X86_EXTREME": "1"})
+        self.assertIn("extreme.hooks", report["order"])
+        extreme = next(r for r in report["results"] if r["step_id"] == "extreme.hooks")
+        self.assertEqual(extreme["status"], "planned")
+        self.assertTrue(extreme["mutations"].get("interpose_apply"))
+
+    def test_extreme_flag_calls_bridge_dry_run(self) -> None:
+        report = apply_profile(dry_run=True, include_extreme=True, environ={})
+        extreme = next(r for r in report["results"] if r["step_id"] == "extreme.hooks")
+        self.assertIn("interpose_apply", extreme["detail"])
+        self.assertEqual(extreme["mutations"].get("integrate"), "52f7298+98e2528")
+
+
+class InterposeLinkTest(unittest.TestCase):
+    def test_skipped_when_disabled(self) -> None:
+        from x86.profiles.macpro5_vega64_tahoe import run_interpose_apply
+
+        result = run_interpose_apply(enabled=False)
+        self.assertEqual(result.status, "skipped")
+        self.assertFalse(result.mutations.get("interpose_apply"))
+
+    def test_dry_run_plans_apply(self) -> None:
+        from x86.profiles.macpro5_vega64_tahoe import run_interpose_apply
+
+        result = run_interpose_apply(enabled=True, dry_run=True, environ={"X86_EXTREME": "1"})
+        self.assertEqual(result.status, "planned")
+        self.assertTrue(result.mutations.get("interpose_apply"))
 
 
 if __name__ == "__main__":

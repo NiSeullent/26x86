@@ -14,6 +14,8 @@ CLI (Track K owned, does not patch x86/cli.py):
 from __future__ import annotations
 
 import logging
+import os
+from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Optional
@@ -92,7 +94,7 @@ def _steps() -> tuple[ProfileStep, ...]:
             description="Track H/I/J/L hooks; requires X86_EXTREME=1 or --extreme.",
             required=False,
             extreme_only=True,
-            owns=("x86/graphics/interpose_*.py", "x86/graphics/shader_avx_*.py"),
+            owns=("x86/profiles/extreme_interpose_link.py", "x86/graphics/interpose_apply.py"),
         ),
     )
 
@@ -242,41 +244,122 @@ def plan_root_yellow() -> StepResult:
     )
 
 
-def _discover_extreme_hooks() -> list[str]:
-    candidates = (
-        "x86.graphics.interpose_plan",
-        "x86.graphics.interpose_payload",
-        "x86.graphics.shader_avx_gate",
-        "x86.graphics.windowserver_hook",
-        "x86.graphics.iosurface_avx",
-        "x86.extreme.mission",
-    )
-    found: list[str] = []
-    for name in candidates:
-        try:
-            __import__(name)
-            found.append(name)
-        except ImportError:
-            continue
-    return found
+
+ENV_X86_EXTREME = "X86_EXTREME"
+ENV_X86_EXTREME_INSTALL = "X86_EXTREME_INSTALL"
 
 
-def apply_extreme_hooks(*, enabled: bool) -> StepResult:
+@contextmanager
+def _ensure_extreme_env(*, enabled: bool):
+    """inject X86_EXTREME for interpose_apply gate when --extreme only."""
     if not enabled:
-        return StepResult(step_id="extreme.hooks", status="skipped", detail="X86_EXTREME / --extreme not set")
-    found = _discover_extreme_hooks()
-    if not found:
+        yield
+        return
+    previous = os.environ.get(ENV_X86_EXTREME)
+    os.environ[ENV_X86_EXTREME] = "1"
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(ENV_X86_EXTREME, None)
+        else:
+            os.environ[ENV_X86_EXTREME] = previous
+
+
+def _live_library_requested(environ: Optional[dict[str, str]] = None) -> bool:
+    env = environ if environ is not None else os.environ
+    value = str(env.get(ENV_X86_EXTREME_INSTALL, "")).strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def run_interpose_apply(
+    *,
+    enabled: bool,
+    dry_run: bool = False,
+    environ: Optional[dict[str, str]] = None,
+    repo_root: Optional[Path] = None,
+) -> StepResult:
+    """Track K extreme → Track I apply_live (98e2528 / INTEGRATE 52f7298)."""
+    if not enabled:
+        return StepResult(
+            step_id="extreme.hooks",
+            status="skipped",
+            detail="X86_EXTREME / --extreme not set — interpose_apply not called",
+            mutations={"interpose_apply": False},
+        )
+    live = _live_library_requested(environ)
+    if dry_run:
         return StepResult(
             step_id="extreme.hooks",
             status="planned",
-            detail="Extreme gate open; H/I/J/L modules not yet importable",
-            mutations={"modules": []},
+            detail=(
+                "[dry-run] would call interpose_apply.apply_extreme_interpose "
+                f"(live_library_plugins={live})"
+            ),
+            mutations={
+                "interpose_apply": True,
+                "dry_run": True,
+                "live_library_plugins": live,
+                "integrate": "52f7298+98e2528",
+            },
         )
+    try:
+        from x86.graphics.interpose_apply import apply_extreme_interpose
+    except ImportError as exc:
+        return StepResult(
+            step_id="extreme.hooks",
+            status="blocked",
+            detail=f"interpose_apply import failed: {exc}",
+            mutations={"interpose_apply": False},
+        )
+    with _ensure_extreme_env(enabled=True):
+        report = apply_extreme_interpose(
+            repo_root=repo_root,
+            live_library_plugins=live,
+        )
+    applied = bool(report.get("applied"))
+    blocked = report.get("blocked_reason")
+    if blocked and not applied:
+        status, detail = "blocked", f"interpose_apply blocked: {blocked}"
+    elif applied:
+        status = "applied"
+        detail = (
+            "interpose_apply: build→staging/SkyLightPlugins→APPLY-GUIDE "
+            f"(live_library={live})"
+        )
+    else:
+        status, detail = "planned", "interpose_apply ran but applied=False"
     return StepResult(
         step_id="extreme.hooks",
-        status="planned",
-        detail=f"Extreme modules visible: {', '.join(found)}",
-        mutations={"modules": found},
+        status=status,
+        detail=detail,
+        mutations={
+            "interpose_apply": True,
+            "live_library_plugins": live,
+            "report": {
+                "applied": report.get("applied"),
+                "blocked_reason": report.get("blocked_reason"),
+                "guidance": report.get("guidance") or [],
+                "steps_keys": list((report.get("steps") or {}).keys()),
+                "recipe_keys": list((report.get("recipe") or {}).keys()),
+            },
+            "integrate": "52f7298+98e2528",
+            "source": "x86.graphics.interpose_apply.apply_extreme_interpose",
+        },
+    )
+
+
+def apply_extreme_hooks(
+    *,
+    enabled: bool,
+    dry_run: bool = False,
+    environ: Optional[dict[str, str]] = None,
+) -> StepResult:
+    """Extreme phase → Track I interpose_apply (profiles bridge)."""
+    return run_interpose_apply(
+        enabled=enabled,
+        dry_run=dry_run,
+        environ=environ,
     )
 
 
@@ -315,7 +398,13 @@ def apply_profile(
         elif step.id == "root.yellow_mitigations":
             results.append(plan_root_yellow())
         elif step.id == "extreme.hooks":
-            results.append(apply_extreme_hooks(enabled=extreme))
+            results.append(
+                apply_extreme_hooks(
+                    enabled=extreme,
+                    dry_run=dry_run,
+                    environ=environ,
+                )
+            )
         else:
             results.append(StepResult(step_id=step.id, status="error", detail="unknown step"))
 

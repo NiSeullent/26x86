@@ -4,6 +4,7 @@ Window titles and branding helpers for 26x86 GUI.
 
 import os
 from pathlib import Path
+from typing import Optional
 
 from x86.manifest import APP_NAME, BUNDLE_ID
 from x86.paths import Paths
@@ -54,7 +55,7 @@ def app_icon_icns_path() -> Path:
     return Paths.payloads_dir() / "Resources" / "AppIcons" / f"{APP_ICON_BASENAME}.icns"
 
 
-def resolve_gui_logo_path(icns_resource_path: Path | None = None) -> Path | None:
+def resolve_gui_logo_path(icns_resource_path: Optional[Path] = None) -> Optional[Path]:
     """
     Best logo for wx StaticBitmap: bundled PNG, then app .icns, then legacy OC-Patcher.icns.
     """

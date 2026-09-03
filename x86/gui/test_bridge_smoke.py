@@ -6,6 +6,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from urllib.request import urlopen
 
 REPO = Path(__file__).resolve().parent.parent.parent
 if str(REPO) not in sys.path:
@@ -52,14 +53,16 @@ class BridgeSmokeTest(unittest.TestCase):
         self.assertIn("qt_chromium_available", payload)
         self.assertIn("pywebview_gui", payload)
         self.assertTrue(payload["qt_opt_in_only"])
+        self.assertTrue(payload["tauri_preferred"])
         if is_macos():
             self.assertEqual(payload["pywebview_gui"], "cocoa")
             self.assertTrue(payload["macos_default_cocoa"])
 
-    def test_macos_gui_defaults_to_cocoa(self) -> None:
+    def test_macos_gui_prefers_tauri_not_chromium(self) -> None:
         from x86.gui.webview_app import (
             _requested_backend,
             _should_try_qt_chromium,
+            _should_try_tauri,
             launch_webview_wizard,
         )
         from x86.platform import is_macos, resolve_pywebview_gui
@@ -68,13 +71,32 @@ class BridgeSmokeTest(unittest.TestCase):
             self.skipTest("macOS-only backend preference")
         self.assertEqual(resolve_pywebview_gui(), "cocoa")
         self.assertEqual(_requested_backend(), "auto")
+        self.assertTrue(_should_try_tauri("auto"))
         self.assertFalse(_should_try_qt_chromium("auto"))
-        self.assertFalse(_should_try_qt_chromium(_requested_backend()))
         self.assertTrue(_should_try_qt_chromium("qt"))
-        # Cocoa+HTTP is the default entry; Chromium only via X86_GUI_BACKEND.
-        self.assertIn("cocoa", (launch_webview_wizard.__doc__ or "").lower())
+        self.assertFalse(_should_try_tauri("cocoa"))
+        self.assertFalse(_should_try_tauri("qt"))
+        self.assertIn("tauri", (launch_webview_wizard.__doc__ or "").lower())
 
-    def test_html_bootstraps_qt_or_pywebview_bridge(self) -> None:
+    def test_http_bridge_api(self) -> None:
+        from x86.gui.bridge import WizardBridge
+        from x86.gui.http_bridge import start_bridge_http_server, wizard_base_url
+
+        bridge = WizardBridge()
+        httpd, _ = start_bridge_http_server(bridge.web_root(), bridge=bridge)
+        try:
+            base = wizard_base_url(httpd)
+            with urlopen(f"{base}/api/health", timeout=5) as resp:
+                health = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(health["ok"])
+            with urlopen(f"{base}/api/get_app_info", timeout=30) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["result"]["bundle_id"], "com.niseullent.26x86")
+        finally:
+            httpd.shutdown()
+
+    def test_html_bootstraps_http_and_legacy_bridges(self) -> None:
         from x86.gui.bridge import WizardBridge
 
         index = WizardBridge().index_path().read_text(encoding="utf-8")
@@ -82,6 +104,19 @@ class BridgeSmokeTest(unittest.TestCase):
         self.assertIn("qrc:", index)
         self.assertIn("connectQtWebChannel", js)
         self.assertIn("promisifyQtBridge", js)
+        self.assertIn("probeHttpBridge", js)
+        self.assertIn("/api/invoke", js)
+        self.assertIn("/api/health", js)
+
+    def test_tauri_project_scaffolded(self) -> None:
+        tauri_dir = REPO / "gui-tauri"
+        self.assertTrue((tauri_dir / "Cargo.toml").is_file())
+        self.assertTrue((tauri_dir / "tauri.conf.json").is_file())
+        self.assertTrue((tauri_dir / "src" / "main.rs").is_file())
+        conf = (tauri_dir / "tauri.conf.json").read_text(encoding="utf-8")
+        self.assertIn("com.niseullent.26x86", conf)
+        self.assertIn("../x86/gui/web", conf)
+
     def test_frozen_webengine_lookup_is_safe(self) -> None:
         from x86.gui.qt_chromium import _frozen_webengine_process
 

@@ -81,9 +81,45 @@
     return wrapped;
   }
 
+  function httpInvoke(method, ...args) {
+    return fetch("/api/invoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method, args }),
+    }).then(async (response) => {
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch (_) {
+        throw new Error(`HTTP bridge ${method}: invalid JSON (${response.status})`);
+      }
+      if (!response.ok || (payload && payload.ok === false && payload.result === undefined)) {
+        throw new Error((payload && payload.error) || `HTTP bridge ${method} failed`);
+      }
+      return payload.result !== undefined ? payload.result : payload;
+    });
+  }
+
+  function ensureHttpBridge() {
+    if (window.__x86HttpBridge && window.__x86HttpBridge.__httpWrapped) {
+      return window.__x86HttpBridge;
+    }
+    const wrapped = { __httpWrapped: true };
+    QT_BRIDGE_METHODS.forEach((name) => {
+      wrapped[name] = function (...args) {
+        return httpInvoke(name, ...args);
+      };
+    });
+    window.__x86HttpBridge = wrapped;
+    return wrapped;
+  }
+
   function getBridgeApi() {
     if (window.pywebview && window.pywebview.api) {
       return window.pywebview.api;
+    }
+    if (window.__x86HttpBridge && window.__x86HttpBridge.__httpWrapped) {
+      return window.__x86HttpBridge;
     }
     return null;
   }
@@ -103,48 +139,83 @@
     });
   }
 
+  function probeHttpBridge() {
+    if (getBridgeApi()) {
+      return Promise.resolve(true);
+    }
+    return fetch("/api/health", { method: "GET", cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (payload && payload.ok) {
+          const apiSurface = ensureHttpBridge();
+          window.pywebview = { api: apiSurface };
+          window.dispatchEvent(new Event("pywebviewready"));
+          return true;
+        }
+        return false;
+      })
+      .catch(() => false);
+  }
+
   function api(method, ...args) {
     const surface = getBridgeApi();
     if (surface && typeof surface[method] === "function") {
       const result = surface[method](...args);
       return result && typeof result.then === "function" ? result : Promise.resolve(result);
     }
-    return Promise.reject(new Error("Python bridge API unavailable"));
+    return httpInvoke(method, ...args);
   }
 
   function whenBridgeReady(callback) {
-    if (getBridgeApi()) {
+    let settled = false;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       callback();
+    };
+
+    if (getBridgeApi()) {
+      finish();
       return;
     }
 
     connectQtWebChannel();
+    probeHttpBridge();
 
     let attempts = 0;
     const maxAttempts = 200;
     const timer = window.setInterval(() => {
       attempts += 1;
       connectQtWebChannel();
-      if (getBridgeApi()) {
-        window.clearInterval(timer);
-        callback();
-      } else if (attempts >= maxAttempts) {
-        window.clearInterval(timer);
-        const banner = document.getElementById("boot-banner");
-        if (banner) {
-          banner.innerHTML = "Python 브릿지에 아직 연결되지 않았습니다. 창은 정상입니다.";
+      probeHttpBridge().then((ok) => {
+        if (settled) {
+          window.clearInterval(timer);
+          return;
         }
-        setStatus("브릿지 대기 시간 초과");
-        toast("Python bridge API 연결 실패 — UI는 표시됩니다", "error");
-        try { bindGlobalActions(); renderStepContent(); } catch (_) {}
-      }
+        if (ok || getBridgeApi()) {
+          window.clearInterval(timer);
+          finish();
+        } else if (attempts >= maxAttempts) {
+          window.clearInterval(timer);
+          const banner = document.getElementById("boot-banner");
+          if (banner) {
+            banner.innerHTML = "Python 브릿지에 아직 연결되지 않았습니다. 창은 정상입니다.";
+          }
+          setStatus("브릿지 대기 시간 초과");
+          toast("Python bridge API 연결 실패 — UI는 표시됩니다", "error");
+          try { bindGlobalActions(); renderStepContent(); } catch (_) {}
+          settled = true;
+        }
+      });
     }, 50);
 
     window.addEventListener(
       "pywebviewready",
       () => {
         window.clearInterval(timer);
-        callback();
+        finish();
       },
       { once: true }
     );

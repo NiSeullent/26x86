@@ -381,7 +381,11 @@ def cmd_wizard(args: argparse.Namespace) -> int:
         return 0
 
     if not is_macos():
-        logging.error("GUI를 시작할 수 없습니다. `pip install PySide6 pywebview wxpython` 설치를 확인하세요.")
+        logging.error(
+            "GUI를 시작할 수 없습니다. Tauri 셸을 빌드하거나 "
+            "`pip install pywebview wxpython` (폴백) / `X86_GUI_BACKEND=qt`용 PySide6를 확인하세요. "
+            "Tauri: cd gui-tauri && cargo tauri build"
+        )
         return 1
 
     from opencore_legacy_patcher.application_entry import main as oclp_main

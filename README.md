@@ -22,6 +22,9 @@
 
 `26x86.command` 또는 `python3 -m x86 wizard`
 
+기본 GUI: **Tauri** (WKWebView / WebView2, Chromium Qt 아님). 폴백: Cocoa pywebview.
+셸 소스: [`gui-tauri/`](gui-tauri/).
+
 ## Windows EXE CI 빌드
 
 - 워크플로우: `.github/workflows/windows-exe.yml`

@@ -85,7 +85,9 @@ python3 26x86.command --build --model iMac11,2 --verbose
 | Python | **3.13+** | **3.13+** |
 | 가상환경 | `python -m venv .venv` | `python3 -m venv .venv` |
 | 종속성 | `pip install -r 26x86/requirements.txt` | 동일 |
-| GUI (권장) | pywebview + **Edge WebView2 Runtime** | pywebview + **GTK** (`python3-gi`) 또는 Qt |
+| GUI (권장) | **Tauri** (WebView2) + Python HTTP 브릿지 | **Tauri** (WebKitGTK) 또는 pywebview |
+| GUI 폴백 | pywebview + Edge WebView2 Runtime | pywebview + GTK (`python3-gi`) |
+| GUI (비권장) | `X86_GUI_BACKEND=qt` (Qt WebEngine/Chromium) | 동일 |
 
 > macOS 전용 패키지(`pyobjc`, `py_sip_xnu` 등)는 `requirements.txt`의 platform marker로 자동 제외됩니다.
 
@@ -134,7 +136,7 @@ chmod +x 26x86.sh
 
 | 기능 | macOS | Windows / Linux |
 |------|-------|-----------------|
-| `wizard` (HTML GUI) | ✅ | ✅ (pywebview/wx) |
+| `wizard` (HTML GUI) | ✅ Tauri / pywebview | ✅ (Tauri/WebView2 또는 pywebview) |
 | `detect --json` | ✅ Mac 하드웨어 | ✅ 호스트 OS·플랫폼 정보 |
 | `status` | ✅ | ✅ (설정 JSON) |
 | `build` / `patch` | ✅ | ❌ (한국어 안내 메시지) |

@@ -57,9 +57,10 @@ def launch_wizard(advanced: bool = False) -> None:
     """
     Start the default end-user wizard.
 
-    Default on macOS: HTML hybrid UI via pywebview Cocoa (WebKit) over local HTTP.
-    Qt WebEngine (Chromium) is opt-in via ``X86_GUI_BACKEND=qt``.
-    Fallback: legacy wx when ``X86_LEGACY_GUI=1`` or the HTML shell cannot start.
+    Default: Tauri shell (WKWebView / WebView2) over local HTTP bridge.
+    Fallbacks: pywebview Cocoa (macOS), then legacy wx when ``X86_LEGACY_GUI=1``
+    or HTML shells cannot start. Qt WebEngine (Chromium) is opt-in via
+    ``X86_GUI_BACKEND=qt``.
     """
     _ensure_repo_root()
 

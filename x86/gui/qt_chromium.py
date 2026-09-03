@@ -1,8 +1,8 @@
 """
 Chromium wizard shell via PySide6 Qt WebEngine.
 
-Used as the default HTML UI on macOS (and Linux when Qt is present).
-Cocoa WKWebView is not used here.
+Opt-in only (``X86_GUI_BACKEND=qt`` / ``chromium`` / ``webengine``).
+Default GUI is Tauri (WKWebView / WebView2); Cocoa pywebview is the fallback.
 """
 
 from __future__ import annotations

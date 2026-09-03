@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "26x86",
+  "version": "0.1.0",
+  "identifier": "com.niseullent.26x86",
+  "build": {
+    "frontendDist": "../x86/gui/web",
+    "devUrl": "http://127.0.0.1:17886",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "26x86",
+        "width": 960,
+        "height": 720,
+        "minWidth": 760,
+        "minHeight": 560,
+        "resizable": true,
+        "fullscreen": false,
+        "backgroundColor": "#e8edf3"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' http://127.0.0.1:* http://localhost:* 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' http://127.0.0.1:* http://localhost:*; img-src 'self' data: http://127.0.0.1:* http://localhost:* https:;",
+      "dangerousDisableAssetCspModification": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/henry.w@example.net",
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "shortDescription": "26x86 wizard GUI (Tauri / WKWebView)",
+    "longDescription": "Native WebView shell for the 26x86 HTML wizard. Uses WKWebView on macOS and WebView2 on Windows — not Qt WebEngine/Chromium."
+  },
+  "plugins": {}
+}

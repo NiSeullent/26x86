@@ -1,7 +1,8 @@
 """
 HTML hybrid 26x86 wizard shell.
 
-Default on macOS: pywebview Cocoa (WebKit). Qt WebEngine is opt-in via
+Default: Tauri (WKWebView on macOS / WebView2 on Windows) + local HTTP bridge.
+Fallbacks: pywebview Cocoa (WebKit). Qt WebEngine is opt-in via
 ``X86_GUI_BACKEND=qt`` — Chromium/Metal aborts on flashed Mac Pro + Vega.
 
 Always serve the wizard over local HTTP (never file://) so WKWebView can
@@ -13,13 +14,11 @@ from __future__ import annotations
 import logging
 import os
 import sys
-import threading
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Optional
 
 from x86.gui import bootstrap
 from x86.gui.bridge import WizardBridge
+from x86.gui.http_bridge import start_bridge_http_server
 from x86.platform import is_macos, resolve_pywebview_gui, qt_webengine_available
 
 
@@ -69,17 +68,9 @@ class WebviewApi:
         return self._bridge.open_guide()
 
 
-class _QuietHandler(SimpleHTTPRequestHandler):
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
-        logging.debug("wizard http: " + format, *args)
-
-
-def start_wizard_http_server(directory) -> ThreadingHTTPServer:
-    """Serve wizard static files on 127.0.0.1 (daemon thread)."""
-    handler = partial(_QuietHandler, directory=str(directory))
-    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True, name="26x86-wizard-http")
-    thread.start()
+def start_wizard_http_server(directory):
+    """Serve wizard static files + JSON API on 127.0.0.1 (daemon thread)."""
+    httpd, _bridge = start_bridge_http_server(directory)
     return httpd
 
 
@@ -96,6 +87,22 @@ def _requested_backend() -> str:
     return (os.environ.get("X86_GUI_BACKEND") or "auto").strip().lower()
 
 
+def _should_try_tauri(requested: str) -> bool:
+    """Tauri is the default native shell (not Chromium)."""
+    if requested in (
+        "cocoa",
+        "pywebview",
+        "webview",
+        "qt",
+        "chromium",
+        "webengine",
+        "edge",
+        "edgechromium",
+    ):
+        return False
+    return requested in ("auto", "tauri", "webkit", "")
+
+
 def _should_try_qt_chromium(requested: str) -> bool:
     """Chromium is never the default; Vega/Metal hosts abort in QWebEnginePage."""
     return requested in ("chromium", "qt", "webengine")
@@ -110,7 +117,7 @@ def _qt_chromium_available() -> bool:
 
 
 def launch_webview_wizard(*, advanced: bool = False) -> None:
-    """Open the HTML hybrid wizard. macOS default is Cocoa WebKit."""
+    """Open the HTML hybrid wizard. Default shell is Tauri (WKWebView)."""
     _ensure_stdio_for_frozen_gui()
     bootstrap.ensure_repo_on_path()
     requested = _requested_backend()
@@ -123,7 +130,27 @@ def launch_webview_wizard(*, advanced: bool = False) -> None:
             launch_qt_chromium_wizard(advanced=advanced)
             return
         except Exception:
-            logging.exception("Qt WebEngine (Chromium) failed; trying pywebview cocoa")
+            logging.exception("Qt WebEngine (Chromium) failed; trying Tauri / pywebview")
+
+    if _should_try_tauri(requested):
+        try:
+            from x86.gui.tauri_app import launch_tauri_wizard, tauri_available
+
+            if tauri_available():
+                logging.info("Launching HTML wizard with Tauri (WKWebView / WebView2)")
+                launch_tauri_wizard(advanced=advanced)
+                return
+            logging.info("Tauri binary not found; falling back to pywebview")
+        except FileNotFoundError:
+            logging.info("Tauri binary missing; falling back to pywebview")
+        except Exception:
+            logging.exception("Tauri wizard failed; falling back to pywebview")
+
+    if requested in ("tauri", "webkit"):
+        logging.warning(
+            "X86_GUI_BACKEND=%s requested but Tauri unavailable; using pywebview",
+            requested,
+        )
 
     _launch_pywebview_wizard(advanced=advanced, requested=requested)
 
@@ -222,7 +249,10 @@ def smoke_test_bridge() -> dict[str, Any]:
     ):
         try:
             payload = fn()
-            results["checks"][name] = {"ok": True, "keys": list(payload.keys()) if isinstance(payload, dict) else len(payload)}
+            results["checks"][name] = {
+                "ok": True,
+                "keys": list(payload.keys()) if isinstance(payload, dict) else len(payload),
+            }
         except Exception as exc:
             results["ok"] = False
             results["checks"][name] = {"ok": False, "error": str(exc)}
@@ -233,6 +263,13 @@ def smoke_test_bridge() -> dict[str, Any]:
     results["gui_backend_env"] = _requested_backend()
     results["macos_default_cocoa"] = is_macos() and resolve_pywebview_gui() == "cocoa"
     results["qt_opt_in_only"] = not _should_try_qt_chromium(_requested_backend())
+    results["tauri_preferred"] = _should_try_tauri(_requested_backend())
+    try:
+        from x86.gui.tauri_app import smoke_tauri_paths
+
+        results["tauri"] = smoke_tauri_paths()
+    except Exception as exc:
+        results["tauri"] = {"ok": False, "error": str(exc)}
     return results
 
 
@@ -240,6 +277,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     if argv and argv[0] == "--smoke":
         import json
+
         payload = smoke_test_bridge()
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0 if payload["ok"] else 1

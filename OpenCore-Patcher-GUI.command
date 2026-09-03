@@ -22,13 +22,8 @@ if "--help" in sys.argv or "-h" in sys.argv:
             break
     if _lang not in ("ko", "en"):
         _lang = "en"
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import importlib.util
-    _cli_path = Path(__file__).resolve().parent / "opencore_legacy_patcher" / "support" / "cli.py"
-    _spec = importlib.util.spec_from_file_location("oclp_cli", _cli_path)
-    _cli_mod = importlib.util.module_from_spec(_spec)
-    _spec.loader.exec_module(_cli_mod)
-    _cli_mod.build_parser(_lang).print_help()
+    from opencore_legacy_patcher.support.cli import build_parser
+    build_parser(_lang).print_help()
     sys.exit(0)
 
 # SECURITY FIX: Remove the current directory from the search path.

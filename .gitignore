@@ -33,6 +33,7 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+!26x86-GUI.spec
 
 # Installer logs
 pip-log.txt
@@ -274,3 +275,7 @@ payloads/Kexts/CryptexFixup.kext.dSYM/Contents/Info.plist
 # Local archive (not in git)
 archive/
 archive/**/*
+
+# Built privileged helper (debug/release)
+ci_tooling/privileged_helper_tool/com.niseullent.26x86.privileged-helper
+ci_tooling/privileged_helper_tool/com.dortania.opencore-legacy-patcher.privileged-helper

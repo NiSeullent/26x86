@@ -372,7 +372,7 @@ def cmd_wizard(args: argparse.Namespace) -> int:
     _ensure_repo_on_path()
 
     try:
-        from x86.gui.wizard import launch_wizard  # type: ignore[import-not-found]
+        from x86.gui.launch import launch_wizard
     except ImportError:
         launch_wizard = None
 

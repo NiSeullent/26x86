@@ -22,6 +22,12 @@ from .metallib_preflight import (
     gated_metal_31001_common_patches,
     serialize_metallib_preflight_fields,
 )
+from .skylight_analysis import (
+    emit_hook_scaffold,
+    poc_registration_table,
+    serialize_skylight_analysis_fields,
+    sys_patch_hooks,
+)
 from .skylight_lut import (
     enumerate_evidence_skylight_plugins,
     resolve_renderbox_metallib_payload,
@@ -39,6 +45,10 @@ from .yellow_screen import (
     yellow_screen_mitigations,
     yellow_screen_risk,
 )
+from .iosurface_ca_hooks import (
+    iosurface_ca_extreme_patches,
+    serialize_iosurface_ca_fields,
+)
 
 __all__ = [
     "PreAvxMacProReport",
@@ -49,7 +59,9 @@ __all__ = [
     "assess_metallib_gaps",
     "classify_gpu_family",
     "detect_pre_avx_mac_pro",
+    "emit_hook_scaffold",
     "enumerate_evidence_skylight_plugins",
+    "poc_registration_table",
     "gated_metal_31001_common_patches",
     "opaque_shader_windowserver_relationship",
     "probe_window_server_opaque_cache",
@@ -60,7 +72,9 @@ __all__ = [
     "serialize_graphics_detect_fields",
     "serialize_metallib_preflight_fields",
     "serialize_opaque_shader_fields",
+    "serialize_skylight_analysis_fields",
     "serialize_skylight_lut_fields",
+    "sys_patch_hooks",
     "serialize_yellow_screen_fields",
     "should_disable_window_server_caching",
     "should_strip_tahoe_legacy_gpu_patches",

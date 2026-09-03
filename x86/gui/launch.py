@@ -2,6 +2,7 @@
 Bootstrap and launch the default 26x86 wizard GUI.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -39,10 +40,7 @@ def _strip_x86_subcommand() -> None:
     sys.argv = filtered
 
 
-def launch_wizard(advanced: bool = False) -> None:
-    """Start the wx wizard as the default end-user GUI."""
-    import os
-
+def _launch_legacy_wx(advanced: bool = False) -> None:
     _ensure_repo_root()
     _strip_x86_subcommand()
     if advanced:
@@ -55,6 +53,30 @@ def launch_wizard(advanced: bool = False) -> None:
     main()
 
 
+def launch_wizard(advanced: bool = False) -> None:
+    """
+    Start the default end-user wizard.
+
+    Default: HTML hybrid UI (pywebview).
+    Fallback: legacy wx wizard when ``X86_LEGACY_GUI=1`` or pywebview is unavailable.
+    """
+    _ensure_repo_root()
+
+    if os.environ.get("X86_LEGACY_GUI") == "1":
+        _launch_legacy_wx(advanced=advanced)
+        return
+
+    try:
+        from x86.gui.webview_app import launch_webview_wizard
+
+        launch_webview_wizard(advanced=advanced)
+    except ImportError as exc:
+        import logging
+
+        logging.warning("pywebview unavailable (%s); falling back to legacy wx wizard.", exc)
+        _launch_legacy_wx(advanced=advanced)
+
+
 def launch_advanced_gui() -> None:
     """Start the legacy wx MainFrame (requires ``X86_ADVANCED=1``)."""
     from x86.gui.branding import is_advanced_gui_enabled
@@ -64,10 +86,4 @@ def launch_advanced_gui() -> None:
             "Advanced GUI requires X86_ADVANCED=1. "
             "Normal users should use: python -m x86 wizard"
         )
-    _ensure_repo_root()
-    _strip_x86_subcommand()
-    if "--advanced_gui" not in sys.argv:
-        sys.argv.append("--advanced_gui")
-    from opencore_legacy_patcher.application_entry import main
-
-    main()
+    _launch_legacy_wx(advanced=True)

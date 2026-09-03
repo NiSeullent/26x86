@@ -1,5 +1,6 @@
 requests
 pyobjc
+pywebview>=5.0
 wxpython<4.2.5
 # The pip-distributed pyinstaller sdist bundles the SAME precompiled macOS
 # bootloader as the wheel does, so --no-binary alone isn't enough to get a

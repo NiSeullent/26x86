@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: file:; img-src 'self' data: file: https:;" />
+  <title>26x86</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="header card elevated">
+      <div class="logo-wrap" aria-hidden="true">
+        <img id="logo" class="logo" alt="" hidden />
+        <div id="logo-fallback" class="logo-fallback">26</div>
+      </div>
+      <div class="header-text">
+        <h1 id="app-title" class="app-title">26x86</h1>
+        <p id="app-subtitle" class="app-subtitle">com.niseullent.26x86</p>
+        <p class="tagline">오래된 Mac, 새 macOS</p>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn ghost" id="btn-settings" title="설정">설정</button>
+        <button type="button" class="btn ghost" id="btn-help" title="도움말">도움말</button>
+      </div>
+    </header>
+
+    <div class="main">
+      <aside class="sidebar card surface">
+        <nav id="stepper" class="stepper" aria-label="마법사 단계"></nav>
+        <div class="sidebar-footer">
+          <div class="progress-track" aria-hidden="true">
+            <div id="progress-bar" class="progress-fill"></div>
+          </div>
+          <p id="step-counter" class="step-counter">1 / 5</p>
+        </div>
+      </aside>
+
+      <section class="content card elevated">
+        <div id="step-content" class="step-content"></div>
+        <footer class="nav-footer">
+          <button type="button" class="btn secondary" id="btn-prev" disabled>← 이전</button>
+          <button type="button" class="btn primary" id="btn-next">다음 →</button>
+        </footer>
+      </section>
+    </div>
+
+    <footer class="status-bar">
+      <span id="status-text">준비됨</span>
+      <span id="version-text" class="muted"></span>
+    </footer>
+  </div>
+
+  <div id="toast-host" class="toast-host" aria-live="polite"></div>
+
+  <dialog id="settings-dialog" class="dialog card elevated">
+    <form method="dialog" class="dialog-body">
+      <h2>설정</h2>
+      <label class="checkbox-row">
+        <input type="checkbox" id="setting-analytics" />
+        <span>익명 사용 통계 보내기</span>
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" id="setting-verbose" />
+        <span>자세한 로그</span>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn ghost" id="settings-cancel">닫기</button>
+        <button type="submit" class="btn primary" id="settings-save">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

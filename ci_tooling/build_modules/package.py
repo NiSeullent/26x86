@@ -43,12 +43,14 @@ class GeneratePackage:
         """
         Initialize
         """
+        _constants = constants.Constants()
+        _helper = _constants.bundle_id_privileged_helper
         self._files = {
             "./dist/26x86.app": "/Library/Application Support/26x86/26x86.app",
-            "./ci_tooling/privileged_helper_tool/com.niseullent.26x86.privileged-helper": "/Library/PrivilegedHelperTools/com.niseullent.26x86.privileged-helper",
+            f"./ci_tooling/privileged_helper_tool/{_helper}": f"/Library/PrivilegedHelperTools/{_helper}",
         }
         self._autopkg_files = {
-            "./payloads/Launch Services/com.niseullent.26x86.auto-patch.plist": "/Library/LaunchAgents/com.niseullent.26x86.auto-patch.plist",
+            f"./payloads/Launch Services/{_constants.bundle_id}.auto-patch.plist": f"/Library/LaunchAgents/{_constants.bundle_id}.auto-patch.plist",
         }
         self._autopkg_files.update(self._files)
 

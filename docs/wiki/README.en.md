@@ -1,31 +1,44 @@
 # 26x86 Wiki (English Index)
 
-> **Korean-Optimized Edition** — User-facing wiki pages are written in **Korean**. This page is an English navigation index.
+> **Korean is the primary documentation language.** Wiki pages are written in **Korean**. This page is an English navigation index only.
 
 ## Wiki home (Korean)
 
-[Home.md](./Home.md) — full table of contents
+[Home.md](./Home.md) — full table of contents, CLI quick start
 
 ## Key pages
 
 | Page | Topic |
 |------|--------|
-| [Configuration.md](./Configuration.md) | Settings paths, launchd, `26x86.*` keys |
-| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | OCLP migration (one-time), coexistence |
-| [Warnings.md](./Warnings.md) | All cautions: C2D, GPU, T2 SIP, Hackintosh, macOS 27 |
+| [Warnings.md](./Warnings.md) | All cautions: C2D, GPU, T2 SIP, Hackintosh, clean-room notes |
+| [Configuration.md](./Configuration.md) | `config.json`, `com.niseullent.26x86`, launchd |
+| [Migration.md](./Migration.md) | OCLP → 26x86 (JSON settings, new CLI) |
 | [Known-Issues.md](./Known-Issues.md) | T2 progress, known bugs |
 | [Disclaimer.md](./Disclaimer.md) | Disclaimer summary → [DISCLAIMER.md](../../DISCLAIMER.md) |
 | [GPU-Limitations.md](./GPU-Limitations.md) | Metal 8302, Non-Metal |
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2-specific notes |
-| [Installation-Notes.md](./Installation-Notes.md) | Clean install, upgrade |
+| [Installation-Notes.md](./Installation-Notes.md) | Clean install |
 | [Orphan-Files-Archive.md](./Orphan-Files-Archive.md) | Archived orphan files |
+
+## Architecture
+
+- [CLEANROOM-ARCHITECTURE.md](../CLEANROOM-ARCHITECTURE.md) — `x86/` package, JSON settings, wizard-first CLI (Korean)
 
 ## Project docs (English supplements)
 
 - [docs/README.en.md](../README.en.md) — project overview
-- [ARCHITECTURE-26x86.md](../ARCHITECTURE-26x86.md) — runtime architecture
 - [docs/SETUP.en.md](../SETUP.en.md) — dev setup
 - [docs/KOREAN_EDITION.md](../KOREAN_EDITION.md) — edition notes (EN + KO)
+
+## CLI (reference)
+
+```bash
+python -m x86 wizard    # recommended entry
+python -m x86 detect --json
+python -m x86 build
+python -m x86 patch
+python -m x86 status
+```
 
 ## Status
 

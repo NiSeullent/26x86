@@ -4,10 +4,10 @@
 <dict>
 	<key>AssociatedBundleIdentifiers</key>
 	<array>
-		<string>com.sharhene777.26x86</string>
+		<string>com.niseullent.26x86</string>
 	</array>
 	<key>Label</key>
-	<string>com.sharhene777.26x86.auto-patch</string>
+	<string>com.niseullent.26x86.auto-patch</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/Library/Application Support/26x86/26x86.app/Contents/MacOS/26x86</string>

@@ -44,6 +44,8 @@ class OpenCoreLegacyPatcher:
         if not cli.is_cli_mode(self.cli_args):
             if self.cli_args and getattr(self.cli_args, "advanced_gui", False):
                 self.constants.advanced_gui = True
+            elif os.environ.get("X86_ADVANCED") == "1" and "--advanced_gui" in sys.argv:
+                self.constants.advanced_gui = True
             gui_entry.EntryPoint(self.constants).start()
 
 

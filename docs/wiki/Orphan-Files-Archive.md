@@ -50,16 +50,16 @@
 
 ## 신규 LaunchAgent 템플릿
 
-클린룸 번들 ID `com.sharhene777.26x86`용 템플릿을 추가했습니다 (`payloads/Launch Services/com.niseullent.26x86.*` 기반):
+클린룸 번들 ID `com.niseullent.26x86`용 템플릿을 추가했습니다 (`payloads/Launch Services/com.niseullent.26x86.*` 기반):
 
 | 파일 |
 |------|
-| `resources/launchagents/com.sharhene777.26x86.auto-patch.plist` |
-| `resources/launchagents/com.sharhene777.26x86.macos-update.plist` |
-| `resources/launchagents/com.sharhene777.26x86.rsr-monitor.plist` |
-| `resources/launchagents/com.sharhene777.26x86.os-caching.plist` |
+| `resources/launchagents/com.niseullent.26x86.auto-patch.plist` |
+| `resources/launchagents/com.niseullent.26x86.macos-update.plist` |
+| `resources/launchagents/com.niseullent.26x86.rsr-monitor.plist` |
+| `resources/launchagents/com.niseullent.26x86.os-caching.plist` |
 
-설치 시 대상: `~/Library/LaunchAgents/com.sharhene777.26x86.*.plist`
+설치 시 대상: `~/Library/LaunchAgents/com.niseullent.26x86.*.plist`
 
 ---
 

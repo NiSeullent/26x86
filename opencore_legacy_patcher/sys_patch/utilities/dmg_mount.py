@@ -1,5 +1,8 @@
 """
 dmg_mount.py: PatcherSupportPkg DMG Mounting. Handles Universal-Binaries and DortaniaInternalResources DMGs.
+
+New code should use ``x86.patch.PayloadManager`` for explicit mount/unmount;
+this module is wrapped by PayloadManager and kept for backward compatibility.
 """
 
 import logging

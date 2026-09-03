@@ -27,6 +27,19 @@ INSTALLER_PKG_URL: str = (
     f"{URL_REPO}releases/download/{PATCHER_VERSION}/AutoPkg-Assets-T2.pkg"
 )
 
+
+def patcher_support_pkg_dmg_url(version: str | None = None) -> str:
+    """Download URL for Universal-Binaries.dmg."""
+    ver = version or PATCHER_SUPPORT_PKG_VERSION
+    return f"{URL_PATCHER_SUPPORT_PKG}{ver}/Universal-Binaries.dmg"
+
+
+def patcher_support_pkg_internal_dmg_url(version: str | None = None) -> str:
+    """Download URL for DortaniaInternalResources.dmg (developer builds)."""
+    ver = version or PATCHER_SUPPORT_PKG_VERSION
+    return f"{URL_PATCHER_SUPPORT_PKG}{ver}/DortaniaInternalResources.dmg"
+
+
 __all__ = [
     "APP_NAME",
     "BUNDLE_ID",
@@ -37,6 +50,8 @@ __all__ = [
     "OPENCORE_VERSION",
     "PATCHER_SUPPORT_PKG_VERSION",
     "PATCHER_VERSION",
+    "patcher_support_pkg_dmg_url",
+    "patcher_support_pkg_internal_dmg_url",
     "URL_DISCUSSIONS",
     "URL_GUIDE",
     "URL_ISSUES",

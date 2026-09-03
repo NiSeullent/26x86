@@ -24,16 +24,20 @@ class Constants:
         # 26x86 product identity (runtime namespace — independent from OCLP/Dortania)
         self.app_name:                         str = "26x86"
         self.app_bundle_name:                  str = "26x86.app"
-        self.bundle_id:                       str = "com.sharhene777.26x86"
-        self.bundle_id_privileged_helper:     str = "com.sharhene777.26x86.privileged-helper"
-        self.bundle_id_uninstaller:           str = "com.sharhene777.26x86-uninstaller"
-        self.bundle_id_installer:             str = "com.sharhene777.26x86"
-        self.bundle_id_autopkg:               str = "com.sharhene777.26x86.pkg.AutoPkg-Assets"
-        self.preferences_domain:              str = "com.sharhene777.26x86"
-        self.launchd_prefix:                   str = "com.sharhene777.26x86"
+        self.bundle_id:                       str = "com.niseullent.26x86"
+        self.bundle_id_privileged_helper:     str = "com.niseullent.26x86.privileged-helper"
+        self.bundle_id_uninstaller:           str = "com.niseullent.26x86-uninstaller"
+        self.bundle_id_installer:             str = "com.niseullent.26x86"
+        self.bundle_id_autopkg:               str = "com.niseullent.26x86.pkg.AutoPkg-Assets"
+        self.preferences_domain:              str = "com.niseullent.26x86"
+        self.launchd_prefix:                   str = "com.niseullent.26x86"
         self.app_support_dir:                  str = "/Library/Application Support/26x86"
-        self.settings_plist_path:              Path = Path.home() / "Library/Preferences/com.sharhene777.26x86.plist"
+        self.settings_plist_path:              Path = Path.home() / "Library/Preferences/com.niseullent.26x86.plist"
         self.app_support_path:                Path = Path.home() / "Library/Application Support/26x86"
+        # Legacy OCLP — user preferences may be read once for migration; shared plist is never touched
+        self.legacy_oclp_preferences_domain:    str = "com.dortania.opencore-legacy-patcher"
+        self.legacy_oclp_preferences_path:      Path = Path.home() / f"Library/Preferences/{self.legacy_oclp_preferences_domain}.plist"
+        self.legacy_oclp_shared_settings:      str = "/Users/Shared/.com.dortania.opencore-legacy-patcher.plist"
 
         # URLs
         self.url_patcher_support_pkg:         str = "https://github.com/NiSeullent/26x86-PatcherSupportPkg/download/"

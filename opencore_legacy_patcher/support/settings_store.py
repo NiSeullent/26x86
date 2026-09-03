@@ -1,8 +1,10 @@
 """
-settings_store.py: 26x86-native settings API
+settings_store.py: Legacy shim during x86 migration.
 
-Single source for reading/writing ~/Library/Preferences/com.sharhene777.26x86.plist.
-No reads or writes to OCLP shared or legacy plists.
+New code should use ``x86.settings.SettingsStore`` (JSON at
+``~/Library/Application Support/26x86/config.json``).
+
+This module keeps the plist-based API for existing opencore_legacy_patcher imports.
 """
 
 import logging

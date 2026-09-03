@@ -23,14 +23,34 @@ from ..wx_gui import (
     gui_update,
     gui_mode_selector,
 )
-from ..wizard import WizardFrame
+from x86.gui.branding import is_advanced_gui_enabled, window_title
+
+
+def _wizard_frame():
+    from x86.gui.wizard.wizard_frame import WizardFrame
+
+    return WizardFrame
+
+
+def _should_launch_advanced_gui(constants_obj: constants.Constants) -> bool:
+    """Legacy MainFrame only when explicitly requested and X86_ADVANCED=1."""
+    if not is_advanced_gui_enabled():
+        return False
+    return (
+        "--advanced_gui" in sys.argv
+        or getattr(constants_obj, "advanced_gui", False)
+    )
 
 
 class SupportedEntryPoints:
     """
     Enum for supported entry points
     """
-    WIZARD     = WizardFrame
+
+    @staticmethod
+    def wizard():
+        return _wizard_frame()
+
     MAIN_MENU  = gui_main_menu.MainFrame
     MODE_SELECT = gui_mode_selector.ModeSelectorFrame
     BUILD_OC   = gui_build.BuildFrame
@@ -124,10 +144,10 @@ class EntryPoint:
         is_patching_mode = "--gui_patch" in sys.argv or "--gui_unpatch" in sys.argv or start_patching is True
 
         if entry is None:
-            if "--advanced_gui" in sys.argv or getattr(self.constants, "advanced_gui", False):
+            if _should_launch_advanced_gui(self.constants):
                 entry = gui_main_menu.MainFrame
             else:
-                entry = WizardFrame
+                entry = _wizard_frame()
 
         if is_patching_mode:
             entry = gui_sys_patch_start.SysPatchStartFrame
@@ -148,7 +168,7 @@ class EntryPoint:
                 logging.exception("Stack Trace:")
                 logging.info("Please report this issue.")
                 logging.info("In the meanwhile, Developer Mode may be switched off or the app may crash.")
-        elif entry is WizardFrame:
+        elif entry is _wizard_frame():
             logging.info("26x86 마법사 UI 시작")
             self.constants.app_mode = "albert"
 
@@ -159,7 +179,7 @@ class EntryPoint:
 
         self.frame = entry(
             None,
-            title=f"{self.constants.patcher_name} {self.constants.patcher_version}",
+            title=window_title(self.constants.patcher_version),
             global_constants=self.constants,
             screen_location=None,
             **({"patches": patches} if is_patching_mode else {})

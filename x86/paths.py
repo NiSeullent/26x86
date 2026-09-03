@@ -1,12 +1,12 @@
 """
-paths.py: Filesystem paths for 26x86 (bundle ID com.sharhene777.26x86).
+paths.py: Filesystem paths for 26x86 (bundle ID com.niseullent.26x86).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-BUNDLE_ID: str = "com.sharhene777.26x86"
+BUNDLE_ID: str = "com.niseullent.26x86"
 APP_NAME: str = "26x86"
 APP_BUNDLE_NAME: str = "26x86.app"
 
@@ -86,3 +86,35 @@ class Paths:
     def launch_agent_user_path(suffix: str) -> Path:
         return Paths.user_launch_agents_dir() / Paths.launch_agent_plist_name(suffix)
 
+    @staticmethod
+    def legacy_oclp_shared_settings() -> Path:
+        return Path("/Users/Shared/.com.dortania.opencore-legacy-patcher.plist")
+
+    @staticmethod
+    def legacy_oclp_preferences() -> Path:
+        return Path.home() / "Library/Preferences/com.dortania.opencore-legacy-patcher.plist"
+
+    # PatcherSupportPkg DMG paths (see x86.patch.PayloadManager)
+    @staticmethod
+    def universal_binaries_dmg() -> Path:
+        return Paths.repo_root() / "Universal-Binaries.dmg"
+
+    @staticmethod
+    def internal_resources_dmg() -> Path:
+        return Paths.repo_root() / "DortaniaInternalResources.dmg"
+
+    @staticmethod
+    def universal_binaries_mount() -> Path:
+        return Paths.payloads_dir() / "Universal-Binaries"
+
+    @staticmethod
+    def universal_binaries_overlay() -> Path:
+        return Paths.payloads_dir() / "Universal-Binaries_overlay"
+
+    @staticmethod
+    def internal_resources_mount() -> Path:
+        return Paths.payloads_dir() / "DortaniaInternal"
+
+    @staticmethod
+    def cached_universal_binaries_dmg(version: str) -> Path:
+        return Paths.user_cache_dir() / f"Universal-Binaries-{version}.dmg"

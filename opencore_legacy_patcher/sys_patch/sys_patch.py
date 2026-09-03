@@ -50,9 +50,9 @@ from .mount import (
 from .utilities import (
     install_new_file,
     remove_file,
-    PatcherSupportPkgMount,
     KernelDebugKitMerge
 )
+from x86.patch import PayloadManager
 
 from .. import constants
 
@@ -998,7 +998,7 @@ class PatchSysVolume:
             return
 
         logging.info("- Patcher is capable of patching")
-        if not PatcherSupportPkgMount(self.constants).mount():
+        if not PayloadManager(self.constants).mount():
             logging.error("- Critical resources missing, cannot continue with patching!!!")
             logging.exception("Stack Trace:")
             return

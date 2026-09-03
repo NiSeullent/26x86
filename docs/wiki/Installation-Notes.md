@@ -45,6 +45,12 @@
 
 ## 시작하기 (사용자)
 
+```bash
+python -m x86 wizard    # 권장 — 마법사 GUI
+python -m x86 status    # 설정·패치 상태
+```
+
+- OCLP에서 전환: [Migration.md](./Migration.md)
 - Dortania 가이드(영문): [OpenCore Legacy Patcher Guide](https://dortania.github.io/OpenCore-Legacy-Patcher/)
 - 소스 실행: [SOURCE.md](../../SOURCE.md)
 - 영문 보조: [docs/README.en.md](../README.en.md)

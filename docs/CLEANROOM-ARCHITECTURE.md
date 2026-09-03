@@ -1,7 +1,7 @@
 # 26x86 클린룸 아키텍처
 
 > **「이름만 바꾼 포크」가 아닌, 오늘 처음부터 26x86을 설계했다면 이렇게 만들었을 것**  
-> Bundle ID: `com.sharhene777.26x86`  
+> Bundle ID: `com.niseullent.26x86`  
 > 핵심 역량 유지: x86 Mac에서 macOS 26용 OpenCore EFI 빌드 + 루트 패치 적용
 
 > **문서 언어:** 사용자 대면 문서의 **기본 언어는 한국어**입니다. 영문 보조: [README.en.md](README.en.md)
@@ -75,7 +75,7 @@ OCLP(OpenCore Legacy Patcher)의 **런타임 관행·디렉터리 구조·진입
 ├── opencore_legacy_patcher/    # 얇은 shim — from x86 import … 위임
 ├── payloads/                   # kexts, OpenCore zip, LaunchAgents 템플릿
 ├── resources/
-│   └── launchagents/           # com.sharhene777.26x86.*.plist 템플릿
+│   └── launchagents/           # com.niseullent.26x86.*.plist 템플릿
 ├── archive/legacy-oclp/        # 제거된 OCLP 스크립트·리포트
 └── docs/
     ├── CLEANROOM-ARCHITECTURE.md  # (본 문서)
@@ -93,7 +93,7 @@ OCLP(OpenCore Legacy Patcher)의 **런타임 관행·디렉터리 구조·진입
 | **GUI** | wx MainFrame + 볼트온 wizard | **Wizard 전용** 기본; `26x86 wizard` / `--wizard`; 고급은 `X86_ADVANCED=1` |
 | **설정 API** | 분산 plist 읽기 | `x86/settings.py` — `SettingsStore` 단일 클래스 |
 | **경로·상수** | `constants.py` ~900줄 | `x86/paths.py` + `x86/manifest.py` |
-| **LaunchAgents** | 시스템 전역 dortania plist | `~/Library/LaunchAgents/com.sharhene777.26x86.*.plist` (필요 시 설치) |
+| **LaunchAgents** | 시스템 전역 dortania plist | `~/Library/LaunchAgents/com.niseullent.26x86.*.plist` (필요 시 설치) |
 | **로깅** | 혼재 (`/Users/Shared/` 등) | `~/Library/Logs/26x86/` 구조화 로그 |
 | **패치 페이로드** | PatcherSupportPkg DMG 마운트 마법 | `PayloadManager` 클래스로 mount/unmount 명시 |
 | **패키지명** | `opencore_legacy_patcher/` | `x86/` + shim |
@@ -104,9 +104,9 @@ OCLP(OpenCore Legacy Patcher)의 **런타임 관행·디렉터리 구조·진입
 
 | 도메인 | 값 |
 |--------|-----|
-| **Bundle ID** | `com.sharhene777.26x86` |
-| **Privileged Helper** | `com.sharhene777.26x86.privileged-helper` |
-| **LaunchAgents** | `com.sharhene777.26x86.{auto-patch,macos-update,rsr-monitor,os-caching}` |
+| **Bundle ID** | `com.niseullent.26x86` |
+| **Privileged Helper** | `com.niseullent.26x86.privileged-helper` |
+| **LaunchAgents** | `com.niseullent.26x86.{auto-patch,macos-update,rsr-monitor,os-caching}` |
 | **설정** | `~/Library/Application Support/26x86/config.json` |
 | **로그** | `~/Library/Logs/26x86/` |
 | **앱 지원** | `/Library/Application Support/26x86/` |
@@ -184,7 +184,7 @@ class PayloadManager:
   → 기존 wx_gui 메뉴 (shim, 점진 폐기)
 ```
 
-브랜딩: 창 제목·About·아이콘에 `26x86` / `com.sharhene777.26x86` 통일.
+브랜딩: 창 제목·About·아이콘에 `26x86` / `com.niseullent.26x86` 통일.
 
 ---
 
@@ -241,7 +241,7 @@ exec "$(dirname "$0")/26x86.py" wizard "$@"
 - [ ] `python -m x86 wizard` GUI 기동
 - [ ] `.py`/`.plist` 런타임 코드에 `Users/Shared`, `com.dortania` 참조 **0건** (kext plist·CHANGELOG·아카이브 제외)
 - [ ] 설정이 `config.json`에만 기록됨
-- [ ] LaunchAgent label = `com.sharhene777.26x86.*`
+- [ ] LaunchAgent label = `com.niseullent.26x86.*`
 
 ---
 

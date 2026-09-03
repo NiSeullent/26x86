@@ -242,7 +242,7 @@ class ZSHFunctions:
 
         _script += "        # Iterate over launch service files\n"
         _script += "        for launchServiceFile in $(/bin/ls -1 $launchServiceVariant); do\n"
-        _script += "            if [[ $launchServiceFile != ${domain}* ]] && [[ $launchServiceFile != com.dortania.opencore-legacy-patcher* ]] && [[ $launchServiceFile != com.niseullent.26x86* ]]; then\n"
+        _script += "            if [[ $launchServiceFile != ${domain}* ]] && [[ $launchServiceFile != com.dortania.opencore-legacy-patcher* ]] && [[ $launchServiceFile != com.sharhene777.26x86* ]]; then\n"
         _script += "                continue\n"
         _script += "            fi\n"
         _script += "            local launchServicePath=\"$launchServiceVariant/$launchServiceFile\"\n\n"
@@ -327,13 +327,13 @@ class GenerateScripts:
             "Library/Application Support/Dortania/Update.plist",
             "Library/Application Support/Dortania/OpenCore-Patcher.app",
             "Library/PrivilegedHelperTools/com.dortania.opencore-legacy-patcher.privileged-helper",
-            "Library/PrivilegedHelperTools/com.niseullent.26x86.privileged-helper",
+            "Library/PrivilegedHelperTools/com.sharhene777.26x86.privileged-helper",
         ]
 
         self.additional_auto_pkg_files = [
             f"Library/LaunchAgents/{_bundle_id}.auto-patch.plist",
             "Library/LaunchAgents/com.dortania.opencore-legacy-patcher.auto-patch.plist",
-            "Library/LaunchAgents/com.niseullent.26x86.auto-patch.plist",
+            "Library/LaunchAgents/com.sharhene777.26x86.auto-patch.plist",
         ]
 
 

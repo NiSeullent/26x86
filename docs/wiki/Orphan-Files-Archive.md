@@ -20,7 +20,6 @@
 |------|------|
 | `docs/ARCHITECTURE-26x86.md` | 내부 설계서, 사용자 문서 아님 |
 | `docs/DEPENDENCY-AUDIT.md` | 개발자 감사 로그 |
-| `docs/CLEANROOM-ARCHITECTURE.md` | 내부 설계 초안, 공개 문서 아님 |
 | `docs/wiki/Migration.md` | [Migration-from-OCLP.md](./Migration-from-OCLP.md)와 중복 |
 
 ---

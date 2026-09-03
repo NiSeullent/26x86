@@ -4,6 +4,8 @@ paths.py: Filesystem paths for 26x86 (bundle ID com.niseullent.26x86).
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 BUNDLE_ID: str = "com.niseullent.26x86"
@@ -23,6 +25,34 @@ LAUNCH_AGENT_SUFFIXES: tuple[str, ...] = (
 )
 
 
+def _windows_appdata() -> Path:
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        return Path(appdata)
+    return Path.home() / "AppData" / "Roaming"
+
+
+def _linux_config_home() -> Path:
+    xdg = os.environ.get("XDG_CONFIG_HOME")
+    if xdg:
+        return Path(xdg)
+    return Path.home() / ".config"
+
+
+def _linux_state_home() -> Path:
+    xdg = os.environ.get("XDG_STATE_HOME")
+    if xdg:
+        return Path(xdg)
+    return Path.home() / ".local" / "state"
+
+
+def _linux_cache_home() -> Path:
+    xdg = os.environ.get("XDG_CACHE_HOME")
+    if xdg:
+        return Path(xdg)
+    return Path.home() / ".cache"
+
+
 class Paths:
     """Canonical filesystem locations for 26x86."""
 
@@ -32,7 +62,11 @@ class Paths:
 
     @staticmethod
     def user_config_dir() -> Path:
-        return Path.home() / "Library/Application Support/26x86"
+        if sys.platform == "darwin":
+            return Path.home() / "Library/Application Support/26x86"
+        if sys.platform == "win32":
+            return _windows_appdata() / "26x86"
+        return _linux_config_home() / "26x86"
 
     @staticmethod
     def user_config() -> Path:
@@ -40,23 +74,42 @@ class Paths:
 
     @staticmethod
     def user_preferences_plist() -> Path:
-        return Path.home() / "Library/Preferences/com.niseullent.26x86.plist"
+        if sys.platform == "darwin":
+            return Path.home() / "Library/Preferences/com.niseullent.26x86.plist"
+        if sys.platform == "win32":
+            return Paths.user_config_dir() / "com.niseullent.26x86.plist"
+        return Paths.user_config_dir() / "com.niseullent.26x86.plist"
 
     @staticmethod
     def user_cache_dir() -> Path:
-        return Paths.user_config_dir() / "cache"
+        if sys.platform == "darwin":
+            return Paths.user_config_dir() / "cache"
+        if sys.platform == "win32":
+            return Paths.user_config_dir() / "cache"
+        return _linux_cache_home() / "26x86"
 
     @staticmethod
     def user_logs_dir() -> Path:
-        return Path.home() / "Library/Logs/26x86"
+        if sys.platform == "darwin":
+            return Path.home() / "Library/Logs/26x86"
+        if sys.platform == "win32":
+            return Paths.user_config_dir() / "logs"
+        return _linux_state_home() / "26x86" / "logs"
 
     @staticmethod
     def user_launch_agents_dir() -> Path:
-        return Path.home() / "Library/LaunchAgents"
+        if sys.platform == "darwin":
+            return Path.home() / "Library/LaunchAgents"
+        return Paths.user_config_dir() / "launchagents"
 
     @staticmethod
     def system_app_support() -> Path:
-        return Path("/Library/Application Support/26x86")
+        if sys.platform == "darwin":
+            return Path("/Library/Application Support/26x86")
+        if sys.platform == "win32":
+            program_data = os.environ.get("ProgramData", "C:\\ProgramData")
+            return Path(program_data) / "26x86"
+        return Path("/usr/local/share/26x86")
 
     @staticmethod
     def developer_mode_marker() -> Path:

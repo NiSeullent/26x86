@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,8 +28,11 @@ DEFAULT_SETTINGS: dict[str, Any] = {
 
 def _resolve_config_path() -> Path:
     """
-    Resolve user config path, using the console user when running as root.
+    Resolve user config path, using the console user when running as root on macOS.
     """
+    if sys.platform != "darwin":
+        return Paths.user_config()
+
     home = Path.home()
     if home == Path("/var/root"):
         try:

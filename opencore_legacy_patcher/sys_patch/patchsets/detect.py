@@ -5,8 +5,13 @@ detect.py: Detects patches for a given system
 import logging
 import plistlib
 import subprocess
-import py_sip_xnu
+import sys
 import packaging.version
+
+if sys.platform == "darwin":
+    import py_sip_xnu
+else:
+    py_sip_xnu = None  # type: ignore
 
 try:
     from enum import StrEnum
@@ -468,6 +473,9 @@ class HardwarePatchsetDetection:
         """
         Handle SIP breakdown
         """
+        if py_sip_xnu is None:
+            return requirements
+
         current_sip_status  = hex(py_sip_xnu.SipXnu().get_sip_status().value)
         expected_sip_status = hex(self._convert_required_sip_config_to_int(required_sip_configs))
         sip_string = f"Validation: Booted SIP: {current_sip_status} vs expected: {expected_sip_status}"

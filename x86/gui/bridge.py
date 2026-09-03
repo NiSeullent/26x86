@@ -32,6 +32,7 @@ from x86.gui.branding import (
 )
 from x86.gui.wizard import errors, strings
 from x86.manifest import APP_NAME, BUNDLE_ID, COPYRIGHT, PATCHER_VERSION, URL_GUIDE
+from x86.platform import MACOS_ONLY_MESSAGE, is_macos, reveal_in_file_manager
 from x86.settings import SettingsStore
 
 
@@ -104,7 +105,9 @@ class WizardBridge:
             "title": window_title(PATCHER_VERSION),
             "guide_link": URL_GUIDE,
             "logo_url": logo_url,
-            "advanced_enabled": is_advanced_gui_enabled(),
+            "advanced_enabled": is_advanced_gui_enabled() and is_macos(),
+            "host_is_mac": is_macos(),
+            "macos_only_message": None if is_macos() else MACOS_ONLY_MESSAGE,
             "status_ready": strings.STATUS_READY,
         }
 
@@ -167,6 +170,10 @@ class WizardBridge:
         payload["marketing_name"] = smbios_data.smbios_dictionary.get(
             payload["model"], {}
         ).get("Marketing Name", payload["model"])
+
+        payload["host_is_mac"] = is_macos()
+        if not is_macos():
+            payload["macos_only_note"] = MACOS_ONLY_MESSAGE
 
         self._settings.record_detect(payload["model"])
         return {"ok": True, "detect": payload}
@@ -236,6 +243,13 @@ class WizardBridge:
             return {"ok": False, "error": errors.user_message(exc)}
 
     def host_can_build(self) -> dict[str, Any]:
+        if not is_macos():
+            return {
+                "ok": True,
+                "can_build": False,
+                "build_completed": self._build_completed,
+                "message": MACOS_ONLY_MESSAGE,
+            }
         c = self._constants()
         can_build = gui_support.CheckProperties(c).host_can_build()
         return {"ok": True, "can_build": bool(can_build), "build_completed": self._build_completed}
@@ -257,6 +271,9 @@ class WizardBridge:
         }
         if action not in allowed:
             return {"ok": False, "error": f"Unknown action: {action}"}
+
+        if not is_macos():
+            return {"ok": False, "error": MACOS_ONLY_MESSAGE}
 
         if action == "advanced" and not is_advanced_gui_enabled():
             return {"ok": False, "error": strings.ERR_ADVANCED_DISABLED}
@@ -292,11 +309,10 @@ class WizardBridge:
 
     def reveal_log(self) -> dict[str, Any]:
         c = self._constants()
-        try:
-            subprocess.run(["/usr/bin/open", "--reveal", c.log_filepath], check=False)
-            return {"ok": True, "path": c.log_filepath}
-        except OSError as exc:
-            return {"ok": False, "error": errors.user_message(exc)}
+        log_path = getattr(c, "log_filepath", None) or str(c.app_support_path / "26x86.log")
+        if reveal_in_file_manager(log_path):
+            return {"ok": True, "path": log_path}
+        return {"ok": False, "error": f"로그 파일을 열 수 없습니다: {log_path}"}
 
     def open_guide(self) -> dict[str, Any]:
         c = self._constants()

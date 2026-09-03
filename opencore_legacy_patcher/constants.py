@@ -54,7 +54,9 @@ class Constants:
         self.settings_plist_path:              Path = (
             X86Paths.user_preferences_plist() if X86Paths else Path.home() / f"Library/Preferences/{BUNDLE_ID}.plist"
         )
-        self.app_support_path:                Path = Path.home() / "Library/Application Support/26x86"
+        self.app_support_path:                Path = (
+            X86Paths.user_config_dir() if X86Paths else Path.home() / "Library/Application Support/26x86"
+        )
 
         # URLs
         self.url_patcher_support_pkg:         str = "https://github.com/NiSeullent/26x86-PatcherSupportPkg/download/"

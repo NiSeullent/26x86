@@ -26,6 +26,8 @@ class OSProbe:
         Returns:
             int: Major kernel version (ex. 21, from 21.1.0)
         """
+        if sys.platform != "darwin":
+            return 0
 
         return int(self.uname_data.release.partition(".")[0])
 
@@ -37,6 +39,8 @@ class OSProbe:
         Returns:
             int: Minor kernel version (ex. 1, from 21.1.0)
         """
+        if sys.platform != "darwin":
+            return 0
 
         return int(self.uname_data.release.partition(".")[2].partition(".")[0])
 
@@ -48,6 +52,8 @@ class OSProbe:
         Returns:
             str: OS version (ex. 12.0)
         """
+        if sys.platform != "darwin":
+            return platform.version() or platform.release()
 
         result = subprocess.run(["/usr/bin/sw_vers", "-productVersion"], stdout=subprocess.PIPE)
         if result.returncode != 0:
@@ -75,6 +81,8 @@ class OSProbe:
         Returns:
             str: OS build (ex. 21A5522h)
         """
+        if sys.platform != "darwin":
+            return "N/A"
 
         if rsr is False:
             # sw_vers is the most reliable way to get the base host build

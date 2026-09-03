@@ -1,7 +1,17 @@
 requests
-pyobjc
 pywebview>=5.0
 wxpython<4.2.5
+packaging
+markdown2
+
+# macOS-only dependencies (hardware probing, SIP, PKG build, code signing)
+pyobjc; sys_platform == 'darwin'
+py-applescript; sys_platform == 'darwin'
+py_sip_xnu; sys_platform == 'darwin'
+macos-pkg-builder; sys_platform == 'darwin'
+mac-signing-buddy; sys_platform == 'darwin'
+
+# PyInstaller (optional; macOS app bundle build — see docs/SETUP.md)
 # The pip-distributed pyinstaller sdist bundles the SAME precompiled macOS
 # bootloader as the wheel does, so --no-binary alone isn't enough to get a
 # locally-rebuilt one - PYINSTALLER_COMPILE_BOOTLOADER is also required to
@@ -12,11 +22,8 @@ wxpython<4.2.5
 # "AssertionError: Executable contains code signature!" on hosts like
 # 10.13 High Sierra. Install with:
 #   PYINSTALLER_COMPILE_BOOTLOADER=1 pip install --no-binary pyinstaller -r requirements.txt --verbose
-# (--verbose lets you confirm in the log that the bootloader was actually rebuilt)
-pyinstaller --no-binary=pyinstaller
-packaging
-py_sip_xnu
-py-applescript
-markdown2
-macos-pkg-builder
-mac-signing-buddy
+pyinstaller --no-binary=pyinstaller; sys_platform == 'darwin'
+
+# Windows/Linux GUI notes:
+# - pywebview on Windows needs Microsoft Edge WebView2 Runtime
+# - pywebview on Linux needs python3-gi / PyGObject (GTK) or PyQt5/PyQt6 (Qt)

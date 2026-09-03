@@ -16,16 +16,29 @@
 ## 실행·빌드
 
 ```bash
+# macOS
 python3 26x86.command
 python3 -m x86 detect --json
 python3 Build-Project.command
+
+# Windows
+python -m x86 wizard
+26x86.bat
+
+# Linux
+python3 -m x86 wizard
+./26x86.sh
 ```
+
+**macOS 전용:** EFI 빌드, 루트 패치, PKG/LaunchAgent. Windows/Linux에서는 CLI·마법사 GUI·설정 JSON만 지원합니다. 자세한 실행 방법은 [SETUP.md](../SETUP.md#windows--linux에서-실행-소스)를 참고하세요.
 
 상세: [SETUP.md](../SETUP.md), [SOURCE.md](../../SOURCE.md)
 
 ## 설정
 
-- `~/Library/Preferences/com.niseullent.26x86.plist` 또는 `~/Library/Application Support/26x86/config.json`
+- **macOS:** `~/Library/Preferences/com.niseullent.26x86.plist` 또는 `~/Library/Application Support/26x86/config.json`
+- **Windows:** `%APPDATA%\26x86\config.json`
+- **Linux:** `~/.config/26x86/config.json`
 - 이전 패처와 자동 패치 **동시 사용 금지** — [Migration.md](./Migration.md)
 
 ## 원본·라이선스

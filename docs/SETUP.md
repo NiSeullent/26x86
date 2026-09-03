@@ -74,6 +74,73 @@ python3 26x86.command --detect     # Mac 모델 감지
 python3 26x86.command --build --model iMac11,2 --verbose
 ```
 
+## Windows / Linux에서 실행 (소스)
+
+26x86의 **전체 기능(EFI 빌드·루트 패치·LaunchAgent)** 은 **macOS 전용**입니다. Windows/Linux에서는 CLI·HTML 마법사 GUI를 실행해 도움말·설정·플랫폼 정보를 확인할 수 있습니다.
+
+### 공통 사전 요구사항
+
+| 항목 | Windows | Linux |
+|------|---------|-------|
+| Python | **3.13+** | **3.13+** |
+| 가상환경 | `python -m venv .venv` | `python3 -m venv .venv` |
+| 종속성 | `pip install -r 26x86/requirements.txt` | 동일 |
+| GUI (권장) | pywebview + **Edge WebView2 Runtime** | pywebview + **GTK** (`python3-gi`) 또는 Qt |
+
+> macOS 전용 패키지(`pyobjc`, `py_sip_xnu` 등)는 `requirements.txt`의 platform marker로 자동 제외됩니다.
+
+### Windows
+
+```cmd
+cd 26x86
+python -m venv ..\.venv
+..\.venv\Scripts\activate
+pip install -r requirements.txt
+
+python -m x86 --help
+python -m x86 wizard
+python -m x86 detect --json
+python -m x86 status
+
+REM 또는
+26x86.bat
+26x86.bat detect --json
+```
+
+설정·로그 위치: `%APPDATA%\26x86\` (`config.json`, `logs\`)
+
+### Linux
+
+```bash
+cd 26x86
+python3 -m venv ../.venv
+source ../.venv/bin/activate
+pip install -r requirements.txt
+
+# GTK 백엔드 (Debian/Ubuntu 예시)
+sudo apt install python3-gi gir1.2-webkit2-4.1
+
+python3 -m x86 --help
+python3 -m x86 wizard
+python3 -m x86 detect --json
+
+chmod +x 26x86.sh
+./26x86.sh
+```
+
+설정·로그 위치: `~/.config/26x86/config.json`, `~/.local/state/26x86/logs/`
+
+### 플랫폼별 기능 요약
+
+| 기능 | macOS | Windows / Linux |
+|------|-------|-----------------|
+| `wizard` (HTML GUI) | ✅ | ✅ (pywebview/wx) |
+| `detect --json` | ✅ Mac 하드웨어 | ✅ 호스트 OS·플랫폼 정보 |
+| `status` | ✅ | ✅ (설정 JSON) |
+| `build` / `patch` | ✅ | ❌ (한국어 안내 메시지) |
+| OpenCore EFI 빌드 | ✅ | ❌ |
+| LaunchAgent (`com.niseullent.26x86.*`) | ✅ | ❌ |
+
 ## 빌드 환경
 
 ### OpenCorePkg 빌드

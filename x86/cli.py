@@ -16,6 +16,12 @@ from typing import Any, Optional
 from . import __version__
 from .logging import setup_logging
 from .manifest import APP_NAME
+from .platform import (
+    MACOS_ONLY_MESSAGE,
+    is_macos,
+    non_mac_detect_payload,
+    platform_label,
+)
 from .settings import SettingsStore
 
 
@@ -28,6 +34,8 @@ def _ensure_repo_on_path() -> Path:
 
 
 def _sw_vers(key: str) -> Optional[str]:
+    if not is_macos():
+        return None
     flag = key if key.startswith("-") else f"-{key}"
     try:
         result = subprocess.run(
@@ -48,6 +56,9 @@ def _emit_json(data: dict[str, Any]) -> None:
 def _serialize_detect_payload(computer: Any) -> dict[str, Any]:
     from opencore_legacy_patcher.datasets import smbios_data
 
+    if not is_macos():
+        return non_mac_detect_payload()
+
     model = computer.real_model
     marketing = smbios_data.smbios_dictionary.get(model, {}).get("Marketing Name", model)
     cpu_name = getattr(computer.cpu, "name", None) if computer.cpu else None
@@ -63,6 +74,8 @@ def _serialize_detect_payload(computer: Any) -> dict[str, Any]:
         )
 
     return {
+        "platform": "macOS",
+        "host_is_mac": True,
         "model": model,
         "marketing_name": marketing,
         "build_model": computer.build_model,
@@ -77,23 +90,38 @@ def _serialize_detect_payload(computer: Any) -> dict[str, Any]:
 
 def cmd_detect(args: argparse.Namespace) -> int:
     _ensure_repo_on_path()
-    from opencore_legacy_patcher.detections.device_probe import Computer
 
-    computer = Computer.probe()
-    payload = _serialize_detect_payload(computer)
+    if is_macos():
+        from opencore_legacy_patcher.detections.device_probe import Computer
+
+        computer = Computer.probe()
+        payload = _serialize_detect_payload(computer)
+    else:
+        payload = non_mac_detect_payload()
+        if args.model:
+            payload["model"] = args.model
+            payload["real_model"] = args.model
+            payload["build_model"] = args.model
 
     store = SettingsStore()
-    store.record_detect(payload["model"])
+    store.record_detect(str(payload["model"]))
 
     if args.json:
         _emit_json(payload)
     else:
-        logging.info("Mac 모델 감지 결과:")
-        logging.info("  모델: %s", payload["model"])
-        logging.info("  제품명: %s", payload["marketing_name"])
-        logging.info("  CPU: %s", payload["cpu"] or "N/A")
+        if is_macos():
+            logging.info("Mac 모델 감지 결과:")
+            logging.info("  모델: %s", payload["model"])
+            logging.info("  제품명: %s", payload["marketing_name"])
+            logging.info("  CPU: %s", payload["cpu"] or "N/A")
+        else:
+            logging.info("%s 호스트 정보:", platform_label())
+            logging.info("  플랫폼: %s", payload.get("platform"))
+            logging.info("  Mac 하드웨어 감지: 불가")
+            logging.info("  CPU: %s", payload.get("cpu") or "N/A")
+            logging.info("  안내: %s", MACOS_ONLY_MESSAGE)
         logging.info(
-            "  macOS: %s (%s)",
+            "  OS: %s (%s)",
             payload["os_version"] or "N/A",
             payload["os_build"] or "N/A",
         )
@@ -101,6 +129,14 @@ def cmd_detect(args: argparse.Namespace) -> int:
 
 
 def cmd_build(args: argparse.Namespace) -> int:
+    if not is_macos():
+        message = MACOS_ONLY_MESSAGE
+        if args.json:
+            _emit_json({"status": "unsupported_platform", "message": message, "platform": platform_label()})
+        else:
+            logging.error(message)
+        return 2
+
     model = args.model or "(auto-detect)"
     message = (
         f"{APP_NAME} build is not yet implemented in the x86 CLI. "
@@ -115,6 +151,14 @@ def cmd_build(args: argparse.Namespace) -> int:
 
 
 def cmd_patch(args: argparse.Namespace) -> int:
+    if not is_macos():
+        message = MACOS_ONLY_MESSAGE
+        if args.json:
+            _emit_json({"status": "unsupported_platform", "message": message, "platform": platform_label(), "auto": args.auto})
+        else:
+            logging.error(message)
+        return 2
+
     message = (
         f"{APP_NAME} patch is not yet implemented in the x86 CLI. "
         "Use `python -m x86 wizard` or the legacy `opencore_legacy_patcher` entry for now."
@@ -129,6 +173,16 @@ def cmd_patch(args: argparse.Namespace) -> int:
 
 
 def _patch_status_payload() -> dict[str, Any]:
+    if not is_macos():
+        return {
+            "platform": platform_label(),
+            "host_is_mac": False,
+            "error": MACOS_ONLY_MESSAGE,
+            "can_patch": False,
+            "can_unpatch": False,
+            "patches_available": [],
+        }
+
     from opencore_legacy_patcher import constants as constants_module
     from opencore_legacy_patcher.detections import device_probe, os_probe
     from opencore_legacy_patcher.sys_patch.patchsets import (
@@ -178,6 +232,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     store = SettingsStore()
     settings = store.load()
     payload: dict[str, Any] = {
+        "platform": platform_label(),
+        "host_is_mac": is_macos(),
         "settings": settings,
         "config_path": str(store.config_path),
     }
@@ -192,6 +248,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         _emit_json(payload)
     else:
         logging.info("26x86 상태 요약")
+        logging.info("  플랫폼: %s", platform_label())
         logging.info("  설정 파일: %s", store.config_path)
         last_detect = settings.get("last_detect")
         if last_detect:
@@ -210,7 +267,10 @@ def cmd_status(args: argparse.Namespace) -> int:
                     patch["last_patched_version"],
                     patch.get("last_patched_date") or "N/A",
                 )
-            logging.info("  패치 가능: %s", "예" if patch.get("can_patch") else "아니오")
+            if "can_patch" in patch:
+                logging.info("  패치 가능: %s", "예" if patch.get("can_patch") else "아니오")
+        elif not is_macos():
+            logging.info("  패치 상태: macOS 전용 (현재 호스트에서는 사용 불가)")
     return 0
 
 
@@ -225,6 +285,10 @@ def cmd_wizard(args: argparse.Namespace) -> int:
     if launch_wizard is not None:
         launch_wizard(advanced=args.advanced)
         return 0
+
+    if not is_macos():
+        logging.error("GUI를 시작할 수 없습니다. `pip install pywebview wxpython` 설치를 확인하세요.")
+        return 1
 
     from opencore_legacy_patcher.application_entry import main as oclp_main
 
@@ -251,14 +315,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     detect = subparsers.add_parser("detect", help="Mac 모델 및 하드웨어 정보 확인")
     detect.add_argument("--json", action="store_true", help="JSON 형식으로 결과 출력")
+    detect.add_argument("--model", help="(비-macOS) 대상 Mac 모델을 수동 지정 (예: iMac18,3)")
     detect.set_defaults(handler=cmd_detect)
 
-    build = subparsers.add_parser("build", help="OpenCore EFI 빌드")
+    build = subparsers.add_parser("build", help="OpenCore EFI 빌드 (macOS 전용)")
     build.add_argument("--model", help="대상 Mac 모델 (예: iMac18,3)")
     build.add_argument("--json", action="store_true", help="JSON 형식으로 결과 출력")
     build.set_defaults(handler=cmd_build)
 
-    patch = subparsers.add_parser("patch", help="루트 볼륨 패치 적용")
+    patch = subparsers.add_parser("patch", help="루트 볼륨 패치 적용 (macOS 전용)")
     patch.add_argument("--auto", action="store_true", help="자동 패치 모드")
     patch.add_argument("--json", action="store_true", help="JSON 형식으로 결과 출력")
     patch.set_defaults(handler=cmd_patch)
@@ -271,7 +336,7 @@ def build_parser() -> argparse.ArgumentParser:
     wizard.add_argument(
         "--advanced",
         action="store_true",
-        help="고급 GUI (X86_ADVANCED=1 과 동일)",
+        help="고급 GUI (X86_ADVANCED=1 과 동일, macOS 전용)",
     )
     wizard.set_defaults(handler=cmd_wizard)
 

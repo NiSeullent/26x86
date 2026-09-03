@@ -12,8 +12,12 @@ import threading
 import subprocess
 import os
 import webbrowser
-import applescript
 import packaging.version
+
+try:
+    import applescript
+except ImportError:
+    applescript = None  # type: ignore
 
 from pathlib import Path
 
@@ -590,6 +594,9 @@ class RestartHost:
             # Reboots with Count Down prompt (user can still dismiss if needed)
             self.frame.Hide()
             wx.Yield()
+            if applescript is None:
+                logging.info("Reboot is only supported on macOS.")
+                return
             try:
                 applescript.AppleScript('tell app "loginwindow" to \u00abevent aevtrrst\u00bb').run()
             except applescript.ScriptError as e:

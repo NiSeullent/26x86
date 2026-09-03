@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from x86.gui import bootstrap
 from x86.gui.bridge import WizardBridge
+from x86.platform import resolve_pywebview_gui
 
 
 class WebviewApi:
@@ -85,7 +86,7 @@ def launch_webview_wizard(*, advanced: bool = False) -> None:
         text_select=True,
         background_color="#e8edf3",
     )
-    webview.start(debug=False, gui="cocoa")
+    webview.start(debug=False, gui=resolve_pywebview_gui())
 
 
 def smoke_test_bridge() -> dict[str, Any]:

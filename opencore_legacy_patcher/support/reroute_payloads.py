@@ -7,7 +7,12 @@ import atexit
 import plistlib
 import tempfile
 import subprocess
-import applescript
+import sys
+
+if sys.platform == "darwin":
+    import applescript
+else:
+    applescript = None  # type: ignore
 
 import logging
 
@@ -32,6 +37,8 @@ class RoutePayloadDiskImage:
         See PatcherSupportPkgMount._request_admin_password (sys_patch/utilities/dmg_mount.py)
         for why this is a plain "display dialog" rather than an elevated "do shell script".
         """
+        if applescript is None:
+            return ""
         try:
             return applescript.AppleScript(
                 f'set theResult to display dialog "26x86 requires administrator access to mount patch resources." default answer "" with hidden answer with title "26x86" with icon file "{self.icon_path}"\nreturn the text returned of theResult'

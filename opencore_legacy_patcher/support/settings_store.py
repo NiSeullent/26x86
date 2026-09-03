@@ -11,17 +11,28 @@ import logging
 import os
 import plistlib
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 from ..constants import Constants
 
+try:
+    from x86.paths import Paths as X86Paths
+except ImportError:
+    X86Paths = None
+
 
 def _resolve_preferences_path(domain: str) -> Path:
     """
-    Resolve ~/Library/Preferences/<domain>.plist, using the console user when
-    running as root (eg. LaunchDaemon).
+    Resolve user preferences plist path.
     """
+    if X86Paths is not None:
+        return X86Paths.user_preferences_plist()
+
+    if sys.platform != "darwin":
+        return Path.home() / ".config" / "26x86" / f"{domain}.plist"
+
     home = Path.home()
     if home == Path("/var/root"):
         try:

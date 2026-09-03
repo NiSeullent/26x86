@@ -4,6 +4,7 @@ device_probe.py: Hardware probing with Native T2 Support Fix
 
 import enum
 import itertools
+import platform as platform_module
 import subprocess
 import plistlib
 import hashlib
@@ -604,6 +605,19 @@ class Computer:
 
     @staticmethod
     def probe():
+        if sys.platform != "darwin":
+            computer = Computer()
+            computer.real_model = "NonMacHost"
+            computer.build_model = "NonMacHost"
+            computer.reported_model = "NonMacHost"
+            computer.firmware_vendor = platform_module.platform()
+            computer.cpu = CPU(
+                name=platform_module.processor() or platform_module.machine() or "Unknown",
+                flags=[],
+                leafs=[],
+            )
+            return computer
+
         computer = Computer()
         computer.gpu_probe()
         computer.dgpu_probe()

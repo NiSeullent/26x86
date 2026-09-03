@@ -12,7 +12,12 @@ import argparse
 import binascii
 import plistlib
 import subprocess
-import py_sip_xnu
+import sys
+
+if sys.platform == "darwin":
+    import py_sip_xnu
+else:
+    py_sip_xnu = None  # type: ignore
 
 from pathlib import Path
 
@@ -175,6 +180,9 @@ def find_any_oclp_manifest(root_path: Path = None):
 
 
 def csr_decode(os_sip):
+    if py_sip_xnu is None:
+        return True
+
     sip_int = py_sip_xnu.SipXnu().get_sip_status().value
     for i,  current_sip_bit in enumerate(sip_data.system_integrity_protection.csr_values):
         if sip_int & (1 << i):

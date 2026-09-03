@@ -13,6 +13,7 @@ from typing import Optional
 from opencore_legacy_patcher import constants
 from opencore_legacy_patcher.detections import device_probe, os_probe
 from opencore_legacy_patcher.support import defaults, reroute_payloads, utilities
+from x86.platform import is_linux, is_macos, is_windows
 
 
 _constants: Optional[constants.Constants] = None
@@ -50,7 +51,9 @@ def get_constants(*, start_unpack: bool = True) -> constants.Constants:
         c.detected_os_version = os_data.detect_os_version()
 
         c.computer = device_probe.Computer.probe()
-        if c.computer.firmware_vendor != "Apple":
+        if not is_macos():
+            c.host_is_hackintosh = True
+        elif c.computer.firmware_vendor != "Apple":
             c.host_is_hackintosh = True
         if c.computer.real_model and c.computer.real_model.startswith("VMware"):
             c.host_is_hackintosh = True
@@ -61,7 +64,7 @@ def get_constants(*, start_unpack: bool = True) -> constants.Constants:
 
         defaults.GenerateDefaults(c.computer.real_model, True, c)
 
-        if start_unpack:
+        if start_unpack and is_macos():
             c.unpack_thread = threading.Thread(
                 target=reroute_payloads.RoutePayloadDiskImage,
                 args=(c,),
@@ -70,16 +73,22 @@ def get_constants(*, start_unpack: bool = True) -> constants.Constants:
             c.unpack_thread.start()
 
         launcher_binary = sys.executable
-        if "python" in launcher_binary.lower():
-            c.launcher_script = str(ensure_repo_on_path() / "26x86-GUI.command")
+        repo = ensure_repo_on_path()
+        if is_macos() and "python" in launcher_binary.lower():
+            c.launcher_script = str(repo / "26x86-GUI.command")
+        elif is_windows():
+            c.launcher_script = str(repo / "26x86.bat")
+        elif is_linux():
+            c.launcher_script = str(repo / "26x86.sh")
         c.launcher_binary = launcher_binary
 
-        try:
-            c.booted_oc_disk = utilities.find_disk_off_uuid(
-                utilities.clean_device_path(c.computer.opencore_path)
-            )
-        except Exception as exc:
-            logging.debug("booted_oc_disk unavailable: %s", exc)
+        if is_macos():
+            try:
+                c.booted_oc_disk = utilities.find_disk_off_uuid(
+                    utilities.clean_device_path(c.computer.opencore_path)
+                )
+            except Exception as exc:
+                logging.debug("booted_oc_disk unavailable: %s", exc)
 
         _constants = c
         return c

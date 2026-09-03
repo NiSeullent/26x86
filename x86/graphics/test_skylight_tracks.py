@@ -26,11 +26,14 @@ class SkylightTracksOrchestrationTest(unittest.TestCase):
     def test_serialize_skylight_lut_tracks_shape(self) -> None:
         summary = serialize_skylight_lut_tracks()
         self.assertIn("tracks", summary)
-        for tid in ("A", "B", "C", "D", "E", "F", "G"):
+        for tid in ("A", "B", "C", "D", "E", "F", "G", "H", "J", "L5"):
             self.assertIn(tid, summary["tracks"])
             self.assertIn(summary["tracks"][tid]["status"], {"connected", "partial", "missing"})
         self.assertEqual(summary["tracks"]["G"]["status"], "connected")
+        self.assertEqual(summary["tracks"]["J"]["status"], "connected")
         self.assertIn("G", summary["connected"])
+        self.assertEqual(summary["sys_patch_tracks"], ["B", "C", "E", "F", "L5"])
+        self.assertNotIn("J", summary["sys_patch_tracks"])
 
     def test_detect_json_includes_skylight_lut_tracks(self) -> None:
         payload = serialize_graphics_detect_fields(
@@ -41,10 +44,13 @@ class SkylightTracksOrchestrationTest(unittest.TestCase):
             assume_tahoe=True,
         )
         self.assertIn("skylight_lut_tracks", payload)
+        self.assertIn("shader_avx", payload)
+        self.assertEqual(payload["shader_avx"]["track"], "J")
         self.assertEqual(
             payload["skylight_lut_tracks"]["sys_patch_tracks"],
             ["B", "C", "E", "F", "L5"],
         )
+        self.assertIn("J", payload["skylight_lut_tracks"]["tracks"])
 
     def test_merge_sys_patch_hooks_noop_when_tracks_missing(self) -> None:
         self.assertIsInstance(merge_sys_patch_hooks(TAHOE_XNU_MAJOR, 0, "26.0"), dict)

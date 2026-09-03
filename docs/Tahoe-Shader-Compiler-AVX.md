@@ -1,8 +1,8 @@
 # Tahoe / Pre-AVX — Metal shader compiler & compositor AVX 게이트 (Track J)
 
 **미션:** Safari26-PreAVX와 **유사하게** 그래픽 스택에서 AVX `SIGILL`/기능 비트 게이트를 찾고 우회한다.  
-**소유 (전용만):** `x86/graphics/shader_avx_*.py`, `shader_avx_detect.stage-J.py`, 이 문서  
-**금지:** `detect.py` / `__init__.py` / `skylight_tracks.py` 등 공유 파일 직접 수정 — G는 stage-J 훅으로 merge.  
+**소유:** `x86/graphics/shader_avx_*.py`, `shader_avx_detect.stage-J.py`, 이 문서  
+**공유 merge:** MC `feat(extreme-INTEGRATE): promote J` — `detect.py` + `skylight_tracks.py` (detect-only; J ∉ SYS_PATCH).  
 **게이트:** 변이 PoC는 `X86_EXTREME=1` 만.
 
 ## 핵심 결론 (Sequoia 15.5 / MacPro5,1 / Xeon X5675)
@@ -45,16 +45,12 @@ from importlib.util import spec_from_file_location, module_from_spec
 3. pre-AVX에서 `hw.optional.avx*=1` 스푸핑 **금지**
 
 
-## MC INTEGRATE — J detect merge (다음 큐 · base `d1093ef`)
+## MC INTEGRATE — J detect · **done**
 
-`integrate_queue`: `next:J-detect-stage` · `rebase_on`: **`d1093ef`** (H + L5 tracks live)
+`integrate_queue`: ~~`next:J-detect-stage`~~ → **promoted** (base `d1093ef` / stages `3800bf8`·`393192d`).
 
-1. `shader_avx_detect.stage-J.py` → `mc_merge_plan()` / `MC_MERGE_*`.
-2. MC만 적용: `detect.py.stage-J` → `detect.py`, `skylight_tracks.py.stage-J` → `skylight_tracks.py`.
-3. Track J는 공유 detect/skylight_tracks/__init__ 직접 수정 금지.
-4. **detect.py 앵커:** `payload.update(yellow)` 직후 · Track G soft-merge 직전 (`report.has_avx*` 필요).
-5. **skylight_tracks @ d1093ef:** J detect-only (`SYS_PATCH_TRACKS`에 J 금지).  
-   tid: `("A", "B", "C", "D", "E", "F", "G", "H", "J", "L5")` — **H/L5 유지**.
+- Live: `detect.py` inserts `shader_avx` after `payload.update(yellow)`.
+- Live: `skylight_tracks` registers J detect-only; tid includes H,J,L5; **J not in SYS_PATCH_TRACKS**.
 
 ## 변경 이력
 
@@ -63,3 +59,4 @@ from importlib.util import spec_from_file_location, module_from_spec
 | 2026-09-04 | Track J 전용 파일만 추가 (공유 파일 무수정) |
 | 2026-09-04 | INTEGRATE 52f7298 — stage-J mc_merge_plan + detect/tracks stage snippets |
 | 2026-09-04 | stage-J를 `d1093ef` (H+L5) 기준으로 재정렬 — 다음 INTEGRATE = J detect |
+| 2026-09-04 | **INTEGRATE** J detect → live detect/skylight_tracks |

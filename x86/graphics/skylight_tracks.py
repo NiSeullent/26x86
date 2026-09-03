@@ -54,6 +54,9 @@ TRACK_MODULE_CANDIDATES: dict[str, tuple[str, ...]] = {
     "L5": (
         "x86.graphics.skylight_lut_rootpatch",
     ),
+    "J": (
+        "x86.graphics.shader_avx_gate",
+    ),
 }
 
 SYS_PATCH_TRACKS: tuple[str, ...] = ("B", "C", "E", "F", "L5")
@@ -67,6 +70,7 @@ TRACK_ROLES: dict[str, str] = {
     "F": "psp_overlay",
     "G": "orchestration",
     "H": "iosurface_ca",
+    "J": "shader_compiler_avx",
     "L5": "skylight_coredisplay_rootpatch",
 }
 
@@ -236,6 +240,8 @@ def track_status_entry(track_id: str) -> dict[str, Any]:
         )
     if detect_fn is None and track_id == "F":
         detect_fn = _callable_attr(mod, "serialize_yellow_screen_fields")
+    if detect_fn is None and track_id == "J":
+        detect_fn = _callable_attr(mod, "serialize_shader_avx_fields")
 
     entry["sys_patch_hooks"] = hooks is not None or (
         track_id == "C"
@@ -275,7 +281,7 @@ def serialize_skylight_lut_tracks() -> dict[str, Any]:
     """Summary for ``python -m x86 detect --json`` → ``skylight_lut_tracks``."""
     tracks = {
         tid: track_status_entry(tid)
-        for tid in ("A", "B", "C", "D", "E", "F", "G", "H", "L5")
+        for tid in ("A", "B", "C", "D", "E", "F", "G", "H", "J", "L5")
     }
     connected = [t for t, e in tracks.items() if e["status"] == "connected"]
     partial = [t for t, e in tracks.items() if e["status"] == "partial"]
@@ -421,6 +427,10 @@ def merge_optional_detect_fields(
             DETECT_FIELDS,
         ),
         "H": ("serialize_iosurface_ca_fields", DETECT_FIELDS),
+        "J": (
+            "serialize_track_detect_fields",
+            "serialize_shader_avx_fields",
+        ),
         "L5": (DETECT_FIELDS,),
     }
     for track_id, attrs in detect_attrs.items():

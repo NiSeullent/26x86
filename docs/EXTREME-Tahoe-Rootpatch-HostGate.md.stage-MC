@@ -21,12 +21,12 @@ Sequoia + `X86_EXTREME=1` → 루트 **no-op**. 구현 진입점: `x86/graphics/
 - [ ] `tahoe_gate.py` tracked + push
 - [ ] `skylight_lut_rootpatch.py` → `is_tahoe` / `root_patches_allowed`
 - [ ] `metal3802_tahoe.py` → gate import (Non-Tahoe `{}`)
-- [ ] **J** `detect.py` / `shader_avx_detect` / tracks stage merge (`3800bf8` base)
+- [x] **J** detect stage → live (`feat(extreme-INTEGRATE): promote J`)
 - [ ] (선택) N IOSurface 10.15.7 prefer when H latch
 
 ## 이미 landed (재 INTEGRATE 금지)
 
-`d1093ef` H+L5 soft-import · `a5c9d94` L5 recipes · `cfd2458` I↔K · D Tools
+`d1093ef` H+L5 soft-import · `a5c9d94` L5 recipes · `cfd2458` I↔K · D Tools · **J detect promote**
 
 ## 변경 이력
 

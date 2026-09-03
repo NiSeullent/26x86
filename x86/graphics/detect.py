@@ -233,6 +233,17 @@ def serialize_graphics_detect_fields(
     )
     payload.update(yellow)
 
+    # --- Track J (shader AVX detect; MC from shader_avx_detect.stage-J) ---
+    from x86.graphics.shader_avx_gate import serialize_shader_avx_fields
+
+    if "shader_avx" not in payload:
+        payload.update(
+            serialize_shader_avx_fields(
+                cpu_has_avx1=report.has_avx1,
+                cpu_has_avx2=report.has_avx2,
+            )
+        )
+
     # Track G: soft-merge B/C/D/E detect extras (missing modules → no-op).
     from .skylight_tracks import (
         merge_optional_detect_fields,

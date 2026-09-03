@@ -69,7 +69,7 @@ coll = COLLECT(exe,
 
 app = BUNDLE(coll,
              name='26x86.app',
-             icon=str(SPEC_DIR / "payloads/Resources/AppIcons/OC-Patcher.icns"),
+             icon=str(SPEC_DIR / "payloads/Resources/AppIcons/26x86.icns"),
              bundle_identifier="com.sharhene777.26x86",
              info_plist={
                 "CFBundleName": "26x86",

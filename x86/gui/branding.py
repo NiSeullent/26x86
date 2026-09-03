@@ -3,8 +3,13 @@ Window titles and branding helpers for 26x86 GUI.
 """
 
 import os
+from pathlib import Path
 
 from x86.manifest import APP_NAME, BUNDLE_ID
+from x86.paths import Paths
+
+LOGO_BASENAME = "26x86-logo"
+APP_ICON_BASENAME = "26x86"
 
 
 def window_title(version: str = "") -> str:
@@ -31,3 +36,37 @@ def about_description_lines() -> list[str]:
 def is_advanced_gui_enabled() -> bool:
     """Legacy wx MainFrame is available only when ``X86_ADVANCED=1``."""
     return os.environ.get("X86_ADVANCED") == "1"
+
+
+def branding_dir() -> Path:
+    return Paths.resources_dir() / "branding"
+
+
+def logo_svg_path() -> Path:
+    return branding_dir() / f"{LOGO_BASENAME}.svg"
+
+
+def logo_png_path(size: int = 256) -> Path:
+    return branding_dir() / f"{LOGO_BASENAME}-{size}.png"
+
+
+def app_icon_icns_path() -> Path:
+    return Paths.payloads_dir() / "Resources" / "AppIcons" / f"{APP_ICON_BASENAME}.icns"
+
+
+def resolve_gui_logo_path(icns_resource_path: Path | None = None) -> Path | None:
+    """
+    Best logo for wx StaticBitmap: bundled PNG, then app .icns, then legacy OC-Patcher.icns.
+    """
+    png = logo_png_path(256)
+    if png.exists():
+        return png
+    if icns_resource_path is not None:
+        for name in (f"{APP_ICON_BASENAME}.icns", "OC-Patcher.icns"):
+            candidate = icns_resource_path / name
+            if candidate.exists():
+                return candidate
+    bundled_icns = app_icon_icns_path()
+    if bundled_icns.exists():
+        return bundled_icns
+    return None

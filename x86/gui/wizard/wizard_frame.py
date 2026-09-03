@@ -13,7 +13,7 @@ from opencore_legacy_patcher.datasets import smbios_data, os_data
 from opencore_legacy_patcher.datasets.os_data import os_conversion
 from opencore_legacy_patcher.sys_patch.patchsets import HardwarePatchsetDetection, HardwarePatchsetValidation
 from opencore_legacy_patcher.wx_gui import gui_support
-from x86.gui.branding import is_advanced_gui_enabled
+from x86.gui.branding import is_advanced_gui_enabled, resolve_gui_logo_path
 from x86.manifest import BUNDLE_ID
 
 from . import strings, errors
@@ -102,9 +102,13 @@ class WizardFrame(wx.Frame):
         header.SetBackgroundColour(wx.Colour(245, 247, 250))
         header_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        logo_path = str(self.constants.icns_resource_path / "OC-Patcher.icns")
-        if Path(logo_path).exists():
-            logo = wx.StaticBitmap(header, bitmap=wx.Bitmap(logo_path, wx.BITMAP_TYPE_ICON))
+        logo_path = resolve_gui_logo_path(self.constants.icns_resource_path)
+        if logo_path is not None:
+            if logo_path.suffix.lower() == ".png":
+                logo_bitmap = wx.Bitmap(str(logo_path), wx.BITMAP_TYPE_PNG)
+            else:
+                logo_bitmap = wx.Bitmap(str(logo_path), wx.BITMAP_TYPE_ICON)
+            logo = wx.StaticBitmap(header, bitmap=logo_bitmap)
             logo.SetSize((48, 48))
             header_sizer.Add(logo, 0, wx.ALL, 10)
 

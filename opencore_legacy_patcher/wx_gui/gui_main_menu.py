@@ -18,6 +18,7 @@ from pathlib import Path
 from packaging import version
 
 from .. import constants
+from x86.gui.branding import resolve_gui_logo_path
 
 from ..support import (
     global_settings,
@@ -71,7 +72,15 @@ class MainFrame(wx.Frame):
         Generate UI elements for the main menu
         """
         # Logo
-        logo = wx.StaticBitmap(self, bitmap=wx.Bitmap(str(self.constants.icns_resource_path / "OC-Patcher.icns"), wx.BITMAP_TYPE_ICON), pos=(-1, 0), size=(128, 128))
+        logo_path = resolve_gui_logo_path(self.constants.icns_resource_path)
+        if logo_path is not None:
+            if logo_path.suffix.lower() == ".png":
+                logo_bitmap = wx.Bitmap(str(logo_path), wx.BITMAP_TYPE_PNG)
+            else:
+                logo_bitmap = wx.Bitmap(str(logo_path), wx.BITMAP_TYPE_ICON)
+            logo = wx.StaticBitmap(self, bitmap=logo_bitmap, pos=(-1, 0), size=(128, 128))
+        else:
+            logo = wx.StaticBitmap(self, bitmap=wx.Bitmap(), pos=(-1, 0), size=(128, 128))
         logo.Centre(wx.HORIZONTAL)
 
         # Title label

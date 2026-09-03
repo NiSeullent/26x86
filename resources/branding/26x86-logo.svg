@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="26x86 M to N arrow">
+  <!-- Shared down-right baseline: y = 76 + (x - 8) * (18 / 104) -->
+  <g fill="#1A1D26">
+    <!-- M: all three lower vertices on the baseline -->
+    <path d="M 10 77.38 L 10 22 L 30 22 L 40 83.07 L 50 22 L 70 22 L 70 88.15 Z"/>
+    <!-- N: lower vertices on the same baseline; arrowhead upper-right -->
+    <path d="M 70 88.15 L 70 22 L 104 94.03 L 104 22 L 118 8 L 108 30 L 104 30 L 104 94.03 Z"/>
+  </g>
+</svg>

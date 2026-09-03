@@ -847,7 +847,7 @@ class Constants:
        
     @property
     def app_icon_path(self):
-        return self.payload_path / Path("Resources/AppIcons/OC-Patcher.icns")
+        return self.payload_path / Path("Resources/AppIcons/26x86.icns")
 
     @property
     def icon_path_external(self):

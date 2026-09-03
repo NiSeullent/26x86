@@ -19,7 +19,7 @@ In the future, crash logs may also be collected to help with diagnosing issues.
 
 Users who wish to opt-out can do so either via the application's preferences or via the following command:
 ```
-defaults write com.niseullent.26x86 DisableCrashAndAnalyticsReporting -bool true
+defaults write com.sharhene777.26x86 DisableCrashAndAnalyticsReporting -bool true
 ```
 
 To have your data removed, please contact us via our [Discord server](https://discord.gg/rqdPgH8xSN) and provide the UUID of your system.

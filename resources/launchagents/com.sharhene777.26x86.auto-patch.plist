@@ -4,18 +4,16 @@
 <dict>
 	<key>AssociatedBundleIdentifiers</key>
 	<array>
-		<string>com.niseullent.26x86</string>
+		<string>com.sharhene777.26x86</string>
 	</array>
 	<key>Label</key>
-	<string>com.niseullent.26x86.macos-update</string>
+	<string>com.sharhene777.26x86.auto-patch</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/Library/Application Support/26x86/26x86.app/Contents/MacOS/26x86</string>
-		<string>--prepare_for_update</string>
+		<string>--auto_patch</string>
 	</array>
-	<key>WatchPaths</key>
-	<array>
-		<string>/System/Volumes/Update/Update.plist</string>
-	</array>
+	<key>RunAtLoad</key>
+	<true/>
 </dict>
 </plist>

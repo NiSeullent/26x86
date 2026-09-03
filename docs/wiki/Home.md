@@ -34,7 +34,7 @@ python3 -m x86 status
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 주의 |
 | [Installation-Notes.md](./Installation-Notes.md) | 설치·업그레이드 |
 | [Configuration.md](./Configuration.md) | 설정 경로 |
-| [Migration.md](./Migration.md) | 이전 패처에서 전환 |
+| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | 이전 패처에서 전환 |
 | [Upstream-Repositories.md](./Upstream-Repositories.md) | 원본 저장소 (법적) |
 | [Developer.md](./Developer.md) | 개발자 안내 |
 | [Orphan-Files-Archive.md](./Orphan-Files-Archive.md) | 제거된 찌꺼기 파일 목록 |

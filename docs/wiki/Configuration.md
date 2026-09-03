@@ -2,7 +2,7 @@
 
 26x86은 **이전 OpenCore Legacy Patcher**와 설정·자동 패치·앱 설치 경로를 **공유하지 않습니다.**
 
-> 이전 패처에서 전환: [Migration.md](./Migration.md)
+> 이전 패처에서 전환: [Migration-from-OCLP.md](./Migration-from-OCLP.md)
 
 ---
 
@@ -10,14 +10,14 @@
 
 | 항목 | 경로 |
 |------|------|
-| **사용자 설정** | `~/Library/Preferences/com.niseullent.26x86.plist` |
+| **사용자 설정** | `~/Library/Preferences/com.sharhene777.26x86.plist` |
 | JSON 설정 | `~/Library/Application Support/26x86/config.json` |
 | 로그 | `~/Library/Logs/26x86/` |
 
 설정은 **`/Users/Shared/`에 쓰지 않습니다.**
 
 ```bash
-defaults read com.niseullent.26x86
+defaults read com.sharhene777.26x86
 python3 -m x86 status
 ```
 
@@ -35,7 +35,7 @@ python3 -m x86 status
 
 ## 자동 패치 작업
 
-PKG 설치 또는 루트 패치 활성화 시 등록되는 작업은 `com.niseullent.26x86.*` 이름을 사용합니다.
+PKG 설치 또는 루트 패치 활성화 시 등록되는 작업은 `com.sharhene777.26x86.*` 이름을 사용합니다.
 
 | 작업 | 역할 |
 |------|------|
@@ -55,7 +55,7 @@ PKG 설치 또는 루트 패치 활성화 시 등록되는 작업은 `com.niseul
 익명 사용 통계를 끄려면 앱 **설정**에서 비활성화하거나:
 
 ```bash
-defaults write com.niseullent.26x86 DisableCrashAndAnalyticsReporting -bool true
+defaults write com.sharhene777.26x86 DisableCrashAndAnalyticsReporting -bool true
 ```
 
 ---
@@ -66,6 +66,6 @@ defaults write com.niseullent.26x86 DisableCrashAndAnalyticsReporting -bool true
 |-------------------|--------|
 | 공유 plist (`/Users/Shared/…`) | 사용자 Preferences 또는 `config.json` |
 | `/Library/Application Support/Dortania/` | `/Library/Application Support/26x86/` |
-| 이전 패처 자동 작업 | `com.niseullent.26x86.*` |
+| 이전 패처 자동 작업 | `com.sharhene777.26x86.*` |
 
-전환 절차: [Migration.md](./Migration.md)
+전환 절차: [Migration-from-OCLP.md](./Migration-from-OCLP.md)

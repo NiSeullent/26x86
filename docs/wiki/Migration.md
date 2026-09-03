@@ -20,8 +20,8 @@ On first run, 26x86 **reads** legacy OCLP (and optionally old 26x86 plist) setti
 | 사용자 설정 | `/Users/Shared/`·plist | `~/Library/Application Support/26x86/config.json` |
 | 진입점 | `OpenCore-Patcher-GUI.command` | `python -m x86 wizard` / `26x86.command` |
 | CLI | 없음(또는 간접) | `detect` · `build` · `patch` · `status` · `wizard` |
-| LaunchAgents | `com.dortania.*` | `com.niseullent.26x86.*` |
-| 번들 ID | `com.dortania.opencore-legacy-patcher` | `com.niseullent.26x86` |
+| LaunchAgents | `com.dortania.*` | `com.sharhene777.26x86.*` |
+| 번들 ID | `com.dortania.opencore-legacy-patcher` | `com.sharhene777.26x86` |
 
 ---
 
@@ -62,7 +62,7 @@ On first run, 26x86 **reads** legacy OCLP (and optionally old 26x86 plist) setti
 
 1. `~/Library/Preferences/com.dortania.opencore-legacy-patcher.plist` (OCLP 사용자 Preferences)
 2. `/Users/Shared/.com.dortania.opencore-legacy-patcher.plist` (OCLP 공유 plist, **읽기 가능한 경우만**)
-3. `~/Library/Preferences/com.niseullent.26x86.plist` (구 26x86 plist, 있을 경우)
+3. `~/Library/Preferences/com.sharhene777.26x86.plist` (구 26x86 plist, 있을 경우)
 
 | 조건 | 26x86 동작 |
 |------|-----------|
@@ -106,7 +106,7 @@ python -m x86 wizard               # 기본 GUI
 |------|------|
 | OCLP launchd + 26x86 launchd 동시 활성 | **지원 안 함** — 패치·업데이트 경쟁 |
 | 26x86 PKG 설치 | `com.dortania.opencore-legacy-patcher.*` launchd 제거 포함 |
-| OCLP만 제거하고 26x86 사용 | `com.niseullent.26x86.*`만 유지 |
+| OCLP만 제거하고 26x86 사용 | `com.sharhene777.26x86.*`만 유지 |
 
 ---
 
@@ -122,7 +122,7 @@ sudo rm '/Users/Shared/.com.dortania.opencore-legacy-patcher.plist'
 rm ~/Library/Preferences/com.dortania.opencore-legacy-patcher.plist
 
 # 선택 — 구 26x86 plist (이미 config.json으로 이전된 경우)
-rm ~/Library/Preferences/com.niseullent.26x86.plist
+rm ~/Library/Preferences/com.sharhene777.26x86.plist
 ```
 
 ---
@@ -143,7 +143,7 @@ rm ~/Library/Preferences/com.niseullent.26x86.plist
 | OCLP + readable plist | 1회 JSON 마이그레이션 |
 | OCLP + root-owned shared plist | skip, 기본값; plist 삭제는 선택 |
 | OCLP + 26x86 동시 auto-patch | **하지 말 것** |
-| 구 `com.niseullent.26x86.plist`만 있음 | plist → `config.json` 1회 이전 |
+| 구 `com.sharhene777.26x86.plist`만 있음 | plist → `config.json` 1회 이전 |
 
 ---
 

@@ -59,16 +59,15 @@ def app_icon_icns_path() -> Path:
 
 def resolve_gui_logo_path(icns_resource_path: Optional[Path] = None) -> Optional[Path]:
     """
-    Best logo for wx StaticBitmap: bundled PNG, then app .icns, then legacy OC-Patcher.icns.
+    Best logo for wx StaticBitmap: bundled PNG, then bundled or app .icns.
     """
     png = logo_png_path(256)
     if png.exists():
         return png
     if icns_resource_path is not None:
-        for name in (f"{APP_ICON_BASENAME}.icns", "OC-Patcher.icns"):
-            candidate = icns_resource_path / name
-            if candidate.exists():
-                return candidate
+        candidate = icns_resource_path / f"{APP_ICON_BASENAME}.icns"
+        if candidate.exists():
+            return candidate
     bundled_icns = app_icon_icns_path()
     if bundled_icns.exists():
         return bundled_icns

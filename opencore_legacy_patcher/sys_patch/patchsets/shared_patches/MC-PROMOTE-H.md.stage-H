@@ -1,0 +1,30 @@
+# MC PROMOTE — Track H (base INTEGRATE 52f7298)
+
+Status: **READY** for next MC pass (`integrate_queue: next:H-iosurface-stage`).
+
+## Inputs (Track H only)
+
+| Stage file | Promote to |
+|------------|------------|
+| `…/tahoe_iosurface_ca.py.stage-H` | `…/tahoe_iosurface_ca.py` (**new**) |
+| `…/amd_metal31001_iosurface_ca_wire.md.stage-H` | apply snippets to live `amd_vega` / `amd_polaris` / `amd_legacy_gcn` |
+| `x86/graphics/iosurface_*.py`, `coreanimation_*.py` | already on main (`a02908b`) — no copy needed |
+| `x86/graphics/iosurface_ca_TRACK.md.stage-H` | optional archive after promote |
+
+## Steps
+1. `cp tahoe_iosurface_ca.py.stage-H → tahoe_iosurface_ca.py`
+2. Wire three AMD Metal 31001 hardware classes per wire.md (after `compositor_patches`)
+3. Do **not** revert N live unlock from 52f7298
+4. Smoke: `python3 -m unittest x86.graphics.test_iosurface_coreanimation`
+5. Optional: `X86_EXTREME=1 X86_EXTREME_IOSURFACE_CA=1` detect JSON shows `*_experiment_open`
+
+## Parallel N — conflict resolution (comment for MC)
+- **Idempotent overlap:** H and N Common both use `IOSurface.kext=10.15.7` +
+  frameworks `10.15.7-24` → safe to leave both patch keys.
+- **Real conflict:** N IOAccel `IOSurface.kext=10.14.6` vs H/Common `10.15.7` →
+  prefer **10.15.7** when H latch is on (document in integrate commit body).
+- H does not touch Enforcement / SkyLight / IOGPU REMOVE (N owns those).
+
+## Out of scope for this promote
+- Editing `non_metal*.py`, `detect.py`, `efi_builder`, `mission.py`
+- Safari Pre-AVX / GUI

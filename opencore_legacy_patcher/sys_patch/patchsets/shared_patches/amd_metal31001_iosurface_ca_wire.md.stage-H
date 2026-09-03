@@ -1,26 +1,37 @@
-# Track H — AMD Metal 31001 wire proposal (stage only)
+# Track H — AMD Metal 31001 wire (stage only, base 52f7298)
 
-**Do not apply to live** `amd_vega.py` / `amd_polaris.py` / `amd_legacy_gcn.py`
-without Mission Control merge.
+**Do not edit live** `amd_vega.py` / `amd_polaris.py` / `amd_legacy_gcn.py`.
+MC applies after promoting `tahoe_iosurface_ca.py.stage-H`.
 
-## Snippet (after `compositor_patches` import)
+Verified against INTEGRATE `52f7298`: live `amd_vega.patches()` ends with
+`**compositor_patches(...)` only — H wire is additive after that line.
+
+## Import (once per file)
 
 ```python
 from ...shared_patches.tahoe_iosurface_ca import iosurface_ca_patches
 ```
 
-## Snippet (inside `patches()` return / `_base.update`)
+## Call sites (after compositor_patches)
 
 ```python
+**compositor_patches(self._xnu_major, self._xnu_minor, self._constants.detected_os_version),
 **iosurface_ca_patches(self._xnu_major, self._xnu_minor, self._constants.detected_os_version),
 ```
 
-## Env
+Targets: `amd_vega.py`, `amd_polaris.py` (both return paths that call compositor_patches),
+`amd_legacy_gcn.py`.
 
-| Variable | Effect |
-|----------|--------|
-| (unset) | no-op (Metal stock IOSurface/CA) |
-| `X86_EXTREME=1` | status only — still no MERGE |
-| `X86_EXTREME=1` + `X86_EXTREME_IOSURFACE_CA=1` | Non-Metal IOSurface.framework+kext and QuartzCore MERGE if PSP present |
+## Parallel Track N
 
-No permanent blocked gate in Track H. Promote `tahoe_iosurface_ca.py.stage-H` first.
+| Env | N Common IOSurface/QC | H surgical IOSurface/QC |
+|-----|----------------------|-------------------------|
+| unset | off | off |
+| `X86_EXTREME=1` only | on (N filter) | off (needs CA latch) |
+| `X86_EXTREME=1` + `X86_EXTREME_IOSURFACE_CA=1` | on | on (same payload IDs → idempotent) |
+| `X86_TAHOE_NONMETAL=1` only | on | off |
+
+### Conflict comment (N ioaccel vs H)
+N IOAccelerator stage may set `IOSurface.kext=10.14.6` while H/Common use `10.15.7`.
+MC: when H latch is active on Metal AMD, keep **10.15.7**; do not let ioaccel 10.14.6
+win last-write if both patch sets apply.

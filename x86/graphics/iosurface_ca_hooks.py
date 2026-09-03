@@ -1,9 +1,10 @@
 """
 Track H — combined IOSurface + QuartzCore extreme hooks (no shared-tree edits).
 
-Live sys_patch wiring is proposed only via
-``tahoe_iosurface_ca.py.stage-H`` / ``amd_*_patches.stage-H`` for Mission Control
-merge — this module itself is import-safe and default no-op.
+MC promote (base INTEGRATE ``52f7298``): see
+``tahoe_iosurface_ca.py.stage-H`` + ``MC-PROMOTE-H.md.stage-H``.
+Parallel with Track N is allowed (same IOSurface/QC payload IDs = idempotent);
+IOAccel ``IOSurface.kext=10.14.6`` vs H ``10.15.7`` is noted for MC resolve.
 """
 
 from __future__ import annotations
@@ -64,5 +65,17 @@ def serialize_iosurface_ca_fields(
         "would_emit_root_patches": bool(
             iosurface_ca_extreme_patches(major, search_roots=search_roots, environ=environ)
         ),
+        "parallel_track_n": {
+            "allowed": True,
+            "integrate_base": "52f7298",
+            "idempotent_overlap": [
+                "IOSurface.kext=10.15.7",
+                "IOSurface.framework=10.15.7-24",
+                "QuartzCore.framework=10.15.7-24",
+            ],
+            "conflict_note": (
+                "N IOAccel may use IOSurface.kext=10.14.6; prefer 10.15.7 when H latch on"
+            ),
+        },
     }
     return payload

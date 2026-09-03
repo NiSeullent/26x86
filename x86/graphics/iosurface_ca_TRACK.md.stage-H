@@ -1,19 +1,20 @@
-# Track H — IOSurface / CoreAnimation (AVX-less & Tahoe)
+# Track H — IOSurface / CoreAnimation (base 52f7298)
 
 ## Ownership
-- `x86/graphics/iosurface_*.py`, `coreanimation_*.py`, `test_iosurface_coreanimation.py`
-- Integration proposals only: `*.stage-H` (never overwrite live sys_patch/detect/efi_builder)
+- Live modules (already on main): `iosurface_*.py`, `coreanimation_*.py`, tests
+- MC promote only: `*.stage-H` (never overwrite live sys_patch from Track H agent)
 
 ## Policy
-1. **Default:** stock Tahoe Metal IOSurface + QuartzCore (no patches emitted).
-2. **Double latch** `X86_EXTREME=1` + `X86_EXTREME_IOSURFACE_CA=1`: Non-Metal
-   IOSurface.framework **and** IOSurface.kext + QuartzCore.framework experiments **open**
-   when PSP payloads exist. No permanent `blocked=True` field or code path.
-3. **AVX:** Catalina payloads lack AVX string markers; OpenCL/GL `12.5 non-AVX2.0` is separate.
+1. **Default:** stock Tahoe Metal IOSurface + QuartzCore (no patches).
+2. **Double latch** `X86_EXTREME=1` + `X86_EXTREME_IOSURFACE_CA=1`: open Non-Metal
+   IOSurface.framework/kext + QuartzCore MERGEs when PSP payloads exist.
+3. **Parallel N (52f7298 integrated):** N may also emit the same IOSurface/QC payload
+   IDs under `X86_EXTREME` / `X86_TAHOE_NONMETAL`. Idempotent overlap is intentional.
+   Conflict only with N IOAccel `IOSurface.kext=10.14.6` — prefer `10.15.7` under H latch
+   (see `MC-PROMOTE-H.md.stage-H`).
 
-## Promote (MC only)
-1. `tahoe_iosurface_ca.py.stage-H` → `tahoe_iosurface_ca.py`
-2. Apply `amd_metal31001_iosurface_ca_wire.md.stage-H`
+## Promote
+See `opencore_legacy_patcher/.../MC-PROMOTE-H.md.stage-H`.
 
 ## Tests
 `python3 -m unittest x86.graphics.test_iosurface_coreanimation`

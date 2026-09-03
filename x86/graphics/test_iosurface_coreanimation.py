@@ -136,6 +136,10 @@ class SerializeTest(unittest.TestCase):
         self.assertTrue(fields["iosurface_non_metal_experiment_open"])
         self.assertTrue(fields["coreanimation_non_metal_experiment_open"])
         self.assertNotIn("full_non_metal_still_blocked", fields["iosurface_ca_extreme"]["iosurface"])
+        parallel = fields["iosurface_ca_extreme"]["parallel_track_n"]
+        self.assertTrue(parallel["allowed"])
+        self.assertEqual(parallel["integrate_base"], "52f7298")
+        self.assertIn("IOSurface.kext=10.15.7", parallel["idempotent_overlap"])
 
 
 if __name__ == "__main__":

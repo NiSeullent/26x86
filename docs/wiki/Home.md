@@ -37,11 +37,19 @@ python -m x86 wizard              # 기본 GUI (마법사)
 | [Disclaimer.md](./Disclaimer.md) | 면책 조항 요약 및 [DISCLAIMER.md](../../DISCLAIMER.md) 링크 |
 | [GPU-Limitations.md](./GPU-Limitations.md) | Metal 8302·Non-Metal GPU 제한 |
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 전용 주의 (SIP, APFS, 다운로드) |
-| [Installation-Notes.md](./Installation-Notes.md) | 클린 설치, 개발 환경 |
-| [Configuration.md](./Configuration.md) | `config.json`·`com.sharhene777.26x86`·launchd |
-| [Migration.md](./Migration.md) | OCLP → 26x86 전환 (JSON 설정·신규 CLI) |
+| [Installation-Notes.md](./Installation-Notes.md) | 클린 설치, 업그레이드, 개발 환경 |
+| [Configuration.md](./Configuration.md) | 설정 경로, App Support, launchd, `26x86.*` 키 |
+| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | OCLP 1회 자동 마이그레이션, 공존 주의 |
 | [Orphan-Files-Archive.md](./Orphan-Files-Archive.md) | 제거·보관된 고아 파일 목록 |
+| [Upstream-Repositories.md](./Upstream-Repositories.md) | **원본 저장소 전체** — OCLP, OCLP-T2, Acidanthera, moraea 등 |
 | [README.en.md](./README.en.md) | English wiki index |
+
+## 개발자·아키텍처
+
+| 문서 | 설명 |
+|------|------|
+| [ARCHITECTURE-26x86.md](../ARCHITECTURE-26x86.md) | 26x86 독립 런타임 설계 |
+| [DEPENDENCY-AUDIT.md](../DEPENDENCY-AUDIT.md) | OCLP 의존성 감사 |
 
 ---
 
@@ -52,6 +60,7 @@ python -m x86 wizard              # 기본 GUI (마법사)
 | 면책 조항 (전문) | [DISCLAIMER.md](../../DISCLAIMER.md) |
 | BSD 3-Clause | [LICENSE.txt](../../LICENSE.txt) |
 | 업스트림 고지 | [NOTICE.md](../../NOTICE.md) |
+| 원본 저장소 전체 | [Upstream-Repositories.md](./Upstream-Repositories.md) |
 | 서드파티 라이선스 | [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md) |
 | 기여자 | [CREDITS.md](../../CREDITS.md) |
 

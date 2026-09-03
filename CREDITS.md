@@ -10,6 +10,15 @@
 - **저장소:** https://github.com/NiSeullent/26x86
 - **업스트림 포크:** [OpenCore Legacy Patcher T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2) — [Albert Müller](https://github.com/albert-mueller/)
 - **원본 프로젝트:** [OpenCore Legacy Patcher](https://github.com/dortania/OpenCore-Legacy-Patcher) — [Dortania](https://github.com/dortania)
+- **원본 저장소 전체 목록:** [docs/wiki/Upstream-Repositories.md](docs/wiki/Upstream-Repositories.md) (56개 GitHub 저장소 + 비-GitHub 출처)
+
+### 26x86 의존성 포크
+
+| 26x86 포크 | 업스트림 |
+|------------|----------|
+| [NiSeullent/26x86-OpenCorePkg](https://github.com/NiSeullent/26x86-OpenCorePkg) | [albert-mueller/OpenCorePkg-add-T2-support](https://github.com/albert-mueller/OpenCorePkg-add-T2-support) → [acidanthera/OpenCorePkg](https://github.com/acidanthera/OpenCorePkg) |
+| [NiSeullent/26x86-PatcherSupportPkg](https://github.com/NiSeullent/26x86-PatcherSupportPkg) | [hackdoc/PatcherSupportPkg](https://github.com/hackdoc/PatcherSupportPkg) |
+| [NiSeullent/26x86-MetallibSupportPkg](https://github.com/NiSeullent/26x86-MetallibSupportPkg) | [dortania/MetallibSupportPkg](https://github.com/dortania/MetallibSupportPkg) |
 
 ---
 
@@ -70,8 +79,13 @@
 
 ---
 
-## 라이선스 표기
+## 라이선스·원본 고지
 
 This product includes software developed by Dortania, OpenCore Legacy Patcher contributors, and the 26x86 project.
 
-자세한 내용: [LICENSE.txt](./LICENSE.txt), [NOTICE.md](./NOTICE.md), [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).
+| 문서 | 설명 |
+|------|------|
+| [Upstream-Repositories.md](docs/wiki/Upstream-Repositories.md) | OCLP, OCLP-T2, Acidanthera, moraea 등 **원본 저장소 전체** (56개) |
+| [NOTICE.md](./NOTICE.md) | 법적 고지·저작권 표 |
+| [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md) | 서드파티 라이선스 전문·링크 |
+| [LICENSE.txt](./LICENSE.txt) | 26x86 BSD 3-Clause |

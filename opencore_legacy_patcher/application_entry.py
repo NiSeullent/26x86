@@ -11,7 +11,6 @@ import re
 from pathlib import Path
 
 from . import constants
-from .wx_gui import gui_entry
 from .datasets import smbios_data
 from .detections import (
     device_probe,
@@ -49,6 +48,8 @@ class OpenCoreLegacyPatcher:
 
             is_patching_mode = "--gui_patch" in sys.argv or "--gui_unpatch" in sys.argv
             if is_patching_mode or os.environ.get("X86_LEGACY_GUI") == "1":
+                from .wx_gui import gui_entry
+
                 gui_entry.EntryPoint(self.constants).start()
                 return
 

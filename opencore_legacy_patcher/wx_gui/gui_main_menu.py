@@ -19,6 +19,7 @@ from packaging import version
 
 from .. import constants
 from x86.gui.branding import resolve_gui_logo_path
+from x86.gui import theme
 
 from ..support import (
     global_settings,
@@ -45,7 +46,9 @@ from ..wx_gui import (
 class MainFrame(wx.Frame):
     def __init__(self, parent: wx.Frame, title: str, global_constants: constants.Constants, screen_location: tuple = None):
         logging.info("Initializing Main Menu Frame")
-        super(MainFrame, self).__init__(parent, title=title, size=(700, 800), style=wx.DEFAULT_FRAME_STYLE & ~(wx.RESIZE_BORDER | wx.MAXIMIZE_BOX))
+        super(MainFrame, self).__init__(parent, title=title, size=(740, 820), style=wx.DEFAULT_FRAME_STYLE & ~(wx.RESIZE_BORDER | wx.MAXIMIZE_BOX))
+        theme.style_frame(self)
+        self.SetMinSize((680, 640))
         gui_support.GenerateMenubar(self, global_constants).generate()
 
         self.constants: constants.Constants = global_constants
@@ -69,123 +72,115 @@ class MainFrame(wx.Frame):
 
     def _generate_elements(self) -> None:
         """
-        Generate UI elements for the main menu
+        Generate UI elements for the main menu (sizer-based, Tahoe neumorphic).
         """
-        # Logo
+        root = wx.Panel(self)
+        theme.style_panel(root, "page")
+        outer = wx.BoxSizer(wx.VERTICAL)
+
+        header_card, header_inner = theme.create_card(root, variant="elevated")
+        header = wx.BoxSizer(wx.VERTICAL)
+
         logo_path = resolve_gui_logo_path(self.constants.icns_resource_path)
         if logo_path is not None:
             if logo_path.suffix.lower() == ".png":
                 logo_bitmap = wx.Bitmap(str(logo_path), wx.BITMAP_TYPE_PNG)
             else:
                 logo_bitmap = wx.Bitmap(str(logo_path), wx.BITMAP_TYPE_ICON)
-            logo = wx.StaticBitmap(self, bitmap=logo_bitmap, pos=(-1, 0), size=(128, 128))
-        else:
-            logo = wx.StaticBitmap(self, bitmap=wx.Bitmap(), pos=(-1, 0), size=(128, 128))
-        logo.Centre(wx.HORIZONTAL)
+            logo = wx.StaticBitmap(header_card, bitmap=logo_bitmap, size=(96, 96))
+            header.Add(logo, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.BOTTOM, theme.SPACE_SM)
 
-        # Title label
-        title_label = wx.StaticText(self, label=self.constants.patcher_name, pos=(-1, 128))
-        title_label.SetFont(gui_support.font_factory(25, wx.FONTWEIGHT_BOLD))
-        title_label.Centre(wx.HORIZONTAL)
+        title_label = wx.StaticText(header_card, label=self.constants.patcher_name)
+        title_label.SetFont(theme.font_title())
+        title_label.SetForegroundColour(theme.colors().text_primary)
+        header.Add(title_label, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
         is_matteo = getattr(self.constants, "app_mode", "albert") == "matteo"
-
         display_version = self.constants.experimental_version if is_matteo else self.constants.patcher_version_label
-        version_label = wx.StaticText(self, label=f"Version {display_version}", pos=(-1, title_label.GetPosition()[1] + 32))
-        version_label.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_NORMAL))
-        version_label.Centre(wx.HORIZONTAL)
-        version_label.SetForegroundColour(wx.Colour(128, 128, 128))
+        version_label = wx.StaticText(header_card, label=f"Version {display_version}")
+        theme.style_static_muted(version_label)
+        header.Add(version_label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, theme.SPACE_XS)
 
-        # Model label
         try:
             if self.constants.Experimental_Features:
-                dev_label = wx.StaticText(self, label="Developer Mode is ON", pos=(-1, version_label.GetPosition()[1] + 20))
-                dev_label.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_NORMAL))
-                dev_label.Centre(wx.HORIZONTAL)
-                dev_label.SetForegroundColour(wx.Colour(100, 196, 102))
-
-                model_Button = wx.Button(self, label=f"Model: {self.constants.custom_model or self.constants.computer.real_model}", pos=(-1, version_label.GetPosition()[1] + 40))
-            else:
-                model_Button = wx.Button(self, label=f"Model: {self.constants.custom_model or self.constants.computer.real_model}", pos=(-1, version_label.GetPosition()[1] + 30))
+                dev_label = wx.StaticText(header_card, label="Developer Mode is ON")
+                dev_label.SetFont(theme.font_body())
+                dev_label.SetForegroundColour(theme.colors().success)
+                header.Add(dev_label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, theme.SPACE_SM)
         except Exception as e:
-            logging.error("We couldn't verify whether Developer Mode is on or off due to a critical bug.")
-            logging.info("Please, report this bug.")
-            logging.exception("The error is the following:")
-            logging.info("Since we couldn't verify this, we'll assume Developer Mode is disabled.")
-            model_Button = wx.Button(self, label=f"Model: {self.constants.custom_model or self.constants.computer.real_model}", pos=(-1, version_label.GetPosition()[1] + 30))
+            logging.error("Developer Mode status check failed: %s", e)
 
-        model_Button.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_NORMAL))
-        model_Button.Centre(wx.HORIZONTAL)
-        model_Button.SetToolTip("Edit the Target Model OpenCore will build for")
-        model_Button.Bind(wx.EVT_BUTTON, self.on_edit_model)
-        self.model_button = model_Button
+        model_label = self.constants.custom_model or self.constants.computer.real_model
+        model_button = theme.NeumoButton(
+            header_card,
+            f"Model: {model_label}",
+            variant=theme.NeumoButton.VARIANT_SECONDARY,
+            size=(-1, 38),
+            min_width=260,
+        )
+        model_button.SetToolTip("Edit the Target Model OpenCore will build for")
+        model_button.BindClick(self.on_edit_model)
+        header.Add(model_button, 0, wx.EXPAND | wx.TOP, theme.SPACE_MD)
+        self.model_button = model_button
 
-        # Main Feature Buttons
+        header_inner.Add(header, 1, wx.EXPAND | wx.ALL, theme.SPACE_LG)
+        outer.Add(header_card, 0, wx.EXPAND | wx.ALL, theme.SPACE_MD)
+
+        menu_card, menu_inner = theme.create_card(root, variant="surface")
+        grid = wx.FlexGridSizer(cols=2, hgap=theme.SPACE_MD, vgap=theme.SPACE_MD)
+        grid.AddGrowableCol(0, 1)
+        grid.AddGrowableCol(1, 1)
+
         menu_buttons = {
-                "OpenCore": {
-                    "function": self.on_oc_settings,
-                    "description": ["Settings to prepares provided drives to be", "able to boot unsupported macOSes."],
-                    "icon": str(self.constants.icns_resource_path / "OC-Build.icns"),
-                },
-                "Settings": {
-                    "function": self.on_settings,
-                    "description": ["App settings"],
-                    "icon": str(self.constants.icns_resource_path / "Settings.icns"),
-                },
-                "Create macOS Installer": {
-                    "function": self.on_create_macos_installer,
-                    "description": ["Download and flash a macOS", "Installer for your system."],
-                    "icon": str(self.constants.icns_resource_path / "OC-Installer.icns"),
-                },
-                "macOS Configuration": {
-                    "function": self.on_macos_config,
-                    "description": ["Settings, drivers and", "patches for your system."],
-                    "icon": str(self.constants.patch_icon_path),
-                },
-                "Help": {
-                    "function": self.on_help,
-                    "description": ["26x86 도움말", "및 리소스."],
-                    "icon": str(self.constants.icns_resource_path / "OC-Support.icns"),
-                }
+            "OpenCore": {
+                "function": self.on_oc_settings,
+                "description": ["Settings to prepares provided drives to be", "able to boot unsupported macOSes."],
+                "icon": str(self.constants.icns_resource_path / "OC-Build.icns"),
+            },
+            "Settings": {
+                "function": self.on_settings,
+                "description": ["App settings"],
+                "icon": str(self.constants.icns_resource_path / "Settings.icns"),
+            },
+            "Create macOS Installer": {
+                "function": self.on_create_macos_installer,
+                "description": ["Download and flash a macOS", "Installer for your system."],
+                "icon": str(self.constants.icns_resource_path / "OC-Installer.icns"),
+            },
+            "macOS Configuration": {
+                "function": self.on_macos_config,
+                "description": ["Settings, drivers and", "patches for your system."],
+                "icon": str(self.constants.patch_icon_path),
+            },
+            "Help": {
+                "function": self.on_help,
+                "description": ["26x86 도움말", "및 리소스."],
+                "icon": str(self.constants.icns_resource_path / "OC-Support.icns"),
+            },
         }
 
-        button_x = 25
-        button_y = self.model_button.GetPosition()[1] + 30
-        rollover = (len(menu_buttons) + 1) // 2
-        index = 0
-        max_height = 0
-
         for button_name, button_function in menu_buttons.items():
-            if "icon" in button_function:
-                icon = wx.StaticBitmap(self, bitmap=wx.Bitmap(button_function["icon"], wx.BITMAP_TYPE_ICON), pos=(button_x - 5, button_y), size=(64, 64))
-                if "OpenCore" in button_name or "EXPERIMENTAL" in button_name:
-                    icon.SetSize((68, 68))
-            
-            button = wx.Button(self, label=button_name, pos=(button_x + 68, button_y), size=(205, 30))
-            button.SetFont(gui_support.font_factory(12, wx.FONTWEIGHT_NORMAL))
-            button.Bind(wx.EVT_BUTTON, lambda event, f=button_function["function"]: f(event))
+            cell = wx.BoxSizer(wx.HORIZONTAL)
+            if "icon" in button_function and Path(button_function["icon"]).exists():
+                icon = wx.StaticBitmap(
+                    menu_card,
+                    bitmap=wx.Bitmap(button_function["icon"], wx.BITMAP_TYPE_ICON),
+                    size=(56, 56),
+                )
+                cell.Add(icon, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, theme.SPACE_SM)
 
-            if "OpenCore" in button_name or "EXPERIMENTAL" in button_name:
+            text_col = wx.BoxSizer(wx.VERTICAL)
+            button = theme.NeumoButton(
+                menu_card,
+                button_name,
+                variant=theme.NeumoButton.VARIANT_SECONDARY,
+                size=(-1, 34),
+                min_width=180,
+            )
+            button.BindClick(lambda event, f=button_function["function"]: f(event))
+
+            if "OpenCore" in button_name:
                 self.build_button = button
-                # NOTE: since the GUI redesign this entry point no longer builds or installs
-                # anything - it only OPENS gui_oc_settings.OCSettingsFrame. That frame already
-                # gates its own "Save OpenCore" / "Install OpenCore" buttons on host_can_build(),
-                # so nothing that touches a disk is reachable from here anyway, and disabling the
-                # way in was actively harmful:
-                #   (a) "Allow native models" (allow_oc_everywhere) - the one opt-in that makes
-                #       host_can_build() true on a Hackintosh/VM - is a checkbox INSIDE that very
-                #       frame (gui_oc_settings.py, "Allow native models"). Disabling the button
-                #       locked the only door to the switch that unlocks the button: an affected
-                #       host could never opt in at all;
-                #   (b) same for picking a real, supported Mac as the target model, which is the
-                #       other documented way host_can_build() flips to true on such a host (see
-                #       the custom_model branch in gui_support.CheckProperties.host_can_build());
-                #   (c) it also hid every OpenCore setting - including the read-only look at what
-                #       the current config would be - from anyone on a host that can't build,
-                #       e.g. a T2 Mac whose model isn't (or isn't yet) listed in SupportedSMBIOS.
-                # So: the entry point stays enabled for everyone, and the frame keeps deciding
-                # what may actually be written to disk. Keep self.build_button pointing at it,
-                # other frames still look this attribute up.
                 if not gui_support.CheckProperties(self.constants).host_can_build():
                     button.SetToolTip(
                         "Opens OpenCore settings.\n\n"
@@ -201,34 +196,25 @@ class MainFrame(wx.Frame):
                     button.SetToolTip("Opens OpenCore settings, where OpenCore can be built and installed")
                     logging.info("Building OpenCore is supported on this host.")
 
-            # Info / Details button right next to each entry
-            if "info_tab" in button_function:
-                info_btn = wx.Button(self, label="ℹ️", pos=(button_x + 278, button_y), size=(36, 30))
-                info_btn.SetToolTip("Click to read the detailed explanation of this option and its parameters.")
-                info_btn.Bind(wx.EVT_BUTTON, lambda event, tab=button_function["info_tab"]: self.on_show_test_info(event, tab))
+            text_col.Add(button, 0, wx.EXPAND)
+            description_label = wx.StaticText(menu_card, label="\n".join(button_function["description"]))
+            theme.style_static_muted(description_label)
+            text_col.Add(description_label, 0, wx.TOP, theme.SPACE_XS)
+            cell.Add(text_col, 1, wx.EXPAND)
+            grid.Add(cell, 1, wx.EXPAND)
 
-            description_label = wx.StaticText(self, label='\n'.join(button_function["description"]), pos=(button_x + 72, button.GetPosition()[1] + 33))
-            description_label.SetFont(gui_support.font_factory(10, wx.FONTWEIGHT_NORMAL))
+        menu_inner.Add(grid, 1, wx.EXPAND | wx.ALL, theme.SPACE_MD)
+        outer.Add(menu_card, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, theme.SPACE_MD)
 
-            # Maintain spacing
-            row_height = 85
-            button_y += row_height
-            
-            if button_y > max_height:
-                max_height = button_y
+        copy_label = wx.StaticText(root, label=self.constants.copyright_date)
+        theme.style_static_muted(copy_label)
+        outer.Add(copy_label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, theme.SPACE_MD)
 
-            index += 1
-            if index == rollover:
-                button_x = 360
-                button_y = self.model_button.GetPosition()[1] + 30
+        root.SetSizer(outer)
 
-        # --- COPYRIGHT ---
-        copy_label = wx.StaticText(self, label=self.constants.copyright_date, pos=(-1, max_height + 25))
-        copy_label.SetFont(gui_support.font_factory(10, wx.FONTWEIGHT_NORMAL))
-        copy_label.Centre(wx.HORIZONTAL)
-
-        # Final Window Size adjustment
-        self.SetSize((-1, copy_label.GetPosition()[1] + 60))
+        frame_sizer = wx.BoxSizer(wx.VERTICAL)
+        frame_sizer.Add(root, 1, wx.EXPAND)
+        self.SetSizer(frame_sizer)
 
     def on_return_to_mode_selector(self, event: wx.Event = None):
         try:

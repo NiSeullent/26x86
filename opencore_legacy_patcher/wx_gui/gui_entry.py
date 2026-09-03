@@ -127,6 +127,9 @@ class EntryPoint:
         self.app = PatcherApp(self.constants)
         self.app.SetAppName(self.constants.patcher_name)
 
+        from x86.gui import theme
+        theme.apply_app_theme(self.app)
+
         # Reference:
         # - https://discuss.wxpython.org/t/macos-window-opens-in-the-background-and-does-not-receive-focus/36763/10
         NSApplication.sharedApplication()

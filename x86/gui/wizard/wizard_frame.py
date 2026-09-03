@@ -1,5 +1,5 @@
 """
-wizard_frame.py: 5단계 마법사 메인 프레임
+wizard_frame.py: 5단계 마법사 메인 프레임 (Tahoe 뉴모피즘)
 """
 
 import wx
@@ -14,6 +14,7 @@ from opencore_legacy_patcher.datasets.os_data import os_conversion
 from opencore_legacy_patcher.sys_patch.patchsets import HardwarePatchsetDetection, HardwarePatchsetValidation
 from opencore_legacy_patcher.wx_gui import gui_support
 from x86.gui.branding import is_advanced_gui_enabled, resolve_gui_logo_path
+from x86.gui import theme
 from x86.manifest import BUNDLE_ID
 
 from . import strings, errors
@@ -46,14 +47,18 @@ class WizardFrame(wx.Frame):
         super().__init__(
             parent,
             title=title,
-            size=(820, 620),
+            size=theme.WIZARD_MIN_SIZE,
             style=wx.DEFAULT_FRAME_STYLE & ~(wx.MAXIMIZE_BOX),
         )
+        theme.style_frame(self)
+        self.SetMinSize(theme.WIZARD_MIN_SIZE)
+
         self.constants = global_constants
         self.title = title
         self.current_step = 0
         self.build_completed = False
         self.selected_target_os = os_data.os_data.sequoia
+        self._content_wrap = theme.CONTENT_WRAP
 
         self._generate_menubar()
         self._build_layout()
@@ -96,10 +101,10 @@ class WizardFrame(wx.Frame):
 
     def _build_layout(self) -> None:
         root = wx.Panel(self)
+        theme.style_panel(root, "page")
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        header = wx.Panel(root)
-        header.SetBackgroundColour(wx.Colour(245, 247, 250))
+        header_card, header_inner = theme.create_card(root, variant="elevated")
         header_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         logo_path = resolve_gui_logo_path(self.constants.icns_resource_path)
@@ -108,68 +113,96 @@ class WizardFrame(wx.Frame):
                 logo_bitmap = wx.Bitmap(str(logo_path), wx.BITMAP_TYPE_PNG)
             else:
                 logo_bitmap = wx.Bitmap(str(logo_path), wx.BITMAP_TYPE_ICON)
-            logo = wx.StaticBitmap(header, bitmap=logo_bitmap)
-            logo.SetSize((48, 48))
-            header_sizer.Add(logo, 0, wx.ALL, 10)
+            logo = wx.StaticBitmap(header_card, bitmap=logo_bitmap, size=(52, 52))
+            header_sizer.Add(logo, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, theme.SPACE_MD)
 
         title_col = wx.BoxSizer(wx.VERTICAL)
-        app_title = wx.StaticText(header, label=strings.APP_NAME)
-        app_title.SetFont(gui_support.font_factory(22, wx.FONTWEIGHT_BOLD))
-        subtitle = wx.StaticText(header, label=BUNDLE_ID)
-        subtitle.SetFont(gui_support.font_factory(11, wx.FONTWEIGHT_NORMAL))
-        subtitle.SetForegroundColour(wx.Colour(90, 90, 90))
-        tagline = wx.StaticText(header, label="오래된 Mac, 새 macOS")
-        tagline.SetFont(gui_support.font_factory(12, wx.FONTWEIGHT_NORMAL))
-        tagline.SetForegroundColour(wx.Colour(90, 90, 90))
-        title_col.Add(app_title, 0, wx.TOP, 12)
-        title_col.Add(subtitle, 0)
-        title_col.Add(tagline, 0)
-        header_sizer.Add(title_col, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 8)
-        header.SetSizer(header_sizer)
-        main_sizer.Add(header, 0, wx.EXPAND)
+        app_title = wx.StaticText(header_card, label=strings.APP_NAME)
+        theme.style_static_heading(app_title)
+        app_title.SetFont(theme.font_title())
+        subtitle = wx.StaticText(header_card, label=BUNDLE_ID)
+        theme.style_static_muted(subtitle)
+        tagline = wx.StaticText(header_card, label="오래된 Mac, 새 macOS")
+        theme.style_static_body(tagline)
+        title_col.Add(app_title, 0)
+        title_col.Add(subtitle, 0, wx.TOP, 2)
+        title_col.Add(tagline, 0, wx.TOP, 4)
+        header_sizer.Add(title_col, 1, wx.ALIGN_CENTER_VERTICAL)
+        header_inner.Add(header_sizer, 1, wx.EXPAND | wx.ALL, theme.SPACE_MD)
+        main_sizer.Add(header_card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, theme.SPACE_MD)
 
         body = wx.Panel(root)
+        theme.style_panel(body, "page")
         body_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        sidebar = wx.Panel(body, size=(220, -1))
-        sidebar.SetBackgroundColour(wx.Colour(250, 250, 252))
+        sidebar_card, sidebar_inner = theme.create_card(body, variant="surface")
+        sidebar_inner.SetMinSize((200, -1))
         sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.step_buttons: list = []
+        self.step_buttons: list[theme.NeumoButton] = []
         for i, step in enumerate(strings.STEPS):
-            btn = wx.Button(sidebar, label=step["title"], size=(200, 44))
-            btn.SetFont(gui_support.font_factory(11, wx.FONTWEIGHT_NORMAL))
+            btn = theme.NeumoButton(
+                sidebar_card,
+                step["title"],
+                variant=theme.NeumoButton.VARIANT_STEP,
+                size=(-1, 44),
+                min_width=188,
+            )
             btn.SetToolTip(step["tooltip"])
-            btn.Bind(wx.EVT_BUTTON, lambda e, idx=i: self._show_step(idx))
-            sidebar_sizer.Add(btn, 0, wx.ALL, 8)
+            btn.BindClick(lambda e, idx=i: self._show_step(idx))
+            sidebar_sizer.Add(btn, 0, wx.EXPAND | wx.BOTTOM, theme.SPACE_SM)
             self.step_buttons.append(btn)
-        sidebar.SetSizer(sidebar_sizer)
-        body_sizer.Add(sidebar, 0, wx.EXPAND | wx.ALL, 8)
+        sidebar_inner.Add(sidebar_sizer, 1, wx.EXPAND | wx.ALL, theme.SPACE_SM)
+        body_sizer.Add(sidebar_card, 0, wx.EXPAND | wx.ALL, 0)
 
-        self.content_panel = wx.ScrolledWindow(body, style=wx.VSCROLL)
+        content_card, content_inner = theme.create_card(body, variant="elevated")
+        self.content_panel = wx.ScrolledWindow(content_card, style=wx.VSCROLL)
+        theme.style_panel(self.content_panel, "elevated")
         self.content_panel.SetScrollRate(0, 16)
         self.content_sizer = wx.BoxSizer(wx.VERTICAL)
         self.content_panel.SetSizer(self.content_sizer)
-        body_sizer.Add(self.content_panel, 1, wx.EXPAND | wx.ALL, 8)
+        content_inner.Add(self.content_panel, 1, wx.EXPAND | wx.ALL, theme.SPACE_SM)
+        body_sizer.Add(content_card, 1, wx.EXPAND | wx.LEFT, theme.SPACE_MD)
         body.SetSizer(body_sizer)
-        main_sizer.Add(body, 1, wx.EXPAND)
+        main_sizer.Add(body, 1, wx.EXPAND | wx.ALL, theme.SPACE_MD)
 
-        nav = wx.Panel(root)
+        nav_card, nav_inner = theme.create_card(root, variant="surface")
         nav_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.prev_btn = wx.Button(nav, label=strings.BTN_PREV, size=(120, 36))
-        self.next_btn = wx.Button(nav, label=strings.BTN_NEXT, size=(120, 36))
-        self.next_btn.SetDefault()
-        self.prev_btn.Bind(wx.EVT_BUTTON, lambda e: self._show_step(max(0, self.current_step - 1)))
-        self.next_btn.Bind(wx.EVT_BUTTON, lambda e: self._show_step(min(self.STEP_COUNT - 1, self.current_step + 1)))
+        self.prev_btn = theme.NeumoButton(
+            nav_card,
+            strings.BTN_PREV,
+            variant=theme.NeumoButton.VARIANT_SECONDARY,
+            size=(128, 40),
+        )
+        self.next_btn = theme.NeumoButton(
+            nav_card,
+            strings.BTN_NEXT,
+            variant=theme.NeumoButton.VARIANT_PRIMARY,
+            size=(128, 40),
+        )
+        self.next_btn.SetDefault(True)
+        self.prev_btn.BindClick(lambda e: self._show_step(max(0, self.current_step - 1)))
+        self.next_btn.BindClick(lambda e: self._show_step(min(self.STEP_COUNT - 1, self.current_step + 1)))
         nav_sizer.AddStretchSpacer()
-        nav_sizer.Add(self.prev_btn, 0, wx.ALL, 8)
-        nav_sizer.Add(self.next_btn, 0, wx.ALL, 8)
-        nav.SetSizer(nav_sizer)
-        main_sizer.Add(nav, 0, wx.EXPAND)
+        nav_sizer.Add(self.prev_btn, 0, wx.RIGHT, theme.SPACE_SM)
+        nav_sizer.Add(self.next_btn, 0)
+        nav_inner.Add(nav_sizer, 1, wx.EXPAND | wx.ALL, theme.SPACE_MD)
+        main_sizer.Add(nav_card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, theme.SPACE_MD)
 
         self.status_bar = self.CreateStatusBar(1)
+        theme.style_status_bar(self.status_bar)
         self.set_status(strings.STATUS_READY)
 
         root.SetSizer(main_sizer)
+
+        frame_sizer = wx.BoxSizer(wx.VERTICAL)
+        frame_sizer.Add(root, 1, wx.EXPAND)
+        self.SetSizer(frame_sizer)
+
+        self.Bind(wx.EVT_SIZE, self._on_frame_resize)
+
+    def _on_frame_resize(self, event: wx.Event) -> None:
+        self._content_wrap = theme.content_wrap_for(self.content_panel)
+        event.Skip()
 
     def set_status(self, message: str) -> None:
         self.status_bar.SetStatusText(message)
@@ -179,40 +212,63 @@ class WizardFrame(wx.Frame):
 
     def _add_heading(self, title: str, desc: str) -> None:
         h = wx.StaticText(self.content_panel, label=title)
-        h.SetFont(gui_support.font_factory(18, wx.FONTWEIGHT_BOLD))
-        self.content_sizer.Add(h, 0, wx.ALL, 12)
+        theme.style_static_heading(h)
+        self.content_sizer.Add(h, 0, wx.ALL, theme.SPACE_MD)
         d = wx.StaticText(self.content_panel, label=desc)
-        d.SetFont(gui_support.font_factory(12, wx.FONTWEIGHT_NORMAL))
-        d.Wrap(520)
-        self.content_sizer.Add(d, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+        theme.style_static_body(d)
+        theme.wrap_static_text(d, self._content_wrap)
+        self.content_sizer.Add(d, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, theme.SPACE_MD)
 
     def _add_info_row(self, label: str, value: str) -> None:
+        row_card, row_inner = theme.create_card(self.content_panel, variant="inset")
         row = wx.BoxSizer(wx.HORIZONTAL)
-        lbl = wx.StaticText(self.content_panel, label=f"{label}:")
-        lbl.SetFont(gui_support.font_factory(12, wx.FONTWEIGHT_BOLD))
-        lbl.SetMinSize((120, -1))
-        val = wx.StaticText(self.content_panel, label=value or "—")
-        val.SetFont(gui_support.font_factory(12, wx.FONTWEIGHT_NORMAL))
-        row.Add(lbl, 0, wx.RIGHT, 8)
-        row.Add(val, 1)
-        self.content_sizer.Add(row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        lbl = wx.StaticText(row_card, label=f"{label}")
+        theme.style_static_label(lbl, bold=True)
+        lbl.SetMinSize((130, -1))
+        val = wx.StaticText(row_card, label=value or "—")
+        theme.style_static_body(val)
+        row.Add(lbl, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, theme.SPACE_SM)
+        row.Add(val, 1, wx.ALIGN_CENTER_VERTICAL)
+        row_inner.Add(row, 1, wx.EXPAND | wx.ALL, theme.SPACE_SM)
+        self.content_sizer.Add(row_card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, theme.SPACE_SM)
 
-    def _add_large_button(self, label: str, handler, tooltip: str = "") -> wx.Button:
-        btn = wx.Button(self.content_panel, label=label, size=(280, 48))
-        btn.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_BOLD))
+    def _add_large_button(self, label: str, handler, tooltip: str = "") -> theme.NeumoButton:
+        btn = theme.NeumoButton(
+            self.content_panel,
+            label,
+            variant=theme.NeumoButton.VARIANT_PRIMARY,
+            size=(-1, 48),
+            min_width=280,
+        )
         if tooltip:
             btn.SetToolTip(tooltip)
-        btn.Bind(wx.EVT_BUTTON, handler)
-        self.content_sizer.Add(btn, 0, wx.ALL, 12)
+        btn.BindClick(handler)
+        self.content_sizer.Add(btn, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, theme.SPACE_MD)
+        return btn
+
+    def _add_secondary_button(self, label: str, handler, tooltip: str = "") -> theme.NeumoButton:
+        btn = theme.NeumoButton(
+            self.content_panel,
+            label,
+            variant=theme.NeumoButton.VARIANT_SECONDARY,
+            size=(-1, 44),
+            min_width=280,
+        )
+        if tooltip:
+            btn.SetToolTip(tooltip)
+        btn.BindClick(handler)
+        self.content_sizer.Add(btn, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, theme.SPACE_SM)
         return btn
 
     def _add_progress(self) -> wx.Gauge:
-        gauge = wx.Gauge(self.content_panel, range=100, size=(400, 24))
-        self.content_sizer.Add(gauge, 0, wx.ALL, 12)
+        gauge = wx.Gauge(self.content_panel, range=100, size=(-1, 22))
+        theme.style_gauge(gauge)
+        self.content_sizer.Add(gauge, 0, wx.EXPAND | wx.ALL, theme.SPACE_MD)
         return gauge
 
     def _show_step(self, index: int) -> None:
         self.current_step = index
+        self._content_wrap = theme.content_wrap_for(self.content_panel)
         self._clear_content()
 
         builders = [
@@ -228,10 +284,7 @@ class WizardFrame(wx.Frame):
         self.content_panel.FitInside()
 
         for i, btn in enumerate(self.step_buttons):
-            if i == index:
-                btn.SetBackgroundColour(wx.Colour(220, 235, 255))
-            else:
-                btn.SetBackgroundColour(wx.NullColour)
+            btn.SetActive(i == index)
 
         self.prev_btn.Enable(index > 0)
         self.next_btn.Enable(index < self.STEP_COUNT - 1)
@@ -252,21 +305,29 @@ class WizardFrame(wx.Frame):
             strings.STEP_DETECT_OS_LABEL,
             f"{self.constants.detected_os_version} ({self.constants.detected_os_build})",
         )
-        self._add_large_button(strings.STEP_DETECT_BUTTON, lambda e: self._refresh_detection(), "Mac 정보를 다시 읽습니다.")
-        self._add_large_button(strings.STEP_DETECT_CHANGE_MODEL, self._on_change_model, "다른 Mac 모델용으로 EFI를 만들 때 사용합니다.")
+        self._add_secondary_button(
+            strings.STEP_DETECT_BUTTON,
+            lambda e: self._refresh_detection(),
+            "Mac 정보를 다시 읽습니다.",
+        )
+        self._add_secondary_button(
+            strings.STEP_DETECT_CHANGE_MODEL,
+            self._on_change_model,
+            "다른 Mac 모델용으로 EFI를 만들 때 사용합니다.",
+        )
 
     def _build_step_macos(self) -> None:
         self._add_heading(strings.STEP_MACOS_HEADING, strings.STEP_MACOS_DESC)
         choices = [label for label, _ in self.MACOS_CHOICES]
-        self.macos_choice = wx.Choice(self.content_panel, choices=choices, size=(320, -1))
-        self.macos_choice.SetFont(gui_support.font_factory(12, wx.FONTWEIGHT_NORMAL))
+        self.macos_choice = wx.Choice(self.content_panel, choices=choices, size=(-1, 32))
+        theme.style_choice(self.macos_choice)
         default_idx = 2
         for i, (_, kernel) in enumerate(self.MACOS_CHOICES):
             if kernel == self.constants.detected_os:
                 default_idx = i
         self.macos_choice.SetSelection(default_idx)
         self.macos_choice.Bind(wx.EVT_CHOICE, self._on_macos_selected)
-        self.content_sizer.Add(self.macos_choice, 0, wx.ALL, 12)
+        self.content_sizer.Add(self.macos_choice, 0, wx.EXPAND | wx.ALL, theme.SPACE_MD)
 
         current = os_conversion.convert_kernel_to_marketing_name(self.constants.detected_os)
         self._add_info_row(strings.STEP_MACOS_CURRENT, current)
@@ -286,8 +347,8 @@ class WizardFrame(wx.Frame):
         self._add_info_row("대상 Mac", f"{self._model_marketing_name(model)} ({model})")
         self._add_info_row("대상 macOS", target_label)
         self.build_status = wx.StaticText(self.content_panel, label="")
-        self.build_status.SetFont(gui_support.font_factory(12, wx.FONTWEIGHT_NORMAL))
-        self.content_sizer.Add(self.build_status, 0, wx.ALL, 8)
+        theme.style_static_body(self.build_status)
+        self.content_sizer.Add(self.build_status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, theme.SPACE_MD)
         self.build_gauge = self._add_progress()
         self.build_gauge.Hide()
         self._add_large_button(strings.STEP_BUILD_BUTTON, self._on_start_build, strings.STEPS[2]["tooltip"])
@@ -296,23 +357,24 @@ class WizardFrame(wx.Frame):
         self._add_heading(strings.STEP_INSTALL_HEADING, strings.STEP_INSTALL_DESC)
         if not self.build_completed and not gui_support.CheckProperties(self.constants).host_can_build():
             warn = wx.StaticText(self.content_panel, label=strings.STEP_INSTALL_NEED_BUILD)
-            warn.SetForegroundColour(wx.Colour(180, 80, 0))
-            warn.Wrap(520)
-            self.content_sizer.Add(warn, 0, wx.ALL, 12)
+            warn.SetForegroundColour(theme.colors().warning)
+            warn.SetFont(theme.font_body())
+            theme.wrap_static_text(warn, self._content_wrap)
+            self.content_sizer.Add(warn, 0, wx.ALL, theme.SPACE_MD)
         self._add_large_button(strings.STEP_INSTALL_BUTTON, self._on_start_install, strings.STEPS[3]["tooltip"])
 
     def _build_step_root_patch(self) -> None:
         self._add_heading(strings.STEP_ROOT_HEADING, strings.STEP_ROOT_DESC)
         self.root_status_label = wx.StaticText(self.content_panel, label="패치 정보를 불러오는 중…")
-        self.root_status_label.SetFont(gui_support.font_factory(12, wx.FONTWEIGHT_NORMAL))
-        self.root_status_label.Wrap(520)
-        self.content_sizer.Add(self.root_status_label, 0, wx.ALL, 12)
+        theme.style_static_body(self.root_status_label)
+        theme.wrap_static_text(self.root_status_label, self._content_wrap)
+        self.content_sizer.Add(self.root_status_label, 0, wx.ALL, theme.SPACE_MD)
         self.root_gauge = self._add_progress()
         self.root_pulse = gui_support.GaugePulseCallback(self.constants, self.root_gauge)
         self.root_pulse.start_pulse()
         threading.Thread(target=self._fetch_patch_status, daemon=True).start()
         self._add_large_button(strings.STEP_ROOT_APPLY, self._on_root_patch, strings.STEPS[4]["tooltip"])
-        self._add_large_button(strings.STEP_ROOT_REVERT, self._on_root_unpatch, "적용한 루트 패치를 되돌립니다.")
+        self._add_secondary_button(strings.STEP_ROOT_REVERT, self._on_root_unpatch, "적용한 루트 패치를 되돌립니다.")
 
     def _refresh_detection(self) -> None:
         self.set_status("Mac 정보를 확인하는 중…")
@@ -424,6 +486,7 @@ class WizardFrame(wx.Frame):
             self.root_gauge.Hide()
         if hasattr(self, "root_status_label"):
             self.root_status_label.SetLabel(text)
+            theme.wrap_static_text(self.root_status_label, self._content_wrap)
 
     def _on_root_patch(self, event: wx.Event = None) -> None:
         self.Hide()

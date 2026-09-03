@@ -205,8 +205,13 @@ def serialize_graphics_detect_fields(
     yellow_symptoms: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """JSON-friendly graphics policy fields for `x86 detect --json`."""
-    from .agdc_diagnose import serialize_agdc_diagnose_fields
     from .yellow_screen import serialize_yellow_screen_fields
+
+    try:
+        from .agdc_diagnose import serialize_agdc_diagnose_fields
+    except ImportError:
+        def serialize_agdc_diagnose_fields(**_kwargs):
+            return {}
 
     report = detect_pre_avx_mac_pro(
         model=model,

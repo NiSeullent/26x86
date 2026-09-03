@@ -9,7 +9,7 @@ from .base import BaseSharedPatchSet
 
 from ....datasets.os_data import os_data
 
-from x86.graphics.skylight_lut import metal_31001_common_patches
+from x86.graphics.metallib_preflight import gated_metal_31001_common_patches
 
 
 class LegacyMetal31001(BaseSharedPatchSet):
@@ -37,12 +37,12 @@ class LegacyMetal31001(BaseSharedPatchSet):
         Upstream OCLP (PR #1176 / RenderBox metallib) overwrites
         RenderBox.framework ``default.metallib`` from ``RenderBox-<xnu>``.
         PatcherSupportPkg still often lacks ``RenderBox-25``; emitting the
-        dict anyway fails preflight. Gate on file presence — no guessed bytes,
-        and no Metal 3802 / Non-Metal Tahoe guard lift.
+        dict anyway fails preflight. Gate via metallib_preflight (Track E) —
+        no guessed bytes, and no Metal 3802 / Non-Metal Tahoe guard lift.
         """
         if self._os_requires_patches() is False:
             return {}
-        return metal_31001_common_patches(
+        return gated_metal_31001_common_patches(
             self._xnu_major,
             search_roots=self._search_roots,
         )

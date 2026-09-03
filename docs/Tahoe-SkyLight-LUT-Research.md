@@ -189,3 +189,7 @@ python3 -m x86 detect --json
 |------|------|
 | 2026-09-04 | 초안 — 파이프라인·RenderBox 게이트 |
 | 2026-09-04 | 극한도전 Mission · 성공 기준 4항 · R\* · Tracks A–L 링크 |
+
+---
+
+**Track E:** [Tahoe-Metallib-Opaque-Shader.md](./Tahoe-Metallib-Opaque-Shader.md) — LegacyMetal31001 no-op, Opaque↔WS cache, safe metallib preflight.

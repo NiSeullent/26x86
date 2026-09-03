@@ -312,6 +312,7 @@ def yellow_screen_mitigations(
     items = [
         "window_server_cache_disable",
         "colorsync_srgb_fallback",
+        "colorsync_lut_deep",
         "coredisplay_clear_nonmetal_prefs",
         "psp_mtl_payload_prefer_12.5-25",
     ]
@@ -430,6 +431,8 @@ def serialize_yellow_screen_fields(
         assume_tahoe=assume_tahoe,
         search_roots=psp_search_paths,
     )
+    from x86.graphics.metallib_opaque import serialize_opaque_shader_fields
+    from x86.graphics.metallib_preflight import serialize_metallib_preflight_fields
     from x86.graphics.skylight_lut import serialize_skylight_lut_fields
 
     payload = {
@@ -449,6 +452,20 @@ def serialize_yellow_screen_fields(
     if major is not None:
         payload.update(
             serialize_skylight_lut_fields(major, search_roots=psp_search_paths)
+        )
+        metallib_fields = serialize_metallib_preflight_fields(
+            major, search_roots=psp_search_paths
+        )
+        payload.update(metallib_fields)
+        payload.update(
+            serialize_opaque_shader_fields(
+                renderbox_metallib_present=bool(
+                    metallib_fields.get("renderbox_metallib_present")
+                ),
+                legacy_metal_31001_noop=bool(
+                    metallib_fields.get("legacy_metal_31001_noop", True)
+                ),
+            )
         )
     return payload
 

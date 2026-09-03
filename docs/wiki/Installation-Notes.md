@@ -9,9 +9,9 @@
 
 ---
 
-## 다른 OCLP 포크에서 마이그레이션
+## 다른 패처에서 전환
 
-- **OCLP-Mod**, **OCLP-Plus**, **Dortania OCLP** 사용자는 **루트 패치를 되돌린 뒤** 26x86으로 업그레이드할 수 있습니다.
+- Mod·Plus·**공식 패처** 사용자는 **루트 패치를 되돌린 뒤** 26x86으로 업그레이드할 수 있습니다.
 - 26x86으로 macOS를 **재설치**하면서 **기존 데이터를 유지**할 수 있습니다.
 
 ---
@@ -27,7 +27,7 @@
 ## T2 Mac
 
 - Releases에서 안정 빌드 다운로드 권장. [T2-Mac-Notes.md](./T2-Mac-Notes.md)
-- Non-T2 Tahoe 설치 워크플로 참고: OCLP-T2 [Discussion #171](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/discussions/171) (KDK 매칭·루트 패치 등)
+- Non-T2 Tahoe 설치 참고: [T2-Mac-Notes.md](./T2-Mac-Notes.md)
 
 ---
 
@@ -51,6 +51,5 @@ python -m x86 status    # 설정·패치 상태
 ```
 
 - 이전 패처에서 전환: [Migration-from-OCLP.md](./Migration-from-OCLP.md)
-- Dortania 가이드(영문): [OpenCore Legacy Patcher Guide](https://dortania.github.io/OpenCore-Legacy-Patcher/)
 - 소스 실행: [SOURCE.md](../../SOURCE.md)
 - 영문 보조: [docs/README.en.md](../README.en.md)

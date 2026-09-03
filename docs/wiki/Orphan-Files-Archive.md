@@ -4,14 +4,24 @@
 
 ---
 
+## Git 추적 (`archive/`)
+
+`archive/`는 **로컬 전용**입니다 (`.gitignore` 대상).
+
+- `git clone`만으로는 `archive/` 내용이 **없습니다.**
+- 과거 EFI·icns 등은 Git **히스토리**(`d03718f` 이전 커밋)에만 남아 있습니다.
+- 로컬에서 `archive/legacy-oclp/` 등을 유지하려면 **커밋하지 마세요.**
+
+---
+
 ## 삭제된 문서 (중복·내부용)
 
 | 파일 | 사유 |
 |------|------|
-| `docs/ARCHITECTURE-26x86.md` | 내부 설계서 → [Developer.md](./Developer.md)로 통합 |
-| `docs/DEPENDENCY-AUDIT.md` | 개발자 감사 로그, 사용자 불필요 |
-| `docs/CLEANROOM-ARCHITECTURE.md` | Developer.md로 통합 |
-| `docs/wiki/Migration-from-OCLP.md` | [Migration.md](./Migration.md)와 중복 |
+| `docs/ARCHITECTURE-26x86.md` | 내부 설계서, 사용자 문서 아님 |
+| `docs/DEPENDENCY-AUDIT.md` | 개발자 감사 로그 |
+| `docs/CLEANROOM-ARCHITECTURE.md` | 내부 설계 초안, 공개 문서 아님 |
+| `docs/wiki/Migration.md` | [Migration-from-OCLP.md](./Migration-from-OCLP.md)와 중복 |
 
 ---
 
@@ -20,7 +30,7 @@
 | 파일 | 사유 |
 |------|------|
 | `OpenCore-Patcher-GUI.spec` | `26x86-GUI.spec`과 중복 |
-| `OpenCore-Patcher-GUI.command` | `26x86.command`로 통일 |
+| `OpenCore-Patcher-GUI.command` | `26x86.command`로 통일 (호환 래퍼는 별도 유지 가능) |
 
 ---
 
@@ -29,9 +39,7 @@
 | 파일 | 사유 |
 |------|------|
 | `ci_tooling/privileged_helper_tool/com.dortania.opencore-legacy-patcher.privileged-helper` | 구 privileged helper 바이너리 |
-| `archive/legacy-oclp/` 전체 | EFI 비교 로그, `NEW_EFI_*`, 일회성 스크립트 등 |
-
-`archive/`는 `.gitignore` 대상(로컬 전용). `archive/README.md`만 안내용.
+| `archive/` (Git 추적) | EFI 비교 로그, `NEW_EFI_*`, 일회성 스크립트 등 — **로컬만 유지** |
 
 ---
 

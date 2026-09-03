@@ -1,0 +1,33 @@
+"""
+Track H STAGE — proposed shared_patches/tahoe_iosurface_ca.py
+
+DO NOT promote over live trees without Mission Control merge.
+Default no-op; surgical MERGEs only when X86_EXTREME=1 and
+X86_EXTREME_IOSURFACE_CA=1 and PSP payloads exist.
+Never lifts full Non-Metal Common / Enforcement.
+"""
+
+from .base import BaseSharedPatchSet
+
+from ....datasets.os_data import os_data
+
+from x86.graphics.iosurface_ca_hooks import iosurface_ca_extreme_patches
+
+
+class TahoeIOSurfaceCA(BaseSharedPatchSet):
+    def __init__(self, xnu_major: int, xnu_minor: int, marketing_version: str) -> None:
+        super().__init__(xnu_major, xnu_minor, marketing_version)
+
+    def _os_requires_patches(self) -> bool:
+        return self._xnu_major >= os_data.tahoe.value
+
+    def patches(self) -> dict:
+        if self._os_requires_patches() is False:
+            return {}
+        return iosurface_ca_extreme_patches(
+            self._xnu_major, self._xnu_minor, self._marketing_version
+        )
+
+
+def iosurface_ca_patches(xnu_major: int, xnu_minor: int, marketing_version: str) -> dict:
+    return TahoeIOSurfaceCA(xnu_major, xnu_minor, marketing_version).patches()

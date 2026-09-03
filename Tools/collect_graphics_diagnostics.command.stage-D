@@ -1,0 +1,60 @@
+#!/bin/bash
+# stage-D overlay — AGDC / framebuffer extras for collect_graphics_diagnostics.
+# Do not replace Tools/collect_graphics_diagnostics.command in this track.
+# Merge manually or via Track G: source this after the base collector, or:
+#   bash Tools/collect_graphics_diagnostics.command
+#   bash Tools/collect_graphics_diagnostics.command.stage-D "$OUTPUT_DIR"
+# =============================================================================
+set -euo pipefail
+
+OUTPUT_DIR="${1:-}"
+if [[ -z "${OUTPUT_DIR}" ]]; then
+  TIMESTAMP=$(date "+%Y-%m-%d-%H-%M-%S")
+  OUTPUT_DIR="${HOME}/Desktop/GPU-Diagnostics-AGDC-${TIMESTAMP}"
+  mkdir -p "${OUTPUT_DIR}"
+  echo "No OUTPUT_DIR arg — writing AGDC-only bundle to ${OUTPUT_DIR}"
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+echo ">>> [stage-D] AGDC / AGDP / framebuffer clues → ${OUTPUT_DIR}"
+
+{
+  echo "=== ioreg AppleGraphicsDevicePolicy / AGDC / framebuffer ==="
+  ioreg -l -w 0 2>/dev/null | grep -i -E "AppleGraphicsDevicePolicy|AGDC|AGDP|Framebuffer|GFX0" | head -n 400 || true
+  echo ""
+  echo "=== ioreg AMD / Vega snippets ==="
+  ioreg -l -w 0 2>/dev/null | grep -i -E "ATY|AMD|687f|Vega|Radeon|PciRoot" | head -n 200 || true
+} > "${OUTPUT_DIR}/agdc_ioreg.txt" 2>&1 || true
+
+log show --predicate 'eventMessage CONTAINS[c] "AGDC" OR eventMessage CONTAINS[c] "AGDP" OR eventMessage CONTAINS[c] "AppleGraphicsDevicePolicy" OR eventMessage CONTAINS[c] "AGDCDiagnose"' --last 1h --style compact > "${OUTPUT_DIR}/agdc_logs.txt" 2>&1 || true
+
+cat > "${OUTPUT_DIR}/agdc_yellow_symptoms_TEMPLATE.json" <<'EOF'
+{
+  "full_screen_solid_yellow": null,
+  "ui_interactive": null,
+  "ui_tint_only": null,
+  "agdc_diagnose_yellow": null,
+  "_readme": "solid+non-interactive => solid_agdc. interactive tint => ui_tint_compositor."
+}
+EOF
+
+{
+  echo "=== agdpmod / shikigva (boot-args) ==="
+  nvram boot-args 2>/dev/null || echo "No boot-args"
+} > "${OUTPUT_DIR}/agdp_boot_args_summary.txt" 2>&1 || true
+
+if command -v python3 >/dev/null 2>&1; then
+  (
+    cd "${REPO_ROOT}"
+    PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:$PYTHONPATH}" python3 - <<'PY'
+from x86.graphics.agdc_diagnose import serialize_track_detect_fields
+import json
+print(json.dumps(serialize_track_detect_fields("MacPro5,1", gpu_archs=["Vega","0x687F"], assume_tahoe=True, agdpmod_present=False), indent=2))
+PY
+  ) > "${OUTPUT_DIR}/agdc_detect_sample.json" 2>"${OUTPUT_DIR}/agdc_detect_sample.stderr" || true
+fi
+
+echo "[stage-D] done — fields: agdc_yellow_risk, ui_tint_yellow_risk, agdc_framebuffer_checklist"
+ls -la "${OUTPUT_DIR}/" | grep -i agdc || ls -la "${OUTPUT_DIR}/"

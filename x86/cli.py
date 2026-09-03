@@ -128,25 +128,89 @@ def cmd_patch(args: argparse.Namespace) -> int:
     return 2
 
 
+def _patch_status_payload() -> dict[str, Any]:
+    from opencore_legacy_patcher import constants as constants_module
+    from opencore_legacy_patcher.detections import device_probe, os_probe
+    from opencore_legacy_patcher.sys_patch.patchsets import (
+        HardwarePatchsetDetection,
+        HardwarePatchsetValidation,
+    )
+
+    global_constants = constants_module.Constants()
+    os_data = os_probe.OSProbe()
+    global_constants.detected_os = os_data.detect_kernel_major()
+    global_constants.detected_os_build = os_data.detect_os_build()
+    global_constants.detected_os_version = os_data.detect_os_version()
+    global_constants.computer = device_probe.Computer.probe()
+
+    patches = HardwarePatchsetDetection(
+        constants=global_constants,
+        validation=True,
+    ).device_properties
+
+    active = [
+        patch_name.split(": ", 1)[1]
+        for patch_name in patches
+        if patches[patch_name] is True
+        and not patch_name.startswith("Validation")
+        and not patch_name.startswith("Settings")
+    ]
+    validations = {
+        key.split("Validation: ", 1)[1]: value
+        for key, value in patches.items()
+        if key.startswith("Validation:")
+    }
+
+    return {
+        "model": global_constants.custom_model or global_constants.computer.real_model,
+        "os_version": global_constants.detected_os_version,
+        "os_build": global_constants.detected_os_build,
+        "last_patched_version": global_constants.computer.oclp_sys_version,
+        "last_patched_date": global_constants.computer.oclp_sys_date,
+        "patches_available": active,
+        "can_patch": not patches.get(HardwarePatchsetValidation.PATCHING_NOT_POSSIBLE, False),
+        "can_unpatch": not patches.get(HardwarePatchsetValidation.UNPATCHING_NOT_POSSIBLE, False),
+        "validations": validations,
+    }
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     store = SettingsStore()
     settings = store.load()
-    payload = {
-        "status": "partial",
-        "message": (
-            f"{APP_NAME} status summary (settings only; full patch detection pending x86/patch migration)."
-        ),
+    payload: dict[str, Any] = {
         "settings": settings,
         "config_path": str(store.config_path),
     }
+
+    try:
+        payload["patch"] = _patch_status_payload()
+    except Exception as error:
+        logging.debug("Patch status unavailable: %s", error)
+        payload["patch"] = {"error": str(error)}
+
     if args.json:
         _emit_json(payload)
     else:
-        logging.info(payload["message"])
+        logging.info("26x86 상태 요약")
         logging.info("  설정 파일: %s", store.config_path)
         last_detect = settings.get("last_detect")
         if last_detect:
             logging.info("  마지막 감지: %s", last_detect)
+        patch = payload.get("patch") or {}
+        if patch.get("model"):
+            logging.info("  모델: %s", patch["model"])
+            logging.info(
+                "  macOS: %s (%s)",
+                patch.get("os_version") or "N/A",
+                patch.get("os_build") or "N/A",
+            )
+            if patch.get("last_patched_version"):
+                logging.info(
+                    "  마지막 패치: %s (%s)",
+                    patch["last_patched_version"],
+                    patch.get("last_patched_date") or "N/A",
+                )
+            logging.info("  패치 가능: %s", "예" if patch.get("can_patch") else "아니오")
     return 0
 
 

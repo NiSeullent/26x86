@@ -11,6 +11,25 @@ from packaging import version
 from .datasets import os_data
 from .detections import device_probe
 
+try:
+    from x86.paths import (
+        APP_BUNDLE_NAME,
+        APP_NAME,
+        BUNDLE_ID,
+        BUNDLE_ID_AUTOPKG,
+        BUNDLE_ID_PRIVILEGED_HELPER,
+        BUNDLE_ID_UNINSTALLER,
+        Paths as X86Paths,
+    )
+except ImportError:
+    APP_NAME = "26x86"
+    APP_BUNDLE_NAME = "26x86.app"
+    BUNDLE_ID = "com.sharhene777.26x86"
+    BUNDLE_ID_PRIVILEGED_HELPER = f"{BUNDLE_ID}.privileged-helper"
+    BUNDLE_ID_UNINSTALLER = f"{BUNDLE_ID}-uninstaller"
+    BUNDLE_ID_AUTOPKG = f"{BUNDLE_ID}.pkg.AutoPkg-Assets"
+    X86Paths = None
+
 
 class Constants:
     def __init__(self) -> None:
@@ -22,17 +41,19 @@ class Constants:
         self.copyright_date:                  str = "Copyright © 2026 NiSeullent and 26x86 contributors"
 
         # 26x86 product identity (runtime namespace — independent from OCLP/Dortania)
-        self.app_name:                         str = "26x86"
-        self.app_bundle_name:                  str = "26x86.app"
-        self.bundle_id:                       str = "com.niseullent.26x86"
-        self.bundle_id_privileged_helper:     str = "com.niseullent.26x86.privileged-helper"
-        self.bundle_id_uninstaller:           str = "com.niseullent.26x86-uninstaller"
-        self.bundle_id_installer:             str = "com.niseullent.26x86"
-        self.bundle_id_autopkg:               str = "com.niseullent.26x86.pkg.AutoPkg-Assets"
-        self.preferences_domain:              str = "com.niseullent.26x86"
-        self.launchd_prefix:                   str = "com.niseullent.26x86"
+        self.app_name:                         str = APP_NAME
+        self.app_bundle_name:                  str = APP_BUNDLE_NAME
+        self.bundle_id:                       str = BUNDLE_ID
+        self.bundle_id_privileged_helper:     str = BUNDLE_ID_PRIVILEGED_HELPER
+        self.bundle_id_uninstaller:           str = BUNDLE_ID_UNINSTALLER
+        self.bundle_id_installer:             str = BUNDLE_ID
+        self.bundle_id_autopkg:               str = BUNDLE_ID_AUTOPKG
+        self.preferences_domain:              str = BUNDLE_ID
+        self.launchd_prefix:                   str = BUNDLE_ID
         self.app_support_dir:                  str = "/Library/Application Support/26x86"
-        self.settings_plist_path:              Path = Path.home() / "Library/Preferences/com.niseullent.26x86.plist"
+        self.settings_plist_path:              Path = (
+            X86Paths.user_preferences_plist() if X86Paths else Path.home() / f"Library/Preferences/{BUNDLE_ID}.plist"
+        )
         self.app_support_path:                Path = Path.home() / "Library/Application Support/26x86"
 
         # URLs

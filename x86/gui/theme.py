@@ -264,14 +264,13 @@ def style_gauge(gauge: wx.Gauge) -> None:
 
 def apply_app_theme(app: wx.App) -> None:
     refresh_palette()
-    c = colors()
     app.SetAppName(app.GetAppName())
     try:
         wx.SystemOptions.SetOption("mac.tab-focusable", 0)
     except Exception:
         pass
-    # Global hint for child windows; individual frames still call style_frame.
-    wx.ArtProvider.SetColour(wx.ART_BUTTON, wx.ART_OTHER, c.elevated)
+    # Per-window styling is applied via style_frame / NeumoPanel; wx.ArtProvider
+    # has no SetColour API in wxPython Phoenix.
 
 
 class NeumoPanel(wx.Panel):

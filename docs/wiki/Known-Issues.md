@@ -35,6 +35,12 @@ AAAMouSSE·telemetrap 관련으로 **macOS 26 부팅 불가** 가능. 상세: [W
 
 ---
 
+## Safari 26 / MacPro5,1 Pre-AVX
+
+Safari 26.6.1 WebContent SIGILL은 [Safari-PreAVX-Fix.md](./Safari-PreAVX-Fix.md)를 참고하세요. EFI 빌드 시 MacPro5,1에만 자동 적용됩니다.
+
+---
+
 ## macOS 업데이트 후
 
 - KDK + MetallibSupportPkg + **루트 패치 재적용**이 필요할 수 있습니다.

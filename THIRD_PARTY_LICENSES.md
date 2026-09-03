@@ -132,6 +132,7 @@ POSSIBILITY OF SUCH DAMAGE.
 | BrcmPatchRAM (BlueToolFixup) | BSD 3-Clause | https://github.com/acidanthera/BrcmPatchRAM |
 | CPUFriend | BSD 3-Clause | https://github.com/acidanthera/CPUFriend/blob/master/LICENSE |
 | RestrictEvents | BSD 3-Clause | https://github.com/acidanthera/RestrictEvents/blob/master/LICENSE.txt |
+| Safari26-PreAVX-Fix (RestrictEvents 1.1.8 fork) | BSD 3-Clause | https://github.com/kilinccagatay/Safari26-PreAVX-Fix/blob/main/LICENSE.txt |
 | FeatureUnlock | BSD 3-Clause | https://github.com/acidanthera/FeatureUnlock/blob/master/LICENSE.txt |
 | DebugEnhancer | BSD 3-Clause | https://github.com/acidanthera/DebugEnhancer/blob/master/LICENSE.txt |
 | CryptexFixup | BSD 3-Clause | https://github.com/acidanthera/CryptexFixup/blob/master/LICENSE.txt |

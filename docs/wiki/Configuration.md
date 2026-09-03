@@ -52,6 +52,17 @@ PKG 설치 또는 루트 패치 활성화 시 등록되는 작업은 `com.niseul
 
 새 기능은 `26x86.*` 접두사를 사용합니다 (예: `26x86.auto_patch`, `26x86.verbose_logging`).
 
+### Safari 26 Pre-AVX Fix (`config.json`)
+
+MacPro5,1 EFI 빌드 때 RestrictEvents 1.1.8을 자동 주입합니다. 기본값은 켜짐입니다.
+
+```json
+"safari26_preavx_fix": true,
+"auto_pre_avx_patch": true
+```
+
+둘 중 하나를 `false`로 두면 자동 적용을 끕니다. 상세: [Safari-PreAVX-Fix.md](./Safari-PreAVX-Fix.md) · [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md)
+
 익명 사용 통계를 끄려면 앱 **설정**에서 비활성화하거나:
 
 ```bash

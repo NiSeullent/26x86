@@ -9,6 +9,7 @@
   * [AirportBrcmFixup](https://github.com/acidanthera/AirportBrcmFixup/blob/master/LICENSE.txt)
   * [CPUFriend](https://github.com/acidanthera/CPUFriend/blob/master/LICENSE)
   * [RestrictEvents](https://github.com/acidanthera/RestrictEvents/blob/master/LICENSE.txt)
+  * [Safari26-PreAVX-Fix](https://github.com/kilinccagatay/Safari26-PreAVX-Fix/blob/main/LICENSE.txt)
   * [FeatureUnlock](https://github.com/acidanthera/FeatureUnlock/blob/master/LICENSE.txt)
   * [Innie](https://github.com/cdf/Innie/blob/master/LICENSE.txt)
 * GPL 2.0

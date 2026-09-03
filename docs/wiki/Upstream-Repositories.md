@@ -121,6 +121,7 @@ dortania/OpenCore-Legacy-Patcher
 | FeatureUnlock | [acidanthera/FeatureUnlock](https://github.com/acidanthera/FeatureUnlock) | BSD 3-Clause | Sidecar 등 기능 잠금 해제 |
 | NVMeFix | [acidanthera/NVMeFix](https://github.com/acidanthera/NVMeFix) | **GPL 2.0** | NVMe 커널 패치 |
 | RestrictEvents | [acidanthera/RestrictEvents](https://github.com/acidanthera/RestrictEvents) | BSD 3-Clause | SIP/이벤트 제한 |
+| Safari26-PreAVX-Fix | [kilinccagatay/Safari26-PreAVX-Fix](https://github.com/kilinccagatay/Safari26-PreAVX-Fix) | BSD 3-Clause | MacPro5,1 Safari 26.6.1 JSC trampoline (`revpatch=jsc`) |
 | AppleALC | [acidanthera/AppleALC](https://github.com/acidanthera/AppleALC) | BSD 3-Clause | 오디오 (레거시 Mac — 자동 업데이트 비활성) |
 | AutoPkgInstaller | [acidanthera/AutoPkgInstaller](https://github.com/acidanthera/AutoPkgInstaller) | BSD 3-Clause | PKG 자동 설치 Lilu 플러그인 |
 | CSLVFixup | [acidanthera/CSLVFixup](https://github.com/acidanthera/CSLVFixup) | BSD 3-Clause | Library Validation |

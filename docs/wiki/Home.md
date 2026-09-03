@@ -36,6 +36,7 @@ python3 -m x86 status
 | [Disclaimer.md](./Disclaimer.md) | 면책 요약 |
 | [GPU-Limitations.md](./GPU-Limitations.md) | GPU 제한 |
 | [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md) | Pre-AVX Mac Pro Phase 1 |
+| [Safari-PreAVX-Fix.md](./Safari-PreAVX-Fix.md) | MacPro5,1 Safari 26 Pre-AVX RestrictEvents |
 | [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md) | Mac Pro Tahoe 노란 화면 |
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 주의 |
 | [Installation-Notes.md](./Installation-Notes.md) | 설치·업그레이드 |

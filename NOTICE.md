@@ -77,6 +77,7 @@
 | [acidanthera/FeatureUnlock](https://github.com/acidanthera/FeatureUnlock) | BSD 3-Clause | 기능 잠금 해제 | Copyright (c) Acidanthera and contributors |
 | [acidanthera/NVMeFix](https://github.com/acidanthera/NVMeFix) | **GPL 2.0** | NVMe 패치 | Copyright (c) Acidanthera and contributors |
 | [acidanthera/RestrictEvents](https://github.com/acidanthera/RestrictEvents) | BSD 3-Clause | 이벤트 제한 | Copyright (c) Acidanthera and contributors |
+| [kilinccagatay/Safari26-PreAVX-Fix](https://github.com/kilinccagatay/Safari26-PreAVX-Fix) | BSD 3-Clause | Safari 26.6.1 Pre-AVX RestrictEvents 1.1.8 (MacPro5,1 EFI) | Copyright (c) Acidanthera and contributors; Safari trampoline patch by kilinccagatay |
 | [acidanthera/AppleALC](https://github.com/acidanthera/AppleALC) | BSD 3-Clause | 오디오 (레거시) | Copyright (c) Acidanthera and contributors |
 | [acidanthera/AutoPkgInstaller](https://github.com/acidanthera/AutoPkgInstaller) | BSD 3-Clause | PKG 설치 Lilu 플러그인 | Copyright (c) Acidanthera and contributors |
 | [acidanthera/CSLVFixup](https://github.com/acidanthera/CSLVFixup) | BSD 3-Clause | Library Validation | Copyright (c) Acidanthera and contributors |

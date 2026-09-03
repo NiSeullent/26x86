@@ -1,17 +1,19 @@
 # This-Mac EFI Optimize (MacPro5,1 / Vega 64 / Sequoia)
 
-한국어 + English. 실기: Fusion Drive (HDD `disk0` + SSD `disk1`), 플래시 MacPro7,1 SMBIOS / 실체 MacPro5,1급, Xeon X5675 pre-AVX, RX Vega 64.
+한국어 + English. 실기: Fusion Drive (HDD + SSD), 플래시 MacPro7,1 SMBIOS / 실체 MacPro5,1급, Xeon X5675 pre-AVX, RX Vega 64.
 
 ## Disk map / 디스크 맵
 
-| Role | Device | Media | ESP |
-|------|--------|-------|-----|
-| Fusion HDD | `disk0` | ST1000DM003 1TB | `disk0s1` |
-| Fusion SSD | `disk1` | INTEL 80GB SSD | `disk1s1` ← **active OpenCore** |
-| Fusion APFS | `disk2` | virtual (disk0s2+disk1s2) | — |
-| External backup | `disk3` | My Passport USB | Time Machine volume |
+| Role | Media (stable) | Typical BSD (can change!) | ESP |
+|------|----------------|---------------------------|-----|
+| Fusion HDD | ST1000DM003 1TB SATA | often `disk0` | `…s1` |
+| Fusion SSD | INTEL SSDSA2M080G2GC 80GB | often `disk1`, or `disk2` if USB present | `…s1` ← **active OpenCore** |
+| Fusion APFS | virtual (HDD+SSD slices) | synthesized | — |
+| External USB | SanDisk / Passport / etc. | steals low `diskN` | **do not confuse with Fusion SSD** |
 
-Live OpenCore lived on **SSD ESP** (`disk1s1`), not the nearly-empty HDD ESP.
+**Always match by Media Name**, never by bare `diskN` — plugging USB renumbers disks.
+
+Live OpenCore is on the **Intel 80GB SSD ESP**; HDD ESP holds a recovery OpenCore copy after this optimize.
 
 ## Backup paths / 백업 경로 (absolute)
 
@@ -24,9 +26,9 @@ Optimized staging used for install:
 
 - `/Users/nyase/Desktop/EFI-OPTIMIZED-STAGING/`
 
-**New EFI installed to:** `/Volumes/EFI-SSD` → `disk1s1` (`EFI/OC`, `EFI/BOOT/BOOTx64.efi`, `System/Library/CoreServices/boot.efi`)
+**New EFI installed to:** Intel SSD ESP (`EFI/OC`, `EFI/BOOT/BOOTx64.efi`, `System/Library/CoreServices/boot.efi`)
 
-**Recovery copy also on HDD ESP:** `disk0s1` (same OpenCore tree) so the firmware picker can boot either disk.
+**Recovery copy also on HDD ESP:** same OpenCore tree so the firmware picker can boot either disk.
 
 ## What was applied / 적용 내용
 

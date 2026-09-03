@@ -2,6 +2,8 @@
 package_scripts.py: Generate pre/postinstall scripts for PKG and AutoPkg
 """
 
+from opencore_legacy_patcher import constants
+
 
 class ZSHFunctions:
 
@@ -227,7 +229,8 @@ class ZSHFunctions:
         _script = ""
 
         _script += "function _cleanLaunchService() {\n"
-        _script += "    local domain=\"com.niseullent.26x86\"\n\n"
+        _script += "    local domain=\"com.sharhene777.26x86\"\n\n"
+        _script += "    local legacyDomains=(\"com.dortania.opencore-legacy-patcher\")\n\n"
 
         _script += "    # Iterate over launch agents and daemons\n"
         _script += "    for launchServiceVariant in \"$pathToTargetVolume/Library/LaunchAgents\" \"$pathToTargetVolume/Library/LaunchDaemons\"; do\n"
@@ -237,7 +240,10 @@ class ZSHFunctions:
         _script += "        fi\n\n"
 
         _script += "        # Iterate over launch service files\n"
-        _script += "        for launchServiceFile in $(/bin/ls -1 $launchServiceVariant | /usr/bin/grep $domain); do\n"
+        _script += "        for launchServiceFile in $(/bin/ls -1 $launchServiceVariant); do\n"
+        _script += "            if [[ $launchServiceFile != ${domain}* ]] && [[ $launchServiceFile != com.dortania.opencore-legacy-patcher* ]] && [[ $launchServiceFile != com.sharhene777.26x86* ]]; then\n"
+        _script += "                continue\n"
+        _script += "            fi\n"
         _script += "            local launchServicePath=\"$launchServiceVariant/$launchServiceFile\"\n\n"
 
         _script += "            # Remove launch service file\n"
@@ -312,11 +318,18 @@ class GenerateScripts:
             "Applications/26x86.app",
             "Library/Application Support/26x86/Update.plist",
             "Library/Application Support/26x86/26x86.app",
-            "Library/PrivilegedHelperTools/com.niseullent.26x86.privileged-helper",
+            "Library/PrivilegedHelperTools/com.sharhene777.26x86.privileged-helper",
+            # Legacy install paths removed during upgrade
+            "Library/Application Support/Dortania/Update.plist",
+            "Library/Application Support/Dortania/26x86.app",
+            "Library/PrivilegedHelperTools/com.dortania.opencore-legacy-patcher.privileged-helper",
+            "Library/PrivilegedHelperTools/com.sharhene777.26x86.privileged-helper",
         ]
 
         self.additional_auto_pkg_files = [
-            "Library/LaunchAgents/com.niseullent.26x86.auto-patch.plist",
+            "Library/LaunchAgents/com.sharhene777.26x86.auto-patch.plist",
+            "Library/LaunchAgents/com.dortania.opencore-legacy-patcher.auto-patch.plist",
+            "Library/LaunchAgents/com.sharhene777.26x86.auto-patch.plist",
         ]
 
 
@@ -422,7 +435,7 @@ class GenerateScripts:
         _script += self._generate_label_bar()
         _script += "\n"
 
-        _script += "helperPath=\"Library/PrivilegedHelperTools/com.niseullent.26x86.privileged-helper\"\n"
+        _script += "helperPath=\"Library/PrivilegedHelperTools/com.sharhene777.26x86.privileged-helper\"\n"
         _script += "mainAppPath=\"Library/Application Support/26x86/26x86.app\"\n"
         _script += "shimAppPath=\"Applications/26x86.app\"\n"
         if is_autopkg:

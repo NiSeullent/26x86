@@ -2,7 +2,7 @@
 
 > **Korean-Optimized Edition / 한글판 최적화**
 >
-> This repository and workspace are maintained primarily for Korean-speaking users. User-facing documentation, the setup wizard, and CLI help default to **Korean**. These English pages are **supplementary** and do not replace the Korean docs.
+> This repository is maintained primarily for Korean-speaking users. User-facing documentation, the setup wizard, and CLI help default to **Korean**. These English pages are **supplementary**.
 
 ## What is 26x86?
 
@@ -10,21 +10,23 @@
 
 - **Main repo:** https://github.com/NiSeullent/26x86
 - **Maintainer:** NiSeullent
-- **Status:** Experimental alpha — read [wiki/Warnings.md](./wiki/Warnings.md) and [DISCLAIMER](../DISCLAIMER.md) before use
+- **Status:** Experimental alpha — read [DISCLAIMER](../DISCLAIMER.md) before use
 
-## Korean vs English documentation
+## Documentation map
 
 | Document | Language | Path |
 |----------|----------|------|
 | Main README | Korean | [README.md](../README.md) |
+| **Wiki home** | Korean | [wiki/Home.md](./wiki/Home.md) |
+| **Architecture** | Korean + EN summary | [ARCHITECTURE-26x86.md](./ARCHITECTURE-26x86.md) |
+| Configuration | Korean + EN summary | [wiki/Configuration.md](./wiki/Configuration.md) |
+| OCLP migration | Korean + EN summary | [wiki/Migration-from-OCLP.md](./wiki/Migration-from-OCLP.md) |
 | Build from source | Korean | [SOURCE.md](../SOURCE.md) |
-| Dev environment (monorepo) | Korean | workspace `docs/SETUP.md` |
-| Research inventory (monorepo) | Korean | workspace `docs/RESEARCH_INVENTORY.md` |
-| VM testing (monorepo) | Korean | workspace `vm/README.md` |
+| Dev environment | Korean | [SETUP.md](./SETUP.md) |
 | This overview | English | README.en.md |
 | Setup guide | English | [SETUP.en.md](./SETUP.en.md) |
 | Edition notes | EN + KO | [KOREAN_EDITION.md](./KOREAN_EDITION.md) |
-| Wiki (Korean) | Korean | [wiki/Home.md](./wiki/Home.md) |
+| English wiki index | English | [wiki/README.en.md](./wiki/README.en.md) |
 
 ## Quick links
 

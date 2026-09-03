@@ -2,7 +2,29 @@
 
 **26x86** — x86 기반 Mac을 위한 더 나은 macOS 26 시스템
 
-본 위키는 README에 있던 주의사항·알려진 이슈·설치 노트를 분리한 문서입니다. 빠른 시작은 [README.md](../../README.md)를 참고하세요.
+> **한국어가 기본 문서 언어입니다.** 영문 보조: [docs/README.en.md](../README.en.md) · [wiki/README.en.md](./README.en.md)
+
+---
+
+## 빠른 시작
+
+| 방법 | 명령 |
+|------|------|
+| **권장 (마법사 GUI)** | `python -m x86 wizard` |
+| macOS 더블클릭 | `26x86.command` |
+| CLI 도움말 | `python -m x86 --help` |
+
+```bash
+python -m x86 detect [--json]   # 하드웨어 탐지
+python -m x86 build [--model ...] # OpenCore EFI 빌드
+python -m x86 patch [--auto]      # 루트 패치
+python -m x86 status              # 설정·패치·EFI 상태
+python -m x86 wizard              # 기본 GUI (마법사)
+```
+
+고급 레거시 메뉴: `X86_ADVANCED=1 python -m x86 wizard` (점진 폐기 예정)
+
+아키텍처 상세: [CLEANROOM-ARCHITECTURE.md](../CLEANROOM-ARCHITECTURE.md)
 
 ---
 
@@ -15,9 +37,9 @@
 | [Disclaimer.md](./Disclaimer.md) | 면책 조항 요약 및 [DISCLAIMER.md](../../DISCLAIMER.md) 링크 |
 | [GPU-Limitations.md](./GPU-Limitations.md) | Metal 8302·Non-Metal GPU 제한 |
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 전용 주의 (SIP, APFS, 다운로드) |
-| [Installation-Notes.md](./Installation-Notes.md) | 클린 설치, OCLP 마이그레이션, 개발 환경 |
-| [Configuration.md](./Configuration.md) | 26x86 전용 설정 경로 및 OCLP 분리 |
-| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | OCLP에서 26x86 전환 (OCLP plist 불필요) |
+| [Installation-Notes.md](./Installation-Notes.md) | 클린 설치, 개발 환경 |
+| [Configuration.md](./Configuration.md) | `config.json`·`com.sharhene777.26x86`·launchd |
+| [Migration.md](./Migration.md) | OCLP → 26x86 전환 (JSON 설정·신규 CLI) |
 | [Orphan-Files-Archive.md](./Orphan-Files-Archive.md) | 제거·보관된 고아 파일 목록 |
 | [README.en.md](./README.en.md) | English wiki index |
 

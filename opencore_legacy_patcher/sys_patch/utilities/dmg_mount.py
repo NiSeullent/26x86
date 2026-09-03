@@ -124,12 +124,12 @@ class PatcherSupportPkgMount:
             return ""
 
     def _display_authentication_error(self) -> None:
-        applescript.AppleScript(f'display dialog "Failed to mount DortaniaInternal resources, please file an internal radar." with title "26x86" with icon file "{self.icon_path}"').run()
+        applescript.AppleScript(f'display dialog "Failed to mount 26x86 internal resources, please file an internal radar." with title "26x86" with icon file "{self.icon_path}"').run()
 
     def _display_too_many_attempts(self) -> None:
-        applescript.AppleScript(f'display dialog "Failed to mount DortaniaInternal resources, too many incorrect passwords." with title "26x86" with icon file "{self.icon_path}"').run()
+        applescript.AppleScript(f'display dialog "Failed to mount 26x86 internal resources, too many incorrect passwords." with title "26x86" with icon file "{self.icon_path}"').run()
 
     def mount(self) -> bool:
         if Path(self.constants.payload_local_binaries_root_path).exists():
             return True
-        return self._mount_universal_binaries_dmg() and self._mount_dortania_internal_resources_dmg()
+        return self._mount_universal_binaries_dmg() and self._mount_26x86_internal_resources_dmg()

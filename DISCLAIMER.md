@@ -60,19 +60,13 @@
 
 ## 설정 파일 및 OCLP 분리
 
-26x86은 Dortania OpenCore Legacy Patcher(OCLP)와 **런타임 설정·Launch Services·앱 설치 경로를 공유하지 않습니다.**
+26x86은 Dortania OpenCore Legacy Patcher(OCLP)와 **런타임 설정·Launch Services·앱 설치 경로를 공유하지 않습니다.** OCLP 공유 plist를 **읽거나 쓰지 않으며**, OCLP plist 존재 여부와 **무관하게** 동작합니다.
 
-- **26x86 설정:** `~/Library/Preferences/com.niseullent.26x86.plist`
+- **26x86 설정:** `~/Library/Preferences/com.sharhene777.26x86.plist`
 - **로그:** `~/Library/Logs/26x86/`
 - **앱 설치(PKG):** `/Library/Application Support/26x86/26x86.app`
 
-이전에 OCLP 또는 OCLP-T2를 사용했다면, root 소유로 남아 있는 공유 설정 파일이 26x86 실행을 방해할 수 있습니다. 다음 명령으로 **OCLP 레거시 설정만** 제거할 수 있습니다(26x86 설정과 무관):
-
-```bash
-sudo rm '/Users/Shared/.com.dortania.opencore-legacy-patcher.plist'
-```
-
-자세한 내용은 [docs/wiki/Configuration.md](./docs/wiki/Configuration.md)를 참고하세요.
+OCLP에서 전환하거나 디스크 정리가 필요하면 [docs/wiki/Migration-from-OCLP.md](./docs/wiki/Migration-from-OCLP.md)를 참고하세요. 자세한 설정 경로는 [docs/wiki/Configuration.md](./docs/wiki/Configuration.md)를 참고하세요.
 
 ---
 

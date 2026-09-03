@@ -168,7 +168,7 @@ class HardwarePatchsetDetection:
         """
         _min_os = os_data.big_sur.value
         _max_os = os_data.tahoe.value
-        if self._dortania_internal_check() is True:
+        if self._26x86_internal_check() is True:
             return False
         if self._xnu_major < _min_os or self._xnu_major > _max_os:
             return True
@@ -322,11 +322,11 @@ class HardwarePatchsetDetection:
         return level
 
 
-    def _dortania_internal_check(self) -> None:
+    def _26x86_internal_check(self) -> None:
         """
-        Determine whether to unlock Dortania Developer mode
+        Determine whether to unlock 26x86 developer mode
         """
-        return Path("~/.dortania_developer").expanduser().exists()
+        return Path("~/.26x86_developer").expanduser().exists()
 
 
     def _already_has_networking_patches(self) -> bool:

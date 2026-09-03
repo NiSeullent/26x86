@@ -10,17 +10,20 @@
 
 | Page | Topic |
 |------|--------|
+| [Configuration.md](./Configuration.md) | Settings paths, launchd, `26x86.*` keys |
+| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | OCLP migration (one-time), coexistence |
 | [Warnings.md](./Warnings.md) | All cautions: C2D, GPU, T2 SIP, Hackintosh, macOS 27 |
 | [Known-Issues.md](./Known-Issues.md) | T2 progress, known bugs |
 | [Disclaimer.md](./Disclaimer.md) | Disclaimer summary → [DISCLAIMER.md](../../DISCLAIMER.md) |
 | [GPU-Limitations.md](./GPU-Limitations.md) | Metal 8302, Non-Metal |
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2-specific notes |
-| [Installation-Notes.md](./Installation-Notes.md) | Clean install, migration |
+| [Installation-Notes.md](./Installation-Notes.md) | Clean install, upgrade |
 | [Orphan-Files-Archive.md](./Orphan-Files-Archive.md) | Archived orphan files |
 
 ## Project docs (English supplements)
 
 - [docs/README.en.md](../README.en.md) — project overview
+- [ARCHITECTURE-26x86.md](../ARCHITECTURE-26x86.md) — runtime architecture
 - [docs/SETUP.en.md](../SETUP.en.md) — dev setup
 - [docs/KOREAN_EDITION.md](../KOREAN_EDITION.md) — edition notes (EN + KO)
 

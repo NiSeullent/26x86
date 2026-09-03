@@ -1,6 +1,6 @@
 # 26x86 Privileged Helper Tool
 
-`com.niseullent.26x86.privileged-helper` is 26x86's Privileged Helper Tool.
+`com.sharhene777.26x86.privileged-helper` is 26x86's Privileged Helper Tool.
 
 The architecture is as such:
 1. The main application (26x86.app) will send arguments to the privileged helper tool to execute.
@@ -42,9 +42,9 @@ cd ci_tooling/privileged_helper_tool # (replace this with the path of the Privel
 
 make                                   # release build, keeps the certificate check
 
-codesign -f -s "OCLP Self Signed" com.niseullent.26x86.privileged-helper
+codesign -f -s "OCLP Self Signed" com.sharhene777.26x86.privileged-helper
 
-codesign -dvvv com.niseullent.26x86.privileged-helper 2>&1 | grep Authority
+codesign -dvvv com.sharhene777.26x86.privileged-helper 2>&1 | grep Authority
 
 sudo ./install.sh                      # copies to /Library/PrivilegedHelperTools + sets the setuid bit
 
@@ -53,9 +53,9 @@ sudo ./install.sh                      # copies to /Library/PrivilegedHelperTool
 cd ci_tooling/privileged_helper_tool
 
 clang -framework Foundation -framework Security -arch x86_64 \
-  -mmacosx-version-min=10.9 -o com.niseullent.26x86.privileged-helper main.m
+  -mmacosx-version-min=10.9 -o com.sharhene777.26x86.privileged-helper main.m
   
-codesign -f -s "OCLP Self Signed" --timestamp=none com.niseullent.26x86.privileged-helper
+codesign -f -s "OCLP Self Signed" --timestamp=none com.sharhene777.26x86.privileged-helper
 
 sudo ./install.sh
 

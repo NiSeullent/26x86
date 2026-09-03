@@ -1,8 +1,8 @@
 """
 settings_store.py: 26x86-native settings API
 
-Single source for reading/writing ~/Library/Preferences/com.niseullent.26x86.plist.
-Legacy OCLP plists may be imported once on first launch (read-only); never written.
+Single source for reading/writing ~/Library/Preferences/com.sharhene777.26x86.plist.
+No reads or writes to OCLP shared or legacy plists.
 """
 
 import logging
@@ -10,7 +10,7 @@ import os
 import plistlib
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..constants import Constants
 
@@ -33,10 +33,10 @@ def _resolve_preferences_path(domain: str) -> Path:
             if console_user and console_user != "root":
                 user_home = Path(f"/Users/{console_user}")
                 if user_home.is_dir():
-                    return user_home / "Library/Preferences" / f"{domain}.plist"
+                    return user_home / "Library" / "Preferences" / f"{domain}.plist"
         except (OSError, subprocess.CalledProcessError):
             pass
-    return home / "Library/Preferences" / f"{domain}.plist"
+    return home / "Library" / "Preferences" / f"{domain}.plist"
 
 
 class SettingsStore:
@@ -44,18 +44,11 @@ class SettingsStore:
     26x86-native settings storage.
     """
 
-    MIGRATION_FLAG: str = "26x86.migrated_from_oclp"
-
-    _warned_root_oclp: bool = False
-
     def __init__(self, global_constants: Constants = None) -> None:
         self.constants: Constants = global_constants or Constants()
         self.preferences_path: Path = _resolve_preferences_path(self.constants.preferences_domain)
-        self.legacy_shared_path: Path = Path(self.constants.legacy_oclp_shared_settings)
-        self.legacy_preferences_path: Path = self.constants.legacy_oclp_preferences_path
 
         self._ensure_settings_file()
-        self.migrate_from_oclp_once()
 
     def _ensure_settings_file(self) -> None:
         path = self.preferences_path
@@ -137,53 +130,3 @@ class SettingsStore:
             return
         del plist[key]
         self._write_plist(plist)
-
-    def _read_legacy_plist(self, path: Path) -> Optional[dict]:
-        if not path.exists():
-            return None
-
-        if path.is_symlink():
-            logging.warning(f"Security Alert: Symlink detected during OCLP migration read. Ignoring {path}.")
-            return None
-
-        try:
-            with path.open("rb") as handle:
-                return plistlib.load(handle)
-        except PermissionError:
-            if not SettingsStore._warned_root_oclp:
-                SettingsStore._warned_root_oclp = True
-                logging.warning(
-                    f"OCLP legacy settings at {path} are not readable (often root-owned). "
-                    f"Skipping import. Remove with: sudo rm '{path}'"
-                )
-            return None
-        except Exception as error:
-            logging.error(f"Error reading legacy OCLP settings at {path}")
-            logging.error(error)
-            return None
-
-    def migrate_from_oclp_once(self) -> bool:
-        """
-        Idempotent one-time import from legacy OCLP settings.
-
-        Reads legacy shared and preferences plists only; never writes OCLP paths.
-        """
-        if self.read(self.MIGRATION_FLAG) is True:
-            return False
-
-        legacy_data: dict = {}
-
-        for legacy_path in (self.legacy_shared_path, self.legacy_preferences_path):
-            legacy_plist = self._read_legacy_plist(legacy_path)
-            if legacy_plist:
-                legacy_data.update(legacy_plist)
-
-        plist = self._read_plist()
-
-        if legacy_data:
-            plist.update(legacy_data)
-            logging.info("Migrated settings from legacy OCLP configuration into 26x86 preferences.")
-
-        plist[self.MIGRATION_FLAG] = True
-        self._write_plist(plist)
-        return bool(legacy_data)

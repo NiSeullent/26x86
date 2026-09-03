@@ -174,8 +174,8 @@ class BaseHardware(BasePatchset):
         return "12.5-23.4"
 
 
-    def _dortania_internal_check(self) -> None:
+    def _26x86_internal_check(self) -> None:
         """
-        Determine whether to unlock Dortania Developer mode
+        Determine whether to unlock 26x86 developer mode
         """
-        return Path("~/.dortania_developer").expanduser().exists()
+        return Path("~/.26x86_developer").expanduser().exists()

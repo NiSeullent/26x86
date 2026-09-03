@@ -1,8 +1,8 @@
 """
 global_settings.py: Library for querying and writing 26x86 settings
 
-Stores data in ~/Library/Preferences/com.niseullent.26x86.plist only.
-Independent from legacy OCLP configuration paths.
+Stores data in ~/Library/Preferences/com.sharhene777.26x86.plist only.
+Independent from legacy OCLP configuration paths — 26x86 never reads OCLP plists.
 """
 
 from pathlib import Path

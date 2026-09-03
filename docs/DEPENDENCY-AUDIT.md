@@ -35,7 +35,7 @@
 | 파일 | 매치 | 상태 |
 |------|------|------|
 | `payloads/Launch Services/com.dortania.*.plist` (×4) | bundle ID, label | **구버전 — 삭제 대상** |
-| `payloads/Launch Services/com.niseullent.26x86.*.plist` (×3) | 26x86 ID | **신규 — rsr-monitor 누락** |
+| `payloads/Launch Services/com.sharhene777.26x86.*.plist` (×3) | 26x86 ID | **신규 — rsr-monitor 누락** |
 | `opencore_legacy_patcher/sys_patch/auto_patcher/install.py` | 하드코oded `/Library/LaunchAgents/com.dortania...` | **미전환** |
 | `opencore_legacy_patcher/support/subprocess_wrapper.py` | `OCLP_PRIVILEGED_HELPER` dortania path | **미전환** |
 | `OpenCore-Patcher-GUI.spec` | `com.dortania.opencore-legacy-patcher` | **미전환** |

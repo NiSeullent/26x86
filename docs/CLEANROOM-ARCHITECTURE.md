@@ -4,6 +4,18 @@
 > Bundle ID: `com.sharhene777.26x86`  
 > 핵심 역량 유지: x86 Mac에서 macOS 26용 OpenCore EFI 빌드 + 루트 패치 적용
 
+> **문서 언어:** 사용자 대면 문서의 **기본 언어는 한국어**입니다. 영문 보조: [README.en.md](README.en.md)
+
+### 관련 문서
+
+| 문서 | 설명 |
+|------|------|
+| [wiki/Home.md](wiki/Home.md) | 위키 목차·빠른 링크 |
+| [wiki/Configuration.md](wiki/Configuration.md) | `config.json`·번들 ID·launchd |
+| [wiki/Migration.md](wiki/Migration.md) | OCLP → 26x86 전환 (JSON·CLI) |
+| [wiki/Warnings.md](wiki/Warnings.md) | 주의사항 통합 |
+| [ARCHITECTURE-26x86.md](ARCHITECTURE-26x86.md) | 선행 마이그레이션 설계 (점진 이전) |
+
 ---
 
 ## 1. 설계 철학

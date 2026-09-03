@@ -8,8 +8,9 @@
 
 | 지표 | 값 |
 |------|-----|
-| **총 매치 수** | **115** |
-| **영향 파일 수** | **52** |
+| **총 매치 수 (Before)** | **115** |
+| **총 매치 수 (After)** | **27** |
+| **영향 파일 수 (Before)** | **52** |
 | **이미 26x86-native로 전환된 항목** | bundle ID, preferences domain, NiSeullent fork URLs (constants.py), `global_settings.py` 26x86 plist, 신규 Launch Services plist 3종 |
 | **런타임 차단 필요** | **~45** (설정/launchd/업데이트/경로 하드코딩) |
 | **빌드/패키징 전용** | **~35** (ci_tooling, spec, Build-Project.command) |
@@ -35,10 +36,10 @@
 | 파일 | 매치 | 상태 |
 |------|------|------|
 | `payloads/Launch Services/com.dortania.*.plist` (×4) | bundle ID, label | **구버전 — 삭제 대상** |
-| `payloads/Launch Services/com.niseullent.26x86.*.plist` (×3) | 26x86 ID | **신규 — rsr-monitor 누락** |
+| `payloads/Launch Services/com.sharhene777.26x86.*.plist` (×3) | 26x86 ID | **신규 — rsr-monitor 누락** |
 | `opencore_legacy_patcher/sys_patch/auto_patcher/install.py` | 하드코oded `/Library/LaunchAgents/com.dortania...` | **미전환** |
 | `opencore_legacy_patcher/support/subprocess_wrapper.py` | `OCLP_PRIVILEGED_HELPER` dortania path | **미전환** |
-| `OpenCore-Patcher-GUI.spec` | `com.niseullent.26x86` | **전환 완료** |
+| `OpenCore-Patcher-GUI.spec` | `com.sharhene777.26x86` | **전환 완료** |
 | `ci_tooling/build_modules/package.py` | dortania bundle IDs, helper paths | **미전환** |
 | `Build-Project.command` | dortania privileged helper | **미전환** |
 | `payloads/Tools/OpenCore-Patcher.app/Contents/Info.plist` | dortania bundle ID | **→ 26x86.app** |
@@ -134,7 +135,7 @@ opencore_legacy_patcher/datasets/example_data.py (1)
 ```bash
 cd /Users/nyase/Desktop/26x86/26x86
 
-# Before count (baseline): 115
+# Before count (baseline): 115 → After: 27 (2026-09-04)
 grep -rn "dortania\|opencore-legacy-patcher\|OpenCore-Patcher\|Users/Shared\|YBronst\|albert-mueller" \
   --include="*.py" --include="*.plist" --include="*.command" --include="*.spec" . \
   | grep -v CREDITS | grep -v NOTICE | grep -v THIRD_PARTY | wc -l

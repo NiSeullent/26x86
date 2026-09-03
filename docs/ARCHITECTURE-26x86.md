@@ -7,7 +7,7 @@
 
 ## English Summary
 
-26x86 is a T2-focused macOS patcher fork that must operate independently from Dortania OCLP at runtime. All settings, launchd labels, bundle IDs, app support paths, update endpoints, and upstream package downloads are namespaced under `com.niseullent.26x86` and `NiSeullent/*` GitHub forks. Legacy OCLP shared state (`/Users/Shared/.com.dortania.opencore-legacy-patcher.plist`) may be **read once** for migration but must never be written. Internal Python package name `opencore_legacy_patcher` remains for compatibility; user-facing identity is **26x86**.
+26x86 is a T2-focused macOS patcher fork that must operate independently from Dortania OCLP at runtime. All settings, launchd labels, bundle IDs, app support paths, update endpoints, and upstream package downloads are namespaced under `com.sharhene777.26x86` and `NiSeullent/*` GitHub forks. Legacy OCLP shared state (`/Users/Shared/.com.dortania.opencore-legacy-patcher.plist`) may be **read once** for migration but must never be written. Internal Python package name `opencore_legacy_patcher` remains for compatibility; user-facing identity is **26x86**.
 
 ---
 
@@ -35,13 +35,13 @@
 
 | Domain | OCLP (OLD) | 26x86 (NEW) |
 |--------|------------|-------------|
-| **Settings plist** | `/Users/Shared/.com.dortania.opencore-legacy-patcher.plist` | `~/Library/Preferences/com.niseullent.26x86.plist` |
+| **Settings plist** | `/Users/Shared/.com.dortania.opencore-legacy-patcher.plist` | `~/Library/Preferences/com.sharhene777.26x86.plist` |
 | **App Support** | `/Library/Application Support/Dortania/` | `/Library/Application Support/26x86/` |
 | **User App Support** | — | `~/Library/Application Support/26x86/` |
-| **Bundle ID** | `com.dortania.opencore-legacy-patcher` | `com.niseullent.26x86` |
-| **Privileged Helper** | `com.dortania.opencore-legacy-patcher.privileged-helper` | `com.niseullent.26x86.privileged-helper` |
-| **LaunchAgents** | `com.dortania.opencore-legacy-patcher.auto-patch` | `com.niseullent.26x86.auto-patch` |
-| **LaunchDaemons** | `com.dortania.opencore-legacy-patcher.{macos-update,rsr-monitor,os-caching}` | `com.niseullent.26x86.{macos-update,rsr-monitor,os-caching}` |
+| **Bundle ID** | `com.dortania.opencore-legacy-patcher` | `com.sharhene777.26x86` |
+| **Privileged Helper** | `com.dortania.opencore-legacy-patcher.privileged-helper` | `com.sharhene777.26x86.privileged-helper` |
+| **LaunchAgents** | `com.dortania.opencore-legacy-patcher.auto-patch` | `com.sharhene777.26x86.auto-patch` |
+| **LaunchDaemons** | `com.dortania.opencore-legacy-patcher.{macos-update,rsr-monitor,os-caching}` | `com.sharhene777.26x86.{macos-update,rsr-monitor,os-caching}` |
 | **App binary** | `OpenCore-Patcher.app` / `OpenCore-Patcher` | `26x86.app` / `26x86` |
 | **Config keys** | OCLP defaults keys | `26x86.*` namespace (예: `26x86.auto_patch`, `26x86.verbose_logging`) |
 | **Logs** | `/Users/Shared/OpenCore-Patcher_*` | `~/Library/Logs/26x86/` |
@@ -75,7 +75,7 @@
 │       └── gui_update.py      # 26x86.pkg, 26x86.app
 ├── payloads/
 │   ├── Launch Services/
-│   │   └── com.niseullent.26x86.*.plist
+│   │   └── com.sharhene777.26x86.*.plist
 │   └── Tools/
 │       └── 26x86.app/
 ├── ci_tooling/                # 빌드 시에만 dortania 참조 제거
@@ -95,7 +95,7 @@
 class SettingsStore:
     """26x86-native settings — never writes OCLP plist."""
 
-    PREFERENCES_PATH = ~/Library/Preferences/com.niseullent.26x86.plist
+    PREFERENCES_PATH = ~/Library/Preferences/com.sharhene777.26x86.plist
     LEGACY_OCLP_PATH = /Users/Shared/.com.dortania.opencore-legacy-patcher.plist  # read-only migration
 
     def read(key) -> Any
@@ -114,7 +114,7 @@ class SettingsStore:
 sequenceDiagram
     participant User
     participant 26x86 as 26x86.app
-    participant LA as com.niseullent.26x86.auto-patch
+    participant LA as com.sharhene777.26x86.auto-patch
     participant API as NiSeullent/26x86 releases
 
     User->>26x86: Enable Root Patch
@@ -154,7 +154,7 @@ sequenceDiagram
 
 | 파일 | 변경 |
 |------|------|
-| `payloads/Launch Services/com.dortania.*` | **삭제** (com.niseullent.26x86.* 유지/완성) |
+| `payloads/Launch Services/com.dortania.*` | **삭제** (com.sharhene777.26x86.* 유지/완성) |
 | `payloads/Tools/OpenCore-Patcher.app` | → `26x86.app` rename + Info.plist |
 | `sys_patch/auto_patcher/install.py` | constants 기반 launchd paths |
 | `Build-Project.command`, `package.py`, `package_scripts.py` | 26x86 bundle IDs |
@@ -198,9 +198,9 @@ sequenceDiagram
 
 - [ ] grep baseline 115 → target < 30 (주석/kext plist/CREDITS 제외 시 **0**)
 - [ ] `--help` / `--detect --json` 성공
-- [ ] Settings: `~/Library/Preferences/com.niseullent.26x86.plist` 생성 확인
+- [ ] Settings: `~/Library/Preferences/com.sharhene777.26x86.plist` 생성 확인
 - [ ] OCLP plist에 write 없음 (strace/dtrace 또는 unit test)
-- [ ] LaunchAgent label = `com.niseullent.26x86.auto-patch`
+- [ ] LaunchAgent label = `com.sharhene777.26x86.auto-patch`
 - [ ] Update API → NiSeullent/26x86 only
 - [ ] `wx.FileExists` → `Path.exists()` 회귀 없음
 
@@ -211,3 +211,4 @@ sequenceDiagram
 | 날짜 | 버전 | 내용 |
 |------|------|------|
 | 2026-09-04 | 1.0 | 초기 아키텍처 문서 + 115건 감사 baseline |
+| 2026-09-04 | 1.1 | Workers A–D 통합 완료, grep 115→27, `settings_store.py`·26x86 launchd·NiSeullent URLs |

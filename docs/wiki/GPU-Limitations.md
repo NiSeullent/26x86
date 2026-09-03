@@ -26,7 +26,7 @@ macOS 26 Tahoe에서 **그래픽 패치가 미완료**된 GPU 클래스와 대�
 Safari 크래시(AVX)와 WindowServer 노란 화면은 다릅니다.
 
 - **Safari SIGILL:** [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md)
-- **노란 화면 / 3802·Non-Metal 차단:** [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md) — MacPro6,1은 EFI agdpmod + AMD Legacy GCN kext
+- **노란 화면 / 3802·Non-Metal:** 기본은 Tahoe shared **차단**. 옵트인 해금은 [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md) (`X86_TAHOE_3802` / `X86_TAHOE_NONMETAL`). Vega 31001은 별도 — [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md)
 
 ---
 

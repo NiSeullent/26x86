@@ -15,7 +15,7 @@ Safari 크래시(AVX SIGILL)와 **전체 화면 노란/주황**은 별개입니�
 | **공통 compositor 실패 (본질)** | Tahoe **WindowServer / SkyLight / CoreDisplay / ColorSync(ICC)** 합성. **Vega 64에서도 재현** (unpublished / reporter: 내부). 공개: [OCLP-T2 #194](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/issues/194) — MacPro5,1/6,1 + RX570도 GPU와 무관하게 보고. |
 | **PatcherSupportPkg kext 공백** | `GPUCompanionBundles` 없음, PSP #16/#18 Tahoe payload 미병합. |
 | **EFI DeviceProperties (완화)** | `agdpmod` / `shikigva` 누락은 증상을 악화합니다. GCN·Polaris·**Vega 64 소켓** 모두 EFI에 넣습니다. |
-| **Metal 3802 / Non-Metal shared 차단** | Tahoe에서 의도적 비활성화. Vega는 별도 **31001** (`amd_vega.py`) 경로이며, 그 kext만으로 compositor는 고쳐지지 않습니다. |
+| **Metal 3802 / Non-Metal shared** | **기본 경로**에서는 Tahoe 차단(KP 방지). **옵트인:** `X86_EXTREME` + `X86_TAHOE_3802` / `X86_TAHOE_NONMETAL` — 트랙 M/N. Vega는 별도 **31001**. |
 
 `python3 -m x86 detect --json` 필드: `gpu_family`, `yellow_screen_risk`, `recommended_efi_graphics_fixes`, `patcher_support_pkg_kexts_present`.
 
@@ -49,7 +49,7 @@ python3 -m x86 detect --json
 
 오버레이 슬롯: `payloads/Kexts/Community/Tahoe-Yellow-Screen/` (`SOURCE.md`). Apple kext는 DMG에만 있으며 이 폴더에 재배포하지 않습니다.
 
-Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다 (커널 패닉).
+Metal 3802 / Non-Metal Tahoe shared는 **기본 경로에서 가드 유지**합니다. 해금은 `X86_EXTREME=1`과 `X86_TAHOE_3802` / `X86_TAHOE_NONMETAL` 옵트인만 (트랙 M/N) — [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md).
 
 ---
 
@@ -58,28 +58,23 @@ Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다 (커널 패닉).
 - `Metal 3802 Common` / `Extended` / `.metallibs`
 - `Non-Metal Common` / `IOAccelerator` / `CoreDisplay` / `Enforcement`
 
-개발자 우회(`~/.26x86_developer`)는 model-specific 패치만 영향을 주며, **shared 가드는 유지**됩니다.
+개발자 우회(`~/.26x86_developer`)는 model-specific 패치만 영향을 주며, **shared 가드는 기본 유지**됩니다. 3802/Non-Metal shared 해금은 env 옵트인(M/N)만.
 
 ---
 
-## SkyLight LUT 트랙 (극한도전 · A–L)
+## SkyLight LUT 트랙 (극한도전 · A–N)
 
-**Autopilot / 극한도전:** Tahoe + pre-AVX + Vega 64 → 정상 색 · Metal/OpenGL · Safari Pre-AVX · 재부팅 안정.  
-소유권·Mission Control: [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md).  
-`python3 -m x86 detect --json` 의 `skylight_lut_tracks` 필드(트랙 G)가 연결 상태를 요약할 수 있습니다.
+**Autopilot / 극한도전:** Tahoe + pre-AVX + Vega 64 **및** 3802/Non-Metal 옵트인 → 정상 색 · 가속 · Safari Pre-AVX · 재부팅 안정.  
+Mission Control: [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md).
 
-| 트랙 | 역할 | 링크 |
-|------|------|------|
-| **A** | 문서·Mission Control | [Research](../Tahoe-SkyLight-LUT-Research.md) · [Tracks](../SkyLight-LUT-Tracks.md) · [Roadmap](../Tahoe-Graphics-Roadmap.md) |
-| **B** | SkyLight / WindowServer 심볼·훅 | `x86/graphics/skylight_*.py` |
-| **C** | CoreDisplay / ColorSync / ICC | `x86/graphics/colorsync_*` · `coredisplay_*` |
-| **D** | AGDC 검증만 (EFI agdpmod **재작성 금지**) | `x86/graphics/agdc_*.py` |
-| **E** | Metallib / RenderBox / 31001 | [skylight_lut.py](../../x86/graphics/skylight_lut.py) · `metallib_*.py` |
-| **F** | PSP Tahoe 오버레이 | [SOURCE.md](../../payloads/Kexts/Community/Tahoe-Yellow-Screen/SOURCE.md) |
-| **G** | 루트패치 통합 · detect · 테스트 | [skylight_tracks.py](../../x86/graphics/skylight_tracks.py) |
-| **H–L** | Plugins · UI · #234 · 3802(가드) · KDK | [Tracks H–Z](../SkyLight-LUT-Tracks.md) |
+| 트랙 | 역할 |
+|------|------|
+| **A** | 문서·Mission Control |
+| **B–G** | 심볼 · ICC · AGDC검증 · RenderBox · PSP · 통합 |
+| **H–L** | Plugins · UI · #234 · Metallib3802(K) · 재부팅 |
+| **M–N** | **3802 / Non-Metal Tahoe 옵트인 해금** (`X86_EXTREME` + `X86_TAHOE_3802` / `X86_TAHOE_NONMETAL`) |
 
-Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다.
+**기본 경로:** Metal 3802 / Non-Metal shared 가드 **유지**. 해금은 M/N env만.
 
 ---
 

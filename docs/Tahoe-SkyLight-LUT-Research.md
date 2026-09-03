@@ -2,12 +2,12 @@
 
 > **프로젝트:** 26x86 (`NiSeullent/26x86`)  
 > **작성일:** 2026-09-04  
-> **미션:** Autopilot / **극한도전** — Tahoe + **pre-AVX** + **Vega 64**에서 EFI·루트·시스템 패치로 **가속되고 쓸 만한** 환경 (**중단 조건 없음**)  
-> **Mission Control:** [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md) (트랙 A–L · M–Z)  
+> **미션:** Autopilot / **극한도전** — Tahoe + pre-AVX + Vega 64 **및** Metal 3802 · Non-Metal도 **쓸 수 있는** 환경 (**중단 없음**)  
+> **Mission Control:** [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md) (트랙 A–N · O–Z)  
 > **로드맵:** [Tahoe-Graphics-Roadmap.md](./Tahoe-Graphics-Roadmap.md) Layer B  
 > **관련:** [Tahoe-Yellow-Screen-Research.md](./Tahoe-Yellow-Screen-Research.md) · [wiki/Mac-Pro-Tahoe-Yellow-Screen.md](./wiki/Mac-Pro-Tahoe-Yellow-Screen.md) · [wiki/Pre-AVX-Mac-Pro.md](./wiki/Pre-AVX-Mac-Pro.md)
 
-트랙 **A**는 본 Research·Tracks·Roadmap만 갱신한다. 코드 패치는 B–L.
+트랙 **A**는 본 Research·Tracks·Roadmap만. **3802/Non-Metal 해금 코드는 트랙 M/N.**
 
 ---
 
@@ -15,21 +15,24 @@
 
 | # | 기준 | 상태 (문서 시점) |
 |---|------|------------------|
-| 1 | WindowServer **정상 색** (노란/주황 solid 없음) | 미달 — compositor 본질 미해결 |
-| 2 | **Metal / OpenGL 가속** (Vega 31001) | 부분 — kext 경로 있음; RenderBox-25 페이로드 종종 부재 |
-| 3 | **Safari** Pre-AVX Fix | 경로 존재 (cf7f26f) — 실기 재확인 |
-| 4 | **재부팅 안정** | KDKless/RSR 완화 있음 — 실기 ≥2 cold boot 필요 |
+| 1 | WindowServer **정상 색** | 미달 — compositor 본질 미해결 |
+| 2 | **가속** (31001 / **3802** / **Non-Metal**) | 31001 부분; 3802·NM은 **기본 차단**, 옵트인 대기 |
+| 3 | **Safari** Pre-AVX Fix | 경로 존재 (cf7f26f) |
+| 4 | **재부팅 안정** | 실기 ≥2 cold boot 필요 |
 
-### 하드 가드 (해제 금지)
+### 가드 정책 — 기본 경로 금지 / 옵트인 해금
 
-| 항목 | 정책 |
-|------|------|
-| **Metal 3802** Tahoe shared | **가드 유지** — KP |
-| **Non-Metal** Tahoe shared | **가드 유지** — KP |
-| 추측 CoreDisplay/SkyLight 바이트패치 | **금지** |
-| EFI agdpmod 재구현 | **금지** (d3a7b87; 트랙 D=검증) |
+| 항목 | 기본 | 옵트인 (트랙 M/N 구현) |
+|------|------|------------------------|
+| **Metal 3802** Tahoe shared | **`return {}` 유지** | `X86_EXTREME=1` + `X86_TAHOE_3802=1` |
+| **Non-Metal** Tahoe shared | **`return {}` 유지** | `X86_EXTREME=1` + `X86_TAHOE_NONMETAL=1` |
+| 추측 CoreDisplay/SkyLight 바이트패치 | **금지** | 금지 |
+| EFI agdpmod 재구현 | **금지** | D=검증 |
 
-병렬 **트랙 ID(A–L)** 와 §5 **복구 후보(R\*)** 는 다른 네임스페이스다.
+OCLP 세대 해금 서사: [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md#oclp-세대-해금-서사).
+
+병렬 **트랙 ID(A–N)** 와 §5 **복구 후보(R\*)** 는 다른 네임스페이스다.
+
 
 ---
 
@@ -44,7 +47,7 @@
 | KDKlessWorkaround | MTL 누락 시 WS 루프 | 4 | edf958f |
 | EFI `agdpmod`/`shikigva` | AGDC yellow 완화 | 1·4 부분 | d3a7b87 |
 | Safari RestrictEvents | WebContent SIGILL | **3** | cf7f26f |
-| Metal 3802 / Non-Metal Tahoe 가드 | KP 방지 | 안전 — **해제 금지** | shared |
+| Metal 3802 / Non-Metal Tahoe 가드 | 기본=안전 부팅; **옵트인만** 해금 | 2 (M/N) | shared + `X86_*` |
 | RenderBox `default.metallib` 게이트 | OCLP #1176 iff payload | 2 조건부 | 368ff72 |
 
 **코드 PoC (E/G):** RenderBox overwrite는 `RenderBox-<xnu>` 있을 때만. SkyLightPlugins는 SHA 핀만. 스톡 Tahoe SkyLight는 플러그인 폴더를 **로드하지 않음**.
@@ -74,7 +77,7 @@ WindowServer  ── Opaque shader cache ──► /private/var/folders/.../Wind
 |------|---------|-------|
 | Liquid Glass / RenderBox | 기존 metallib | **새 셰이더** — `RenderBox-25` 필요 |
 | Metal 31001 shared | Ventura+ 일부 | PR #1176 overwrite; PSP에 폴더 없으면 no-op |
-| Non-Metal SkyLight 10.14.6-N | 동작(제한 UI) | **shared 가드** — KP |
+| Non-Metal SkyLight 10.14.6-N | 동작(제한 UI) | **기본 shared 가드**; `X86_TAHOE_NONMETAL` 옵트인(N) |
 | PatcherSupportPkg | 12.5-24 | #16/#18 DRAFT — `12.5-25`·`RenderBox-25` 공백 |
 
 ### `disable_window_server_caching`
@@ -120,7 +123,7 @@ WindowServer  ── Opaque shader cache ──► /private/var/folders/.../Wind
 
 ---
 
-## 5. 복구 후보 (R\*) — 트랙 A–L과 별개
+## 5. 복구 후보 (R\*) — 트랙 A–N과 별개
 
 | ID | 후보 | 난이도 | 조치 | 트랙 |
 |----|------|--------|------|------|
@@ -128,8 +131,9 @@ WindowServer  ── Opaque shader cache ──► /private/var/folders/.../Wind
 | **R2** | software compositor boot-arg | — | 문서화된 플래그 없음 | A |
 | **R3** | RenderBox metallib | 중 | 페이로드 게이트 | E/F |
 | **R4** | LUT 바이트패치 | 높음 | **금지** | B/C 심볼만 |
-| **R5** | SkyLight 10.14.6 다운 | 매우 높음 | **가드 유지** | — |
+| **R5** | SkyLight 10.14.6 / Non-Metal shared | 매우 높음 | **기본 가드**; `X86_TAHOE_NONMETAL` | **N** |
 | **R6** | SkyLightPlugins | 중 | SHA 핀; 스톡 Tahoe 무효 | H |
+| **R7** | Metal 3802 Tahoe shared | 높음 | **기본 가드**; `X86_TAHOE_3802` + Metallib | **M** / K |
 
 → [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md)
 
@@ -156,19 +160,22 @@ python3 -m x86 detect --json
 | 모드 | 대응 |
 |------|------|
 | RenderBox-25 없음 | no-op 정상 → F가 페이로드 확보 |
-| Non-Metal SkyLight 강제 | **KP** — 가드 유지 |
+| Non-Metal SkyLight **기본** 강제 | **KP** — 기본 가드; N 옵트인만 |
 | Plugins만 설치 | 스톡 SkyLight 무시 → H |
-| 3802 metallib→31001 | ABI 불일치 — K와 E 분리 |
+| 3802 metallib→31001 | ABI 불일치 — K/M과 E 분리 |
+| env 없이 3802/NM 해금 | 정책 위반 — PR 거부 |
 | 추측 바이트패치 | 금지 |
 
 ---
 
-## 8. 코드 맵 (소유는 트랙 B–G)
+## 8. 코드 맵 (소유는 트랙 B–N)
 
 | 파일 | 역할 | 트랙 |
 |------|------|------|
 | `x86/graphics/skylight_lut.py` | RenderBox·플러그인 게이트 | E/G |
 | `sys_patch/.../metal_31001.py` | 조건부 overwrite | E |
+| `sys_patch/.../metal_3802.py` | Tahoe 가드 / **옵트인 해금** | **M** |
+| `sys_patch/.../non_metal*.py` | Tahoe 가드 / **옵트인 해금** | **N** |
 | `sys_patch/.../tahoe_yellow_screen.py` | compositor 마커 | G |
 | `x86/graphics/yellow_screen.py` | mitigations·detect | G |
 | `efi_builder` agdp | EFI | D 읽기만 |
@@ -177,9 +184,10 @@ python3 -m x86 detect --json
 
 ## 9. 트랙 A vs 코드 vs 장기
 
-**A (문서):** Mission Control · 본 Research · Roadmap · 가드·기준 유지.  
+**A (문서):** Mission Control · Research · Roadmap · **기본 가드 / `X86_*` 옵트인** 정책.  
 **이미 코드 (E/G 등):** edf958f · d3a7b87 · cf7f26f · 368ff72.  
-**장기:** F 실장 · H 로더 · B/C 심볼 RE · L 재부팅 매트릭스 · I UI (가드 존중).
+**M/N (코드 담당):** `X86_TAHOE_3802` / `X86_TAHOE_NONMETAL` 해금 — A는 구현하지 않음.  
+**장기:** F 실장 · H 로더 · B/C 심볼 · L 재부팅 · I UI (N 연계).
 
 ---
 
@@ -189,6 +197,8 @@ python3 -m x86 detect --json
 |------|------|
 | 2026-09-04 | 초안 — 파이프라인·RenderBox 게이트 |
 | 2026-09-04 | 극한도전 Mission · 성공 기준 4항 · R\* · Tracks A–L 링크 |
+| 2026-09-04 | 3802/Non-Metal **옵트인 해금** · 트랙 M·N · OCLP 세대 서사 |
+
 
 ---
 

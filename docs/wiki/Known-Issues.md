@@ -24,8 +24,9 @@ T2·비-T2 x86 Mac 모두에서 macOS 26 Tahoe 호환성 개선을 목표로 합
 ## 그래픽·GPU
 
 - Metal 8302 (2012–2014 Mac): Tahoe 그래픽 패치 **미완** → 커널 패닉 또는 가속 없이 부팅만 허용
-- Non-Metal (2011 Mac): 동일
-- 상세: [GPU-Limitations.md](./GPU-Limitations.md), [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md) (Vega 64 포함, 미공개 이슈), [Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md)
+- Non-Metal (2011 Mac): 기본 Tahoe **가드**; 옵트인 `X86_TAHOE_NONMETAL` (트랙 N) — [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md)
+- Metal 3802: 기본 Tahoe **가드**; 옵트인 `X86_TAHOE_3802` (트랙 M)
+- 상세: [GPU-Limitations.md](./GPU-Limitations.md), [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md), [Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md)
 
 ---
 

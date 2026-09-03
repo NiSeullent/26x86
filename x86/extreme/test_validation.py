@@ -13,11 +13,15 @@ if str(REPO) not in sys.path:
 from x86.extreme.validation import (  # noqa: E402
     run_all,
     run_gates,
+    step_apply_order_dry_run,
     step_detect_fixture,
     step_efi_bridge,
     step_h_n_iosurface_prefer,
+    step_l5_macho_probe,
+    step_mock_guest_matrix,
     step_patchset_emptiness,
     step_profile_dry_run,
+    step_track_e_renderbox,
 )
 
 
@@ -29,6 +33,10 @@ class ValidationStepsTest(unittest.TestCase):
             step_profile_dry_run,
             step_efi_bridge,
             step_h_n_iosurface_prefer,
+            step_track_e_renderbox,
+            step_l5_macho_probe,
+            step_apply_order_dry_run,
+            step_mock_guest_matrix,
         ):
             with self.subTest(step=fn.__name__):
                 result = fn()
@@ -36,7 +44,7 @@ class ValidationStepsTest(unittest.TestCase):
 
     def test_run_gates_all(self) -> None:
         results = run_gates()
-        self.assertEqual(len(results), 5)
+        self.assertEqual(len(results), 9)
         self.assertTrue(all(r.ok for r in results))
 
     def test_run_all_gates_only_shape(self) -> None:

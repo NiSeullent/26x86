@@ -43,15 +43,19 @@
 
 - N IOSurface 10.15.7 prefer when H latch — ✅ code (`prefer_h_iosurface_versions`)
 - 검증 엔트리 — `Tools/run_extreme_validation.py` · `docs/EXTREME-TAHOE-VALIDATION.md`
+- Track E `metallib_renderbox` soft-import + RenderBox-25 probe/acquire docs
+- L5 Mach-O probe + `Tools/check_extreme_payloads.py`
+- Apply-order dry-run + mock guest matrix
 - L5-patched Mach-O 실기 · 앱/PKG — **배포 에이전트**
-- Track E RenderBox-25 — partial
+- Track E RenderBox-25 **바이너리** — PSP DRAFT 공백 (코드 가드 ✅)
 - Track B bytepatch 실기 조율 — deploy
-- Tahoe VM guest smoke — UTM/qemu 없음 → mock only
+- Tahoe VM guest smoke — UTM/qemu 없음 → mock guest harness
 
 ## 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-09-04 | Track E soft-import + L5 probe + apply-order + mock guest |
 | 2026-09-04 | Validate: extreme suite + H→N IOSurface prefer + docs matrix |
 | 2026-09-04 | MC J INTEGRATE `33e506a` |
 | 2026-09-04 | Sweep: `tahoe_gate` land + L5/M/N/I soft-import + WIP-STATUS |

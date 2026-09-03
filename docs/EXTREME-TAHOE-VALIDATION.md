@@ -20,6 +20,10 @@ Sequoia 개발기에서는 **mock host**로 게이트/패치 dict를 검증하�
 | Yellow mitigations | `[]` | list (WS/ColorSync/EFI) | `test_yellow_screen` · combo |
 | Interpose recipe | `{}` (non-Tahoe) | recipe when EXTREME | `test_interpose` |
 | H latch → N IOSurface | n/a | `10.14.6`→`10.15.7` | `test_extreme_host_combo` |
+| Track E RenderBox-25 | n/a | mock MTLB → 31001; missing → `{}` | `test_metallib_renderbox` |
+| L5 Mach-O probe | acquire notes | MH_MAGIC_64 SkyLight+CD | `test_apply_order_mock` |
+| Apply order dry-run | EFI→root→yellow→extreme | same | `apply_order` |
+| Mock guest matrix | Sequoia control | MacPro5/flash/26.x | `mock_guest` |
 | Profile `--extreme` dry-run | order + planned | same (mock) | `test_macpro5_vega64_tahoe` |
 | EFI agdpmod / revpatch=jsc | config mutate | same | `test_gcn_agdp` · combo |
 | Flashed MacPro5 + Vega ID | fixture | fixture | combo · `fixtures.py` |
@@ -31,7 +35,11 @@ Sequoia 개발기에서는 **mock host**로 게이트/패치 dict를 검증하�
 3. **profile_dry_run** — `macpro5-vega64-tahoe --extreme` order  
 4. **efi_bridge** — agdpmod + RestrictEvents + `revpatch=jsc`  
 5. **h_n_iosurface_prefer** — H latch lifts IOAccel IOSurface to 10.15.7  
-6. **unittest suite** — 위 모듈 일괄 (`--gates-only`로 게이트만)
+6. **track_e_renderbox** — Track E soft-import + RenderBox mock path  
+7. **l5_macho_probe** — SkyLight/CoreDisplay MH_MAGIC_64 (or acquire notes)  
+8. **apply_order_dry_run** — EFI→root→yellow→extreme matches profile  
+9. **mock_guest_matrix** — MacPro5 / flash 7,1 / 26.x / Sequoia control  
+10. **unittest suite** — 위 모듈 일괄 (`--gates-only`로 게이트만)
 
 ```bash
 source /Users/nyase/Desktop/26x86/.venv/bin/activate
@@ -39,6 +47,8 @@ cd /Users/nyase/Desktop/26x86/26x86
 export PYTHONPATH="$PWD"
 python Tools/run_extreme_validation.py
 python Tools/run_extreme_validation.py --gates-only
+python Tools/check_extreme_payloads.py --allow-renderbox-gap
+python Tools/run_apply_order_dry_run.py
 ```
 
 **주의:** `python -m unittest discover -s x86` 는 `x86/logging.py` 가 stdlib `logging` 을 가려 실패한다. 반드시 모듈명으로 로드하거나 이 엔트리포인트를 쓴다.
@@ -97,13 +107,23 @@ python -m x86 detect --json 2>/dev/null | head -c 4000
 | 트랙 | 코드 랜딩 | 실기 갭 |
 |------|-----------|---------|
 | A–N / L5-R / M/N/H/I/J/F | 대부분 INTEGRATE + `tahoe_gate` | L5-patched Mach-O 스테이징, 앱/PKG |
-| E RenderBox-25 | partial | metallib payload 실기 |
+| E RenderBox-25 | soft-import `metallib_renderbox` | PSP에 RenderBox-25 없음 → nightly/획득 |
 | N∥H IOSurface | **prefer 10.15.7 landed** | 실기 KP 관측 |
 | B bytepatch | extreme_unlocked | 배포 조율 |
 | GUI Tauri | 별 에이전트 | 이 트랙에서 대규모 재작성 금지 |
+
+## RenderBox-25 / L5 획득
+
+| 페이로드 | 이 개발기 상태 | 획득 |
+|----------|----------------|------|
+| `RenderBox-25/.../default.metallib` | **없음** (22–24만) | OCLP/PSP nightly · `Tools/check_extreme_payloads.py` |
+| `10.14.6-24` SkyLight Mach-O | PSP sibling 있으면 ✅ | `26x86-PatcherSupportPkg` |
+| `10.14.4-24` CoreDisplay | PSP sibling 있으면 ✅ | 동일 |
+| `L5-patched/` binary | optional | B needle handoff |
 
 ## 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-09-04 | Track E soft-import · L5 Mach-O probe · apply-order · mock guest |
 | 2026-09-04 | 검증 매트릭스 · entrypoint · H→N IOSurface prefer · combo tests |

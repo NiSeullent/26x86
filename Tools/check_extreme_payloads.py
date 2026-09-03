@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""
+Probe extreme Tahoe payloads (RenderBox-25 + L5 SkyLight/CoreDisplay Mach-O).
+
+Never invents binaries. Missing → print acquire notes / exit 2 (soft fail for CI
+gates that only need documentation). Exit 0 when L5 Mach-Os ready; RenderBox-25
+gap is reported but does not fail if ``--allow-renderbox-gap``.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = list(argv if argv is not None else sys.argv[1:])
+    allow_rb = "--allow-renderbox-gap" in args
+    from x86.graphics.metallib_renderbox import renderbox_gap_status
+    from x86.graphics.skylight_lut_rootpatch import probe_l5_macho_payloads
+
+    rb = renderbox_gap_status(25)
+    l5 = probe_l5_macho_payloads(25)
+    payload = {
+        "renderbox": rb,
+        "l5_macho": l5,
+        "l5_ready": bool(l5.get("ready_for_overwrite")),
+        "renderbox_ready": bool(rb.get("valid_for_overwrite")),
+    }
+    print(json.dumps(payload, indent=2, default=str))
+    if not payload["l5_ready"]:
+        print(
+            "\n# L5 Mach-O missing — update sibling 26x86-PatcherSupportPkg "
+            "Universal-Binaries (10.14.6-24 / 10.14.4-24).",
+            file=sys.stderr,
+        )
+        return 2
+    if not payload["renderbox_ready"] and not allow_rb:
+        print(
+            "\n# RenderBox-25 gap (expected on many PSP trees). "
+            "Re-run with --allow-renderbox-gap or obtain OCLP/PSP nightly "
+            "RenderBox-25. See docs/EXTREME-TAHOE-VALIDATION.md",
+            file=sys.stderr,
+        )
+        return 3
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

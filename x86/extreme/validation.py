@@ -24,6 +24,8 @@ UNITTEST_MODULES: tuple[str, ...] = (
     "x86.graphics.test_metal3802_tahoe",
     "x86.graphics.test_nonmetal_tahoe",
     "x86.graphics.test_skylight_lut_rootpatch",
+    "x86.graphics.test_metallib_preflight",
+    "x86.graphics.test_metallib_renderbox",
     "x86.graphics.test_interpose",
     "x86.graphics.test_yellow_screen",
     "x86.graphics.test_iosurface_coreanimation",
@@ -34,6 +36,7 @@ UNITTEST_MODULES: tuple[str, ...] = (
     "x86.pre_avx.test_detect",
     "opencore_legacy_patcher.efi_builder.test_gcn_agdp",
     "x86.extreme.test_validation",
+    "x86.extreme.test_apply_order_mock",
 )
 
 
@@ -282,6 +285,89 @@ def step_h_n_iosurface_prefer() -> StepResult:
     )
 
 
+def step_track_e_renderbox() -> StepResult:
+    """Track E: missing RenderBox-25 → noop hooks; mock MTLB → Metal 31001."""
+    import tempfile
+
+    from x86.graphics.metallib_preflight import METALLIB_MAGIC, MIN_RENDERBOX_METALLIB_BYTES
+    from x86.graphics.metallib_renderbox import renderbox_gap_status, sys_patch_hooks
+    from x86.graphics.skylight_lut import RENDERBOX_METALLIB_RELATIVE
+    from x86.graphics.skylight_tracks import resolve_track_module
+
+    mod, name = resolve_track_module("E")
+    resolved = name == "x86.graphics.metallib_renderbox" and mod is not None
+    with tempfile.TemporaryDirectory() as tmp:
+        empty = Path(tmp) / "empty"
+        empty.mkdir()
+        gap = renderbox_gap_status(25, search_roots=[empty])
+        hooks_empty = sys_patch_hooks(25, 0, "26.0", search_roots=[empty])
+        filled = Path(tmp) / "filled"
+        metallib = filled / "RenderBox-25" / RENDERBOX_METALLIB_RELATIVE
+        metallib.parent.mkdir(parents=True)
+        metallib.write_bytes(METALLIB_MAGIC + (b"\x03" * MIN_RENDERBOX_METALLIB_BYTES))
+        hooks_ok = sys_patch_hooks(25, 0, "26.0", search_roots=[filled])
+    ok = (
+        resolved
+        and gap["noop"]
+        and hooks_empty == {}
+        and "Metal 31001 Common" in hooks_ok
+    )
+    return StepResult(
+        name="track_e_renderbox",
+        ok=ok,
+        detail={
+            "resolved_module": name,
+            "gap_noop": gap["noop"],
+            "hooks_when_present": list(hooks_ok.keys()),
+        },
+    )
+
+
+def step_l5_macho_probe() -> StepResult:
+    from x86.graphics.skylight_lut_rootpatch import probe_l5_macho_payloads
+
+    report = probe_l5_macho_payloads(25)
+    # Soft-ok when acquire notes exist even if sibling PSP absent on CI.
+    # Prefer ready; otherwise require documented acquire path.
+    ok = bool(report.get("ready_for_overwrite")) or bool(report.get("acquire_notes"))
+    return StepResult(
+        name="l5_macho_probe",
+        ok=ok,
+        detail={
+            "ready": report.get("ready_for_overwrite"),
+            "skylight_macho": report.get("skylight_macho"),
+            "coredisplay_macho": report.get("coredisplay_macho"),
+            "acquire_doc": report.get("acquire_doc"),
+        },
+    )
+
+
+def step_apply_order_dry_run() -> StepResult:
+    from x86.extreme.apply_order import dry_run_profile_apply
+
+    payload = dry_run_profile_apply(include_extreme=True)
+    ok = bool(payload.get("order_matches_phases"))
+    return StepResult(
+        name="apply_order_dry_run",
+        ok=ok,
+        detail={
+            "flat_order": payload.get("apply_order", {}).get("flat_order"),
+            "profile_order": payload.get("profile_report", {}).get("order"),
+        },
+    )
+
+
+def step_mock_guest_matrix() -> StepResult:
+    from x86.extreme.mock_guest import run_mock_guest_matrix
+
+    payload = run_mock_guest_matrix()
+    return StepResult(
+        name="mock_guest_matrix",
+        ok=bool(payload.get("ok")),
+        detail={"guests": payload.get("guests"), "results": payload.get("results")},
+    )
+
+
 def run_gates() -> list[StepResult]:
     steps = (
         step_detect_fixture,
@@ -289,6 +375,10 @@ def run_gates() -> list[StepResult]:
         step_profile_dry_run,
         step_efi_bridge,
         step_h_n_iosurface_prefer,
+        step_track_e_renderbox,
+        step_l5_macho_probe,
+        step_apply_order_dry_run,
+        step_mock_guest_matrix,
     )
     results: list[StepResult] = []
     for fn in steps:

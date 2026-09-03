@@ -353,6 +353,82 @@ def _staged_binary_overwrites(
     return out
 
 
+# Mach-O 64-bit LE magic (``MH_MAGIC_64``) — L5 OVERWRITE requires a real dylib.
+MH_MAGIC_64 = b"\xcf\xfa\xed\xfe"
+L5_ACQUIRE_DOC = "docs/EXTREME-TAHOE-VALIDATION.md"
+L5_ACQUIRE_NOTES: tuple[str, ...] = (
+    "PSP Universal-Binaries/10.14.6-24 → SkyLight Mach-O (Sequoia-capped).",
+    "PSP Universal-Binaries/10.14.4-24 → CoreDisplay Mach-O.",
+    "Optional B handoff: stage under L5-patched/ then ENV slice=binary.",
+    "Missing Mach-O → still emit folder names under extreme (sys_patch preflight "
+    "will fail on live apply) — run Tools/check_extreme_payloads.py first.",
+)
+
+
+def _read_prefix(path: Path, n: int = 4) -> bytes:
+    try:
+        with path.open("rb") as handle:
+            return handle.read(n)
+    except OSError:
+        return b""
+
+
+def probe_l5_macho_payloads(
+    xnu_major: int = TAHOE_XNU_MAJOR,
+    *,
+    search_roots: Optional[Iterable[Path]] = None,
+    environ: Optional[Mapping[str, str]] = None,
+) -> dict[str, Any]:
+    """
+    Existence + Mach-O magic check for L5 OVERWRITE prerequisites.
+
+    Does not invent binaries. Reports acquire notes when PSP/L5-patched missing.
+    """
+    sk_folder = skylight_payload_folder(xnu_major)
+    cd_folder = coredisplay_payload_folder(xnu_major, environ=environ)
+    sk_path: Optional[Path] = None
+    cd_path: Optional[Path] = None
+    for root in _search_roots(search_roots):
+        if sk_path is None:
+            cand = root / sk_folder / SKYLIGHT_REL
+            if cand.is_file() and cand.stat().st_size > 0:
+                sk_path = cand
+        if cd_path is None:
+            cand = root / cd_folder / COREDISPLAY_REL
+            if cand.is_file() and cand.stat().st_size > 0:
+                cd_path = cand
+        if sk_path is not None and cd_path is not None:
+            break
+
+    staged = _staged_binary_overwrites(search_roots=search_roots)
+    sk_magic = _read_prefix(sk_path) == MH_MAGIC_64 if sk_path else False
+    cd_magic = _read_prefix(cd_path) == MH_MAGIC_64 if cd_path else False
+    ready = bool(sk_path and sk_magic and cd_path and cd_magic)
+    notes = list(L5_ACQUIRE_NOTES)
+    if not sk_path:
+        notes.append(f"MISSING SkyLight under {sk_folder}/ — clone/update PatcherSupportPkg")
+    elif not sk_magic:
+        notes.append(f"SkyLight at {sk_path} is not MH_MAGIC_64")
+    if not cd_path:
+        notes.append(f"MISSING CoreDisplay under {cd_folder}/")
+    elif not cd_magic:
+        notes.append(f"CoreDisplay at {cd_path} is not MH_MAGIC_64")
+
+    return {
+        "skylight_folder": sk_folder,
+        "coredisplay_folder": cd_folder,
+        "skylight_path": str(sk_path) if sk_path else None,
+        "coredisplay_path": str(cd_path) if cd_path else None,
+        "skylight_macho": sk_magic,
+        "coredisplay_macho": cd_magic,
+        "l5_patched_staged": bool(staged),
+        "l5_patched_map": staged,
+        "ready_for_overwrite": ready,
+        "acquire_doc": L5_ACQUIRE_DOC,
+        "acquire_notes": notes,
+    }
+
+
 def build_rootpatch_dict(
     xnu_major: int,
     *,
@@ -456,6 +532,9 @@ def serialize_track_detect_fields(
     patches = build_rootpatch_dict(
         major, search_roots=search_roots, environ=environ
     )
+    macho = probe_l5_macho_payloads(
+        major, search_roots=search_roots, environ=environ
+    )
     return {
         "skylight_lut_rootpatch": {
             "track": "L5",
@@ -473,6 +552,7 @@ def serialize_track_detect_fields(
             "plan": asdict(plan),
             "would_emit_patches": bool(patches),
             "patch_name": PATCH_NAME if patches else None,
+            "macho_payloads": macho,
             "binary_patch_candidates": binary_patch_candidate_table(),
             "runtime_inject": False,
             "task_for_pid": False,
@@ -537,6 +617,9 @@ __all__ = [
     "ENV_EXTREME",
     "ENV_MODE",
     "ENV_SLICES",
+    "L5_ACQUIRE_DOC",
+    "L5_ACQUIRE_NOTES",
+    "MH_MAGIC_64",
     "PATCH_NAME",
     "SLICE_BINARY",
     "SLICE_COREDISPLAY",
@@ -551,6 +634,7 @@ __all__ = [
     "merge_into_yellow_screen_patches",
     "parse_enabled_slices",
     "patch_install_mode",
+    "probe_l5_macho_payloads",
     "resolve_coredisplay_payload",
     "resolve_skylight_payload",
     "serialize_track_detect_fields",

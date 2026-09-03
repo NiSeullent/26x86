@@ -46,7 +46,19 @@ class OpenCoreLegacyPatcher:
                 self.constants.advanced_gui = True
             elif os.environ.get("X86_ADVANCED") == "1" and "--advanced_gui" in sys.argv:
                 self.constants.advanced_gui = True
-            gui_entry.EntryPoint(self.constants).start()
+
+            is_patching_mode = "--gui_patch" in sys.argv or "--gui_unpatch" in sys.argv
+            if is_patching_mode or os.environ.get("X86_LEGACY_GUI") == "1":
+                gui_entry.EntryPoint(self.constants).start()
+                return
+
+            from x86.gui.launch import launch_wizard
+
+            advanced = bool(
+                self.constants.advanced_gui
+                or (os.environ.get("X86_ADVANCED") == "1" and "--advanced_gui" in sys.argv)
+            )
+            launch_wizard(advanced=advanced)
 
 
     def _fix_cwd(self) -> None:

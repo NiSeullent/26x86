@@ -18,6 +18,7 @@ from x86.graphics.metallib_preflight import (
     TAHOE_XNU_MAJOR,
     assess_metallib_gaps,
     gated_metal_31001_common_patches,
+    metal_31001_root_patch_plan,
     probe_renderbox_metallib,
     serialize_metallib_preflight_fields,
 )
@@ -47,6 +48,9 @@ def renderbox_gap_status(
     """Human/automation status for Tahoe RenderBox-25 gap."""
     report = assess_metallib_gaps(xnu_major, search_roots=search_roots)
     probe = report.renderbox_probe
+    plan = metal_31001_root_patch_plan(
+        xnu_major, search_roots=search_roots, dry_run=True
+    )
     return {
         "track": "E",
         "xnu_major": xnu_major,
@@ -54,6 +58,8 @@ def renderbox_gap_status(
         "tahoe_dirs": list(TAHOE_RENDERBOX_PAYLOAD_DIRS),
         "present": probe.present,
         "valid_for_overwrite": probe.valid_for_overwrite,
+        "provisional": report.provisional,
+        "liquid_glass_abi_incomplete": report.provisional,
         "noop": report.legacy_metal_31001_noop,
         "reason": report.legacy_metal_31001_reason,
         "gaps": list(report.gaps),
@@ -63,6 +69,9 @@ def renderbox_gap_status(
         "resolved_folder": resolve_renderbox_metallib_payload(
             xnu_major, search_roots=search_roots
         ),
+        "root_patch_plan": {
+            k: v for k, v in plan.items() if k != "patches"
+        },
     }
 
 
@@ -76,6 +85,8 @@ def sys_patch_hooks(
     """
     Track G contract — emit Metal 31001 Common only when RenderBox payload is valid.
 
+    Provisional RenderBox-24→25 still emits (same as LegacyMetal31001 root path)
+    with ABI warnings via ``metal_31001_root_patch_plan`` / logging.
     Always empty on missing ``RenderBox-<xnu>`` (safe preflight).
     """
     del xnu_minor, marketing_version
@@ -100,6 +111,9 @@ def serialize_track_detect_fields(
             legacy_metal_31001_noop=bool(
                 payload.get("legacy_metal_31001_noop", True)
             ),
+            provisional_renderbox=bool(
+                payload.get("renderbox_metallib_provisional")
+            ),
         )
     )
     payload["renderbox_track_e"] = renderbox_gap_status(
@@ -121,6 +135,7 @@ __all__ = (
     "RENDERBOX_ACQUIRE_NOTES",
     "TAHOE_XNU_MAJOR",
     "gated_metal_31001_common_patches",
+    "metal_31001_root_patch_plan",
     "probe_renderbox_metallib",
     "renderbox_gap_status",
     "serialize_metallib_fields",

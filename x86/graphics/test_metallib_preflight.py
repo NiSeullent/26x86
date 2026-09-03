@@ -108,6 +108,16 @@ class OpaqueWindowServerRelationTest(unittest.TestCase):
         )
         self.assertIn("RenderBox-25", rel["warning"])
 
+    def test_relationship_warns_when_provisional(self) -> None:
+        rel = opaque_shader_windowserver_relationship(
+            renderbox_metallib_present=True,
+            legacy_metal_31001_noop=False,
+            provisional_renderbox=True,
+        )
+        self.assertTrue(rel["provisional_renderbox"])
+        self.assertIn("provisional", rel["recommended_combo"])
+        self.assertIn("Liquid Glass", rel["warning"])
+
     def test_serialize_fields(self) -> None:
         fields = serialize_metallib_preflight_fields(
             TAHOE_XNU_MAJOR, search_roots=[Path("/nope")]

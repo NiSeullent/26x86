@@ -465,6 +465,9 @@ def serialize_yellow_screen_fields(
                 legacy_metal_31001_noop=bool(
                     metallib_fields.get("legacy_metal_31001_noop", True)
                 ),
+                provisional_renderbox=bool(
+                    metallib_fields.get("renderbox_metallib_provisional")
+                ),
             )
         )
     return payload

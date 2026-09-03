@@ -55,6 +55,10 @@ GITHUB_RAW_CANDIDATES: tuple[str, ...] = (
     f"Universal-Binaries/{DEST_DIR_NAME}/{RENDERBOX_METALLIB_RELATIVE}",
     "https://raw.githubusercontent.com/laobamac/PatcherSupportPkg/main/"
     f"Universal-Binaries/{DEST_DIR_NAME}/{RENDERBOX_METALLIB_RELATIVE}",
+    "https://raw.githubusercontent.com/kgp-macPro/PatcherSupportPkg-laobamac/main/"
+    f"Universal-Binaries/{DEST_DIR_NAME}/{RENDERBOX_METALLIB_RELATIVE}",
+    "https://raw.githubusercontent.com/dortania/PatcherSupportPkg/macos-next/"
+    f"Universal-Binaries/{DEST_DIR_NAME}/{RENDERBOX_METALLIB_RELATIVE}",
 )
 
 DMG_CANDIDATES: tuple[tuple[str, str], ...] = (

@@ -135,6 +135,7 @@ def opaque_shader_windowserver_relationship(
     *,
     renderbox_metallib_present: bool,
     legacy_metal_31001_noop: bool,
+    provisional_renderbox: bool = False,
 ) -> dict[str, Any]:
     """
     Structured explanation of Opaque corruption vs WS cache vs RenderBox.
@@ -159,9 +160,16 @@ def opaque_shader_windowserver_relationship(
             "restores_compositor": "conditional",
             "present": renderbox_metallib_present,
             "legacy_metal_31001_noop": legacy_metal_31001_noop,
+            "provisional": provisional_renderbox,
             "notes": (
                 "Source Opaque/Liquid Glass programs. Missing ⇒ uchg alone cannot "
                 "fix ABI mismatch; LegacyMetal31001 stays no-op."
+                + (
+                    " PROVISIONAL (RenderBox-24→25): Liquid Glass ABI may still "
+                    "be incomplete on Tahoe."
+                    if provisional_renderbox
+                    else ""
+                )
             ),
         },
         {
@@ -171,18 +179,26 @@ def opaque_shader_windowserver_relationship(
             "notes": "Different GPU generation (3802) and Sequoia+ metallib format",
         },
     ]
-    verdict = (
-        "apply_ws_cache_uchg_and_await_renderbox_payload"
-        if legacy_metal_31001_noop
-        else "ws_cache_uchg_plus_renderbox_overwrite_when_root_patching"
+    if provisional_renderbox and renderbox_metallib_present:
+        verdict = "ws_cache_uchg_plus_provisional_renderbox_overwrite_abi_risk"
+    elif legacy_metal_31001_noop:
+        verdict = "apply_ws_cache_uchg_and_await_renderbox_payload"
+    else:
+        verdict = "ws_cache_uchg_plus_renderbox_overwrite_when_root_patching"
+    warning = (
+        "WindowServer cache disable without a valid RenderBox-25 metallib "
+        "only forces recompile from a still-broken or stock Tahoe source"
     )
+    if provisional_renderbox:
+        warning = (
+            "Provisional RenderBox-25 (from Sequoia -24) is wired into Metal 31001 "
+            "OVERWRITE, but Liquid Glass / Opaque ABI may remain incomplete on Tahoe"
+        )
     return {
         "opaque_shader_pipeline": layers,
         "recommended_combo": verdict,
-        "warning": (
-            "WindowServer cache disable without a valid RenderBox-25 metallib "
-            "only forces recompile from a still-broken or stock Tahoe source"
-        ),
+        "provisional_renderbox": provisional_renderbox,
+        "warning": warning,
     }
 
 
@@ -190,6 +206,7 @@ def serialize_opaque_shader_fields(
     *,
     renderbox_metallib_present: bool = False,
     legacy_metal_31001_noop: bool = True,
+    provisional_renderbox: bool = False,
     probe_host_cache: bool = False,
 ) -> dict[str, Any]:
     """Detect JSON fragment for Opaque ↔ WindowServer caching."""
@@ -197,6 +214,7 @@ def serialize_opaque_shader_fields(
         "opaque_shader_ws_cache": opaque_shader_windowserver_relationship(
             renderbox_metallib_present=renderbox_metallib_present,
             legacy_metal_31001_noop=legacy_metal_31001_noop,
+            provisional_renderbox=provisional_renderbox,
         ),
     }
     if probe_host_cache:

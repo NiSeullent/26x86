@@ -56,5 +56,56 @@ class RenderBox25GapTest(unittest.TestCase):
             self.assertTrue(fields["legacy_metal_31001_noop"])
 
 
+class ProvisionalRootPatchPlanTest(unittest.TestCase):
+    def test_provisional_emits_31001_with_warning(self) -> None:
+        from x86.graphics.metallib_preflight import (
+            METALLIB_MAGIC,
+            MIN_RENDERBOX_METALLIB_BYTES,
+            PROVISIONAL_MARKER_NAME,
+            metal_31001_root_patch_plan,
+        )
+        from x86.graphics.skylight_lut import RENDERBOX_METALLIB_RELATIVE
+        from opencore_legacy_patcher.sys_patch.patchsets.shared_patches.metal_31001 import (
+            LegacyMetal31001,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metallib = root / "RenderBox-25" / RENDERBOX_METALLIB_RELATIVE
+            metallib.parent.mkdir(parents=True)
+            metallib.write_bytes(METALLIB_MAGIC + (b"\x04" * MIN_RENDERBOX_METALLIB_BYTES))
+            (root / "RenderBox-25" / PROVISIONAL_MARKER_NAME).write_text(
+                "from-24\n", encoding="utf-8"
+            )
+            plan = metal_31001_root_patch_plan(25, search_roots=[root], dry_run=True)
+            self.assertTrue(plan["would_emit"])
+            self.assertTrue(plan["provisional"])
+            self.assertFalse(plan["authentic"])
+            self.assertTrue(plan["warnings"])
+            self.assertIn("Liquid Glass", plan["warnings"][0])
+            self.assertIn("Metal 31001 Common", plan["patches"])
+            live = LegacyMetal31001(25, 0, "26.0", search_roots=[root]).patches()
+            self.assertEqual(list(live.keys()), list(plan["patches"].keys()))
+
+    def test_authentic_no_provisional_flag(self) -> None:
+        from x86.graphics.metallib_preflight import (
+            METALLIB_MAGIC,
+            MIN_RENDERBOX_METALLIB_BYTES,
+            metal_31001_root_patch_plan,
+        )
+        from x86.graphics.skylight_lut import RENDERBOX_METALLIB_RELATIVE
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metallib = root / "RenderBox-25" / RENDERBOX_METALLIB_RELATIVE
+            metallib.parent.mkdir(parents=True)
+            metallib.write_bytes(METALLIB_MAGIC + (b"\x05" * MIN_RENDERBOX_METALLIB_BYTES))
+            plan = metal_31001_root_patch_plan(25, search_roots=[root], dry_run=True)
+            self.assertTrue(plan["would_emit"])
+            self.assertFalse(plan["provisional"])
+            self.assertTrue(plan["authentic"])
+            self.assertEqual(plan["warnings"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

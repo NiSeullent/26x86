@@ -382,7 +382,7 @@ class BuildFrame(wx.Frame):
             # Handle bug from 2.1.0 where None type was stored in config.plist from global settings
             if "TypeError: unsupported type: <class 'NoneType'>" in traceback.format_exc():
                 logging.error("If you continue to see this error, delete the following file and restart the application:")
-                logging.error(f"Path: {Path.home() / 'Library/Preferences/com.niseullent.26x86.plist'}")
+                logging.error(f"Path: {Path.home() / 'Library/Preferences/com.sharhene777.26x86.plist'}")
 
         if len(logger.handlers) > 2:
             logger.removeHandler(logger.handlers[2])

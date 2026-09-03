@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- EXAMPLE ONLY — Disabled. Not a WindowServer injector. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.26x86.extreme-interpose</string>
+	<key>Disabled</key>
+	<true/>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>X86_EXTREME</key>
+		<string>1</string>
+		<key>X86_INTERPOSE_AVX</key>
+		<string>passthrough</string>
+		<key>X86_INTERPOSE_LUT</key>
+		<string>log</string>
+		<key>DYLD_INSERT_LIBRARIES</key>
+		<string>REPLACE_WITH_DYLIB_PATH</string>
+	</dict>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/echo</string>
+		<string>26x86 extreme interpose example</string>
+	</array>
+	<key>RunAtLoad</key>
+	<false/>
+</dict>
+</plist>

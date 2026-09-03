@@ -4,13 +4,13 @@
 <dict>
 	<key>AssociatedBundleIdentifiers</key>
 	<array>
-		<string>com.dortania.opencore-legacy-patcher</string>
+		<string>com.niseullent.26x86</string>
 	</array>
 	<key>Label</key>
-	<string>com.dortania.opencore-legacy-patcher.os-caching</string>
+	<string>com.niseullent.26x86.os-caching</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Library/Application Support/Dortania/26x86.app/Contents/MacOS/26x86</string>
+		<string>/Library/Application Support/26x86/26x86.app/Contents/MacOS/26x86</string>
 		<string>--cache_os</string>
 	</array>
 	<key>WatchPaths</key>

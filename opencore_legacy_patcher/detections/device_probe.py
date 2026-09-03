@@ -954,10 +954,13 @@ class Computer:
                     continue
 
     def oclp_sys_patch_probe(self):
-        path = Path("/System/Library/CoreServices/OpenCore-Legacy-Patcher.plist")
-        if not path.exists():
+        from ..support import utilities
+
+        path = utilities.find_any_oclp_manifest()
+        if path is None:
             self.oclp_sys_signed = True
             return
+
         sys_plist = plistlib.load(path.open("rb"))
         if sys_plist:
             if "26x86" in sys_plist:

@@ -66,11 +66,8 @@ class UpdateFrame(wx.Frame):
         self.version_label = version_label
         self.url = url
 
-        # Our own releases ship a raw "26x86.pkg" asset (see updates.py),
-        # while the upstream Dortania nightly.link fallback (gui_macos_configeration.py)
-        # still ships the original "OpenCore-Patcher.pkg" zipped up - keep expecting
-        # whichever one this URL actually points to instead of hardcoding one name.
-        self.pkg_download_path = self.constants.payload_path / ("OpenCore-Patcher.pkg" if self.url.endswith(".zip") else "26x86.pkg")
+        # 26x86 releases ship a raw "26x86.pkg" asset (see updates.py).
+        self.pkg_download_path = self.constants.payload_path / "26x86.pkg"
 
         logging.info(f"Update URL: {url}")
         logging.info(f"Update Version: {version_label}")
@@ -121,7 +118,7 @@ class UpdateFrame(wx.Frame):
         preventing GUI lockups and avoiding hazardous wx.Yield use.
         """
         download_obj = None
-        file_name = "OpenCore-Patcher.pkg.zip" if self.url.endswith(".zip") else "26x86.pkg"
+        file_name = "26x86.pkg"
         download_obj = network_handler.DownloadObject(self.url, self.constants.payload_path / file_name)
 
         # --- Phase 1: Download ---
@@ -212,7 +209,7 @@ class UpdateFrame(wx.Frame):
         installed_label.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_BOLD))
         installed_label.Centre(wx.HORIZONTAL)
 
-        installed_path_label = wx.StaticText(self.frame, label='/Library/Application Support/Dortania', pos=(-1, installed_label.GetPosition().y + 20))
+        installed_path_label = wx.StaticText(self.frame, label=self.constants.app_support_dir, pos=(-1, installed_label.GetPosition().y + 20))
         installed_path_label.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_NORMAL))
         installed_path_label.Centre(wx.HORIZONTAL)
 
@@ -252,7 +249,7 @@ class UpdateFrame(wx.Frame):
             subprocess.run(["/bin/rm", "-rf", str(self.pkg_download_path)])
 
         result = subprocess.run(
-            ["/usr/bin/ditto", "-xk", str(self.constants.payload_path / "OpenCore-Patcher.pkg.zip"), str(self.constants.payload_path)], capture_output=True
+            ["/usr/bin/ditto", "-xk", str(self.constants.payload_path / "26x86.pkg.zip"), str(self.constants.payload_path)], capture_output=True
         )
         if result.returncode != 0:
             logging.error(f"Failed to extract update.")
@@ -292,14 +289,12 @@ class UpdateFrame(wx.Frame):
             sys.exit(1)
 
     def _launch_update(self) -> None:
-        # Same reasoning as pkg_download_path above: an upstream Dortania nightly
-        # install still lands as "OpenCore-Patcher.app", only our own T2 releases
-        # install as "26x86.app" (see package.py's _files mapping).
-        _app_name = "OpenCore-Patcher.app" if self.url.endswith(".zip") else "26x86.app"
+        _app_name = "26x86.app"
+        _app_support = self.constants.app_support_dir
         try:
-            logging.info(f"Aktualisierung beginnen: '/Library/Application Support/Dortania/{_app_name}'")
-            logging.info(f"Launching update: '/Library/Application Support/Dortania/{_app_name}'")
-            subprocess.Popen([f"/Library/Application Support/Dortania/{_app_name}/Contents/MacOS/OpenCore-Patcher", "--update_installed"])
+            logging.info(f"Aktualisierung beginnen: '{_app_support}/{_app_name}'")
+            logging.info(f"Launching update: '{_app_support}/{_app_name}'")
+            subprocess.Popen([f"{_app_support}/{_app_name}/Contents/MacOS/26x86", "--update_installed"])
         except Exception as e:
             logging.error("Das Starten des Aktualisierung durch den Builtin-Update-Instrument hat fehlgeschlagen.")
             logging.error("Launching the update via the builtin updater failed.")

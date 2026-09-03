@@ -15,8 +15,14 @@ from pathlib import Path
 from typing import Callable, Optional
 
 
-OCLP_PRIVILEGED_HELPER = "/Library/PrivilegedHelperTools/com.dortania.opencore-legacy-patcher.privileged-helper"
-OCLP_PRIVILEGED_HELPER_EXPECTED_MODE = 0o4755
+from .. import constants
+
+
+X86_PRIVILEGED_HELPER = str(constants.Constants().privileged_helper_path)
+X86_PRIVILEGED_HELPER_EXPECTED_MODE = 0o4755
+# Legacy alias kept for internal references during transition
+OCLP_PRIVILEGED_HELPER = X86_PRIVILEGED_HELPER
+OCLP_PRIVILEGED_HELPER_EXPECTED_MODE = X86_PRIVILEGED_HELPER_EXPECTED_MODE
 
 
 class PrivilegedHelperErrorCodes(enum.IntEnum):
@@ -53,15 +59,15 @@ def privileged_helper_needs_setuid_repair() -> bool:
               repaired. False if it's already correct, or the helper tool
               isn't installed yet (nothing to repair here).
     """
-    helper_path = Path(OCLP_PRIVILEGED_HELPER)
+    helper_path = Path(X86_PRIVILEGED_HELPER)
     if not helper_path.exists():
         return False
 
     current_mode = stat.S_IMODE(helper_path.stat().st_mode)
-    if current_mode == OCLP_PRIVILEGED_HELPER_EXPECTED_MODE:
+    if current_mode == X86_PRIVILEGED_HELPER_EXPECTED_MODE:
         return False
 
-    logging.info(f"Privileged Helper Tool has unexpected permissions: {oct(current_mode)} (expected {oct(OCLP_PRIVILEGED_HELPER_EXPECTED_MODE)})")
+    logging.info(f"Privileged Helper Tool has unexpected permissions: {oct(current_mode)} (expected {oct(X86_PRIVILEGED_HELPER_EXPECTED_MODE)})")
     return True
 
 
@@ -135,8 +141,8 @@ def repair_privileged_helper_permissions() -> bool:
 
 
         chmod_arguments = (
-            oct(OCLP_PRIVILEGED_HELPER_EXPECTED_MODE)[2:].encode("utf-8"),
-            OCLP_PRIVILEGED_HELPER.encode("utf-8"),
+            oct(X86_PRIVILEGED_HELPER_EXPECTED_MODE)[2:].encode("utf-8"),
+            X86_PRIVILEGED_HELPER.encode("utf-8"),
         )
 
         status, _ = Security.AuthorizationExecuteWithPrivileges(
@@ -191,13 +197,13 @@ def run_as_root(*args, **kwargs) -> subprocess.CompletedProcess:
     if os.geteuid() == 0:
         return subprocess.run(args[0], **kwargs)
 
-    if Path(OCLP_PRIVILEGED_HELPER).exists():
+    if Path(X86_PRIVILEGED_HELPER).exists():
         if privileged_helper_needs_setuid_repair():
             fixed = repair_privileged_helper_permissions()
             if not fixed:
                 logging.error("User did not allow us to fix the privileged helper. cannot compete request.")
                 return
-        result = subprocess.run([OCLP_PRIVILEGED_HELPER] + [args[0][0]] + args[0][1:], **kwargs)
+        result = subprocess.run([X86_PRIVILEGED_HELPER] + [args[0][0]] + args[0][1:], **kwargs)
         # Any of our own PrivilegedHelperErrorCodes sentinel values (160-170) means the helper
         # tool itself couldn't do its job - an escalation failure (eg. missing/invalid setuid bit)
         # or another internal precondition (signing/certificates/command validation) - as opposed
@@ -210,7 +216,7 @@ def run_as_root(*args, **kwargs) -> subprocess.CompletedProcess:
             return osascript(args[0], **kwargs)
         return result
     else:
-        logging.warning(f"Privileged Helper Tool not found at {OCLP_PRIVILEGED_HELPER}. Falling back to osascript.")
+        logging.warning(f"Privileged Helper Tool not found at {X86_PRIVILEGED_HELPER}. Falling back to osascript.")
         return osascript(args[0], **kwargs)
 
 # behebt eine Sicherheitslücke, indem osascript ohne Bedingung angerufen geworden. Einen Angreifer könnte dazu erzwingen, osascript abzurufen, um beliebiges Code auszuführen und Priveleged Helper Tool umzugehen

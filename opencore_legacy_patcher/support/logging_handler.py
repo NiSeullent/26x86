@@ -45,7 +45,7 @@ class InitializeLoggingSupport:
 
         log_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
 
-        self.log_filename: str  = f"OpenCore-Patcher_{self.constants.patcher_version}_{log_time}.log"
+        self.log_filename: str  = f"26x86_{self.constants.patcher_version}_{log_time}.log"
         self.log_filepath: Path = None
 
         self.original_excepthook:        sys       = sys.excepthook
@@ -66,19 +66,15 @@ class InitializeLoggingSupport:
         Initialize logging framework storage path
         """
 
-        base_path = Path("~/Library/Logs").expanduser()
-        if not base_path.exists() or str(base_path).startswith("/var/root/"):
-            # Likely in an installer environment, store in /Users/Shared
-            base_path = Path("/Users/Shared")
-        else:
-            # create Dortania folder if it doesn't exist
-            base_path = base_path / "Dortania"
-            if not base_path.exists():
-                try:
-                    base_path.mkdir()
-                except Exception as e:
-                    print(f"Failed to create Dortania folder: {e}")
-                    base_path = Path("/Users/Shared")
+        base_path = Path("~/Library/Logs/26x86").expanduser()
+        if not base_path.parent.exists() or str(base_path).startswith("/var/root/"):
+            base_path = Path("/var/tmp/26x86")
+        elif not base_path.exists():
+            try:
+                base_path.mkdir(parents=True, exist_ok=True)
+            except (PermissionError, OSError) as error:
+                print(f"Failed to create 26x86 log folder: {error}")
+                base_path = Path("/var/tmp/26x86")
 
         self.log_filepath = Path(f"{base_path}/{self.log_filename}").expanduser()
         self.constants.log_filepath = self.log_filepath
@@ -91,24 +87,28 @@ class InitializeLoggingSupport:
         """
 
         paths = [
-            self.log_filepath.parent,        # ~/Library/Logs/Dortania
+            self.log_filepath.parent,        # ~/Library/Logs/26x86
             self.log_filepath.parent.parent, # ~/Library/Logs (old location)
+            self.log_filepath.parent.parent / "Dortania",  # legacy OCLP log folder
         ]
 
         logs = []
 
         for path in paths:
-            for file in path.glob("OpenCore-Patcher*"):
-                if not file.is_file():
-                    continue
+            if not path.exists():
+                continue
+            for pattern in ("26x86*", "OpenCore-Patcher*"):
+                for file in path.glob(pattern):
+                    if not file.is_file():
+                        continue
 
-                if not file.name.endswith(".log"):
-                    continue
+                    if not file.name.endswith(".log"):
+                        continue
 
-                if file.name == self.log_filename:
-                    continue
+                    if file.name == self.log_filename:
+                        continue
 
-                logs.append(file)
+                    logs.append(file)
 
         logs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
 

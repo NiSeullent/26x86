@@ -152,21 +152,21 @@ def find_any_oclp_manifest(root_path: Path = None):
 
     search_dirs = [
         root_path / "System" / "Library" / "CoreServices",
+        root_path / "Library" / "Application Support" / "26x86",
         root_path / "Library" / "Application Support" / "Dortania",
     ]
+
+    manifest_markers = ("26x86", "opencore-legacy-patcher")
 
     for directory in search_dirs:
         try:
             if not directory.is_dir():
                 continue
             for candidate in directory.iterdir():
-                # Note: 'pathlib.Path.glob()' matches case-sensitively even on
-                # case-insensitive filesystems (default macOS APFS included),
-                # since the pattern matching itself happens in Python, not the OS.
-                # The real file OCLP writes is mixed-case
-                # ("OpenCore-Legacy-Patcher.plist"), which a lowercase glob
-                # pattern will never match, so match case-insensitively instead.
-                if candidate.is_file() and "opencore-legacy-patcher" in candidate.name.lower():
+                if not candidate.is_file():
+                    continue
+                name = candidate.name.lower()
+                if any(marker in name for marker in manifest_markers):
                     return candidate
         except (OSError, PermissionError):
             continue

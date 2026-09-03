@@ -221,7 +221,7 @@ class OpenCoreLegacyPatcher:
             # nothing). Resolve the real from-source entry point deterministically
             # instead of relying on a substring match against a path that can't
             # contain it.
-            launcher_script = str(Path(__file__).resolve().parent.parent / "OpenCore-Patcher-GUI.command")
+            launcher_script = str(Path(__file__).resolve().parent.parent / "26x86-GUI.command")
         self.constants.launcher_binary = launcher_binary
         self.constants.launcher_script = launcher_script
 

@@ -29,7 +29,7 @@ if (SPEC_DIR / "DortaniaInternalResources.dmg").exists():
    datas.append((str(SPEC_DIR / 'DortaniaInternalResources.dmg'), '.'))
 
 
-a = Analysis([str(SPEC_DIR / 'OpenCore-Patcher-GUI.command')],
+a = Analysis([str(SPEC_DIR / '26x86-GUI.command')],
              pathex=[],
              binaries=[],
              datas=datas,
@@ -74,7 +74,7 @@ coll = COLLECT(exe,
 app = BUNDLE(coll,
              name='26x86.app',
              icon=str(SPEC_DIR / "payloads/Resources/AppIcons/OC-Patcher.icns"), # Fix: Use the corrected SPEC_DIR variable and Resources path
-             bundle_identifier="com.dortania.opencore-legacy-patcher",
+             bundle_identifier="com.niseullent.26x86",
              info_plist={
                 "CFBundleName": "26x86",
                 "CFBundleVersion": constants.Constants().patcher_version,

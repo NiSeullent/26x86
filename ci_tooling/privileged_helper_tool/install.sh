@@ -11,7 +11,7 @@
 
 # MARK: Variables
 # ---------------------------
-helperName="com.dortania.opencore-legacy-patcher.privileged-helper"
+helperName="com.niseullent.26x86.privileged-helper"
 helperPath="/Library/PrivilegedHelperTools/$helperName"
 
 # MARK: Functions

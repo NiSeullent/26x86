@@ -1,0 +1,1 @@
+OpenCore-Patcher-GUI.command

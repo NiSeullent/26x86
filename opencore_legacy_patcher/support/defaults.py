@@ -143,7 +143,7 @@ class GenerateDefaults:
         if not analytics_handler.ANALYTICS_SERVER and analytics_handler.SITE_KEY == "":
             logging.info("Analytics data was not embeded.")
             global_settings.GlobalEnviromentSettings().write_property("EnableCrashAndAnalyticsReporting", False)
-        if Path("~/.dortania_developer").expanduser().exists() or os.environ.get("OCLP_DEV_MODE") == "1":
+        if Path("~/.26x86_developer").expanduser().exists() or os.environ.get("OCLP_DEV_MODE") == "1":
             self.constants.Experimental_Features = True
         else:
             self.constants.Experimental_Features = False

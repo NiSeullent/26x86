@@ -21,12 +21,29 @@ class Constants:
         self.patcher_support_pkg_version:     str = "2.0.0"  # PatcherSupportPkg
         self.copyright_date:                  str = "Copyright © 2026 NiSeullent and 26x86 contributors"
 
+        # 26x86 product identity (runtime namespace — independent from OCLP/Dortania)
+        self.app_name:                         str = "26x86"
+        self.app_bundle_name:                  str = "26x86.app"
+        self.bundle_id:                       str = "com.niseullent.26x86"
+        self.bundle_id_privileged_helper:     str = "com.niseullent.26x86.privileged-helper"
+        self.bundle_id_uninstaller:           str = "com.niseullent.26x86-uninstaller"
+        self.bundle_id_installer:             str = "com.niseullent.26x86"
+        self.bundle_id_autopkg:               str = "com.niseullent.26x86.pkg.AutoPkg-Assets"
+        self.preferences_domain:              str = "com.niseullent.26x86"
+        self.app_support_dir:                  str = "/Library/Application Support/26x86"
+        self.settings_plist_path:              Path = Path.home() / "Library/Preferences/com.niseullent.26x86.plist"
+        self.app_support_path:                Path = Path.home() / "Library/Application Support/26x86"
+
         # URLs
         self.url_patcher_support_pkg:         str = "https://github.com/NiSeullent/26x86-PatcherSupportPkg/download/"
         self.url_metallib_support_pkg:        str = "https://github.com/NiSeullent/26x86-MetallibSupportPkg"
         self.url_opencore_pkg:                str = "https://github.com/NiSeullent/26x86-OpenCorePkg"
-        self.guide_link:                      str = "https://dortania.github.io/OpenCore-Legacy-Patcher/"
+        self.guide_link:                      str = "https://github.com/NiSeullent/26x86/wiki"
         self.repo_link:                       str = "https://github.com/NiSeullent/26x86/"
+        self.github_official_link:             str = self.repo_link
+        self.github_issues_link:              str = "https://github.com/NiSeullent/26x86/issues"
+        self.github_discussions_link:          str = "https://github.com/NiSeullent/26x86/discussions"
+        self.support_url:                      str = self.repo_link
         self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.patcher_version}/AutoPkg-Assets-T2.pkg"
 
         # OpenCore Versioning
@@ -317,19 +334,27 @@ class Constants:
 
     @property
     def auto_patch_launch_agent_path(self):
-        return self.launch_services_path / Path("com.dortania.opencore-legacy-patcher.auto-patch.plist")
+        return self.launch_services_path / Path(f"{self.bundle_id}.auto-patch.plist")
 
     @property
     def rsr_monitor_launch_daemon_path(self):
-        return self.launch_services_path / Path("com.dortania.opencore-legacy-patcher.rsr-monitor.plist")
+        return self.launch_services_path / Path(f"{self.bundle_id}.rsr-monitor.plist")
 
     @property
     def update_launch_daemon_path(self):
-        return self.launch_services_path / Path("com.dortania.opencore-legacy-patcher.macos-update.plist")
+        return self.launch_services_path / Path(f"{self.bundle_id}.macos-update.plist")
 
     @property
     def kdk_launch_daemon_path(self):
-        return self.launch_services_path / Path("com.dortania.opencore-legacy-patcher.os-caching.plist")
+        return self.launch_services_path / Path(f"{self.bundle_id}.os-caching.plist")
+
+    @property
+    def installed_app_path(self):
+        return Path(f"{self.app_support_dir}/{self.app_bundle_name}")
+
+    @property
+    def privileged_helper_path(self):
+        return Path(f"/Library/PrivilegedHelperTools/{self.bundle_id_privileged_helper}")
 
     # ACPI
     @property
@@ -773,8 +798,8 @@ class Constants:
         return self.payload_path / Path(f"OpenCore/ocvalidate")
 
     @property
-    def oclp_helper_path(self):
-        return self.payload_path / Path("Tools/OpenCore-Patcher.app/Contents/MacOS/OpenCore-Patcher")
+    def app_binary_path(self):
+        return self.payload_path / Path(f"Tools/{self.app_bundle_name}/Contents/MacOS/{self.app_name}")
 
     @property
     def rsrrepair_userspace_path(self):

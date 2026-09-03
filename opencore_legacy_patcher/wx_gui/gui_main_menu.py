@@ -339,7 +339,7 @@ class MainFrame(wx.Frame):
         
         logging.info(f"Newer version detected: {remote_version_str}")
         
-        url = "https://api.github.com/repos/albert-mueller/OpenCore-Legacy-Patcher-T2/releases/latest"
+        url = "https://api.github.com/repos/NiSeullent/26x86/releases/latest"
         changelog = """## Unable to fetch changelog\n\nPlease check the Github page for more information."""
         # User-Agent auf Edge gesetzt statt einfach OpenCore-Legacy-Patcher-T2, um die API sicher zu laden und MitM-Angriffe zu vermeiden
         try:

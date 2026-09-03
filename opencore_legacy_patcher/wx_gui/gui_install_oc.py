@@ -341,7 +341,7 @@ class InstallOCFrame(wx.Frame):
 
             elif not self.constants.custom_model:
                 if self.constants.computer.real_model in model_array.T2Macs:
-                    url = "https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2-Instructions-for-T2-Macs/tree/main"
+                    url = "https://github.com/NiSeullent/26x86/wiki"
                     webbrowser.open(url)
                 gui_support.RestartHost(self).restart(message="OpenCore has finished installing to disk.\n\nYou will need to reboot and hold the Option key and select OpenCore/Boot EFI's option.\n\nWould you like to reboot?\n\nIn some cases, instead of OpenCore it is labeled as Windows on T2 Macs if you\n\nare running Boot Camp on your Mac.")
             else:
@@ -390,7 +390,7 @@ class InstallOCFrame(wx.Frame):
                 response = error_dialog.ShowModal()
                 
                 if response == wx.ID_OK:
-                    webbrowser.open("https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/issues")
+                    webbrowser.open(self.constants.github_issues_link)
                 
                 # Check directly for your custom event return hook code
                 # Unter macOS Catalina und älter Gemini funktioniert nicht richtig unter Safari/WebKit

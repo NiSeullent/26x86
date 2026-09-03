@@ -497,11 +497,11 @@ Hardware Information:
         built, so without a restart they'd silently keep showing the old state.
 
         defaults.py's _general_probe() determines Developer Mode purely from
-        whether ~/.dortania_developer exists on disk, checked fresh on every
+        whether ~/.26x86_developer exists on disk, checked fresh on every
         launch - so rather than persisting a second, possibly-conflicting
         setting, this creates/removes that same marker file.
         """
-        marker_path = Path("~/.dortania_developer").expanduser()
+        marker_path = Path("~/.26x86_developer").expanduser()
         logging.info(f"Developer Mode toggle requested: {'enable' if value else 'disable'} (marker currently {'exists' if marker_path.exists() else 'absent'} at {marker_path})")
 
         def _apply_marker() -> None:

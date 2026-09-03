@@ -22,9 +22,9 @@ from ..datasets import os_data
 # METALLIB_INSTALL_PATH_LEGACY is kept around purely so metallibs installed by older OCLP
 # releases (which sourced packages from the original Dortania-maintained project) are still
 # recognised, avoiding an unnecessary re-download.
-METALLIB_INSTALL_PATH:        str  = "/Library/Application Support/Pyquick/MetallibSupportPkg"
+METALLIB_INSTALL_PATH:        str  = "/Library/Application Support/26x86/MetallibSupportPkg"
 METALLIB_INSTALL_PATH_LEGACY: str  = "/Library/Application Support/Dortania/MetallibSupportPkg"
-METALLIB_API_LINK:            str  = "https://albert-mueller.github.io/MetallibSupportPkg/manifest.json"
+METALLIB_API_LINK:            str  = "https://raw.githubusercontent.com/NiSeullent/26x86-MetallibSupportPkg/main/manifest.json"
 
 METALLIB_ASSET_LIST:   list = None
 

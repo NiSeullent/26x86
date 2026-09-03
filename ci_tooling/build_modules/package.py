@@ -44,11 +44,11 @@ class GeneratePackage:
         Initialize
         """
         self._files = {
-            "./dist/26x86.app": "/Library/Application Support/Dortania/26x86.app",
-            "./ci_tooling/privileged_helper_tool/com.dortania.opencore-legacy-patcher.privileged-helper": "/Library/PrivilegedHelperTools/com.dortania.opencore-legacy-patcher.privileged-helper",
+            "./dist/26x86.app": "/Library/Application Support/26x86/26x86.app",
+            "./ci_tooling/privileged_helper_tool/com.niseullent.26x86.privileged-helper": "/Library/PrivilegedHelperTools/com.niseullent.26x86.privileged-helper",
         }
         self._autopkg_files = {
-            "./payloads/Launch Services/com.dortania.opencore-legacy-patcher.auto-patch.plist": "/Library/LaunchAgents/com.dortania.opencore-legacy-patcher.auto-patch.plist",
+            "./payloads/Launch Services/com.niseullent.26x86.auto-patch.plist": "/Library/LaunchAgents/com.niseullent.26x86.auto-patch.plist",
         }
         self._autopkg_files.update(self._files)
 
@@ -109,14 +109,14 @@ class GeneratePackage:
         """
         Generate 26x86.pkg
         """
-        print("Generating OpenCore-Patcher-Uninstaller.pkg")
+        print("Generating 26x86-Uninstaller.pkg")
         _tmp_uninstall = tempfile.NamedTemporaryFile(delete=False)
         with open(_tmp_uninstall.name, "w") as f:
             f.write(GenerateScripts().uninstall())
 
         assert macos_pkg_builder.Packages(
-            pkg_output="./dist/OpenCore-Patcher-Uninstaller.pkg",
-            pkg_bundle_id="com.dortania.opencore-legacy-patcher-uninstaller",
+            pkg_output="./dist/26x86-Uninstaller.pkg",
+            pkg_bundle_id=constants.Constants().bundle_id_uninstaller,
             pkg_version=constants.Constants().patcher_version,
             pkg_background="./ci_tooling/pkg_assets/PkgBackground-Uninstaller.png",
             pkg_preinstall_script=_tmp_uninstall.name,
@@ -136,7 +136,7 @@ class GeneratePackage:
 
         assert macos_pkg_builder.Packages(
             pkg_output="./dist/26x86.pkg",
-            pkg_bundle_id="com.dortania.opencore-legacy-patcher-t2",
+            pkg_bundle_id=constants.Constants().bundle_id_installer,
             pkg_version=constants.Constants().patcher_version,
             pkg_allow_relocation=False,
             pkg_as_distribution=True,
@@ -159,7 +159,7 @@ class GeneratePackage:
 
         assert macos_pkg_builder.Packages(
             pkg_output="./dist/AutoPkg-Assets-T2.pkg",
-            pkg_bundle_id="com.dortania.pkg.AutoPkg-Assets",
+            pkg_bundle_id=constants.Constants().bundle_id_autopkg,
             pkg_version=constants.Constants().patcher_version,
             pkg_allow_relocation=False,
             pkg_as_distribution=True,

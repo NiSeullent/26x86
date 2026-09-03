@@ -486,20 +486,9 @@ class CheckProperties:
 
     def host_psp_version(self) -> packaging.version.Version:
         """
-        Grab PatcherSupportPkg version from OpenCore-Legacy-Patcher.plist
+        Return the bundled PatcherSupportPkg version for this 26x86 build.
         """
-        oclp_plist_path = "/System/Library/CoreServices/OpenCore-Legacy-Patcher.plist"
-        if not Path(oclp_plist_path).exists():
-            return packaging.version.Version("0.0.0")
-
-        oclp_plist = plistlib.load(open(oclp_plist_path, "rb"))
-        if "PatcherSupportPkg" not in oclp_plist:
-            return packaging.version.Version("0.0.0")
-
-        if oclp_plist["PatcherSupportPkg"].startswith("v"):
-            oclp_plist["PatcherSupportPkg"] = oclp_plist["PatcherSupportPkg"][1:]
-
-        return packaging.version.parse(oclp_plist["PatcherSupportPkg"])
+        return packaging.version.parse(self.constants.patcher_support_pkg_version)
 
     def host_has_3802_gpu(self) -> bool:
         """

@@ -8,6 +8,7 @@ import threading
 import traceback
 import time
 import webbrowser
+from pathlib import Path
 
 from .. import constants
 
@@ -271,7 +272,7 @@ class BuildFrame(wx.Frame):
                 response = error_dialog.ShowModal()
 
                 if response == wx.ID_OK:
-                    webbrowser.open("https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/issues")
+                    webbrowser.open(self.constants.github_issues_link)
                 # Safari und WebKit unter macOS Catalina und älter können nicht richtig Gemini öffnen, deshalb falls diese Version läuft, wird Gemini ins Webbrowser geöffnet
                 elif response == GEMINI_CLICKED_ID:
                     # Gemini can't see the build log on its own, so copy it to the clipboard
@@ -381,7 +382,7 @@ class BuildFrame(wx.Frame):
             # Handle bug from 2.1.0 where None type was stored in config.plist from global settings
             if "TypeError: unsupported type: <class 'NoneType'>" in traceback.format_exc():
                 logging.error("If you continue to see this error, delete the following file and restart the application:")
-                logging.error("Path: /Users/Shared/.com.dortania.opencore-legacy-patcher.plist")
+                logging.error(f"Path: {Path.home() / 'Library/Preferences/com.niseullent.26x86.plist'}")
 
         if len(logger.handlers) > 2:
             logger.removeHandler(logger.handlers[2])

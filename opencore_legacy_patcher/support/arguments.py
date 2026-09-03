@@ -243,7 +243,7 @@ class arguments:
         Fetch KDK for incoming OS
         """
         results = subprocess.run(["/bin/ps", "-ax"], stdout=subprocess.PIPE)
-        if results.stdout.decode("utf-8").count("OpenCore-Patcher --cache_os") > 1:
+        if results.stdout.decode("utf-8").count("26x86 --cache_os") > 1:
             logging.info("Another instance of OS caching is running, exiting")
             return
 

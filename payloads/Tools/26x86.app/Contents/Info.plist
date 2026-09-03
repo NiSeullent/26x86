@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>OpenCore-Patcher</string>
+	<string>26x86</string>
 	<key>CFBundleExecutable</key>
-	<string>OpenCore-Patcher</string>
+	<string>26x86</string>
 	<key>CFBundleIconFile</key>
 	<string>OC-Patcher.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.dortania.opencore-legacy-patcher</string>
+	<string>com.niseullent.26x86</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>OpenCore-Patcher</string>
+	<string>26x86</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>
@@ -21,11 +21,11 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2020-2023 Dortania</string>
+	<string>Copyright © 2026 NiSeullent and 26x86 contributors</string>
 	<key>SMPrivilegedExecutables</key>
 	<dict>
-		<key>com.dortania.opencore-legacy-patcher.privileged-helper</key>
-		<string>identifier "com.dortania.opencore-legacy-patcher.privileged-helper" and anchor apple generic</string>
+		<key>com.niseullent.26x86.privileged-helper</key>
+		<string>identifier "com.niseullent.26x86.privileged-helper" and anchor apple generic</string>
 	</dict>
 </dict>
 </plist>

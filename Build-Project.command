@@ -170,7 +170,7 @@ def main() -> None:
             print("--- Signiere Helper Tool ---")
             print("--- Sign Helper Tool ---")
             sign_notarize.SignAndNotarize(
-                path=Path("./ci_tooling/privileged_helper_tool/com.dortania.opencore-legacy-patcher.privileged-helper"),
+                path=Path("./ci_tooling/privileged_helper_tool/com.niseullent.26x86.privileged-helper"),
                 signing_identity=application_signing_identity,
                 notarization_apple_id=args.notarization_apple_id,
                 notarization_password=notarization_password,
@@ -204,7 +204,7 @@ def main() -> None:
             print("--- Build packages ---")
             package.GeneratePackage().generate()
             
-            for pkg in ["26x86.pkg", "OpenCore-Patcher-Uninstaller.pkg"]:
+            for pkg in ["26x86.pkg", "26x86-Uninstaller.pkg"]:
                 pkg_path = Path(f"dist/{pkg}")
                 check_file_exists(pkg_path)
                 print(f"--- Signiere {pkg} ---")

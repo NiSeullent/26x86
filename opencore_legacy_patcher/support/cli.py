@@ -75,7 +75,7 @@ def _help_text(lang: str) -> dict:
 def build_parser(lang: str = "ko") -> argparse.ArgumentParser:
     h = _help_text(lang)
     parser = argparse.ArgumentParser(
-        prog="OpenCore-Patcher-GUI.command",
+        prog="26x86",
         description=h["description"],
         epilog=h["epilog"],
         formatter_class=argparse.RawDescriptionHelpFormatter,

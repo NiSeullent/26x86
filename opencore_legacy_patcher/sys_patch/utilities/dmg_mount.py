@@ -72,14 +72,14 @@ class PatcherSupportPkgMount:
         logging.info("- Mounted Universal-Binaries.dmg")
         return True
 
-    def _mount_dortania_internal_resources_dmg(self) -> bool:
+    def _mount_26x86_internal_resources_dmg(self) -> bool:
         """Mount PatcherSupportPkg's DortaniaInternalResources.dmg"""
         if not Path(self.constants.overlay_psp_path_dmg).exists() or \
-           not Path("~/.dortania_developer").expanduser().exists() or \
+           not Path("~/.26x86_developer").expanduser().exists() or \
            self.constants.cli_mode is True:
             return True
 
-        logging.info("- Found DortaniaInternal resources, mounting...")
+        logging.info("- Found 26x86 internal resources, mounting...")
 
         for i in range(3):
             key = self._request_decryption_key(i)
@@ -100,10 +100,10 @@ class PatcherSupportPkgMount:
                 continue
             break
 
-        logging.info("- Mounted DortaniaInternal resources")
-        return self._merge_dortania_internal_resources()
+        logging.info("- Mounted 26x86 internal resources")
+        return self._merge_26x86_internal_resources()
 
-    def _merge_dortania_internal_resources(self) -> bool:
+    def _merge_26x86_internal_resources(self) -> bool:
         """Merge DortaniaInternal resources with Universal-Binaries"""
         result = subprocess.run(
             ["/usr/bin/ditto", str(self.constants.payload_path / "DortaniaInternal"), str(self.constants.payload_path / "Universal-Binaries")],
@@ -112,10 +112,10 @@ class PatcherSupportPkgMount:
         return result.returncode == 0
 
     def _request_decryption_key(self, attempt: int) -> str:
-        if attempt == 0 and Path("~/.dortania_developer_key").expanduser().exists():
-            return Path("~/.dortania_developer_key").expanduser().read_text().strip()
+        if attempt == 0 and Path("~/.26x86_developer_key").expanduser().exists():
+            return Path("~/.26x86_developer_key").expanduser().read_text().strip()
 
-        msg = "Welcome to the DortaniaInternal Program, please provide the decryption key." if attempt == 0 else f"Decryption failed. {2 - attempt} attempts remaining."
+        msg = "Welcome to the 26x86 internal program, please provide the decryption key." if attempt == 0 else f"Decryption failed. {2 - attempt} attempts remaining."
         try:
             return applescript.AppleScript(
                 f'set theResult to display dialog "{msg}" default answer "" with hidden answer with title "26x86" with icon file "{self.icon_path}"\nreturn the text returned of theResult'

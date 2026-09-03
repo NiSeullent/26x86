@@ -4,8 +4,8 @@
     <!-- macOS Tahoe-ish: soft light gray -> pale blue / lavender -->
     <radialGradient id="tahoeBg" cx="35%" cy="30%" r="70%">
       <stop offset="0%" stop-color="#F2F3F7"/>
-      <stop offset="45%" stop-color="#D8E4FF"/>
-      <stop offset="100%" stop-color="#DECFFF"/>
+      <stop offset="45%" stop-color="#DEE9FC"/>
+      <stop offset="100%" stop-color="#E2D4FC"/>
     </radialGradient>
   </defs>
   <!-- Logo symbol background -->
@@ -15,8 +15,8 @@
   <!-- Shared down-right baseline: y = 76 + (x - 8) * (18 / 104) -->
   <g fill="#1A1D26">
     <!-- M: all three lower vertices on the baseline -->
-    <path d="M 10 77.38 L 10 22 L 30 22 L 40 83.07 L 50 22 L 70 22 L 70 88.15 Z"/>
+    <path d="M 10 76.35 L 10 22 L 30 22 L 40 81.54 L 50 22 L 70 22 L 70 86.73 Z"/>
     <!-- N: lower vertices on the same baseline; arrowhead upper-right -->
-    <path d="M 70 88.15 L 70 22 L 104 94.03 L 104 22 L 118 8 L 108 30 L 104 30 L 104 94.03 Z"/>
+    <path d="M 70 86.73 L 70 22 L 104 92.62 L 104 22 L 118 8 L 108 30 L 104 30 L 104 92.62 Z"/>
   </g>
 </svg>

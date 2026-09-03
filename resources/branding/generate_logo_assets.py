@@ -16,8 +16,8 @@ APP_ICONS_DIR = REPO_ROOT / "payloads" / "Resources" / "AppIcons"
 
 FILL = (26, 29, 38, 255)  # #1A1D26
 BG_C0 = (242, 243, 247)  # very light gray
-BG_C1 = (216, 228, 255)  # pale blue
-BG_C2 = (222, 207, 255)  # pale lavender
+BG_C1 = (222, 233, 252)  # softer pale blue
+BG_C2 = (226, 212, 252)  # softer pale lavender
 
 
 def baseline_y(x: float) -> float:
@@ -58,19 +58,23 @@ def render_png(size: int) -> Image.Image:
     The foreground arrow geometry stays identical to the original logo,
     while the symbol background is a soft radial gradient clipped to a circle.
     """
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    # Small sizes need supersampling to keep M/N joins and caps crisp.
+    supersample = 4 if size <= 64 else 1
+    render_size = size * supersample
+
+    img = Image.new("RGBA", (render_size, render_size), (0, 0, 0, 0))
     px = img.load()
 
     # Keep consistent with 26x86-logo.svg: circle r=60 in viewBox 0..128.
-    cx = cy = (size / 2.0)
-    r = size * (60.0 / 128.0)
+    cx = cy = (render_size / 2.0)
+    r = render_size * (60.0 / 128.0)
 
     # Gentle edge smoothing (sub-pixel-ish) to avoid harsh aliasing.
-    edge = max(1.0, size * (2.0 / 128.0))
+    edge = max(1.0, render_size * (2.0 / 128.0))
 
     # Gradient focal point (cx/cy = 35%/30% in svg).
-    gx = size * 0.35
-    gy = size * 0.30
+    gx = render_size * 0.35
+    gy = render_size * 0.30
 
     def lerp(a: float, b: float, t: float) -> float:
         return a + (b - a) * t
@@ -82,9 +86,9 @@ def render_png(size: int) -> Image.Image:
             int(round(lerp(c0[2], c1[2], t))),
         )
 
-    for y in range(size):
+    for y in range(render_size):
         y0 = y + 0.5
-        for x in range(size):
+        for x in range(render_size):
             x0 = x + 0.5
 
             # Circle mask with smooth alpha.
@@ -111,9 +115,12 @@ def render_png(size: int) -> Image.Image:
 
     # Foreground: keep arrow geometry unchanged.
     draw = ImageDraw.Draw(img)
-    m_pts, n_pts = letter_points(float(size))
+    m_pts, n_pts = letter_points(float(render_size))
     draw.polygon(m_pts, fill=FILL)
     draw.polygon(n_pts, fill=FILL)
+
+    if supersample != 1:
+        img = img.resize((size, size), resample=Image.LANCZOS)
     return img
 
 

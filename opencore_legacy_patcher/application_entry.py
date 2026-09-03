@@ -55,7 +55,7 @@ class OpenCoreLegacyPatcher:
             from x86.gui.launch import launch_wizard
 
             advanced = bool(
-                self.constants.advanced_gui
+                getattr(self.constants, "advanced_gui", False)
                 or (os.environ.get("X86_ADVANCED") == "1" and "--advanced_gui" in sys.argv)
             )
             launch_wizard(advanced=advanced)

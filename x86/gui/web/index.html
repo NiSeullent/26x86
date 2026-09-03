@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: file:; img-src 'self' data: file: https:;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file:; script-src 'self' 'unsafe-inline' 'unsafe-eval' file:; style-src 'self' 'unsafe-inline' file:; img-src 'self' data: file: https:;" />
   <title>26x86</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -37,7 +37,9 @@
       </aside>
 
       <section class="content card elevated">
-        <div id="step-content" class="step-content"></div>
+        <div id="step-content" class="step-content">
+          <p class="lead">마법사를 불러오는 중…</p>
+        </div>
         <footer class="nav-footer">
           <button type="button" class="btn secondary" id="btn-prev" disabled>← 이전</button>
           <button type="button" class="btn primary" id="btn-next">다음 →</button>

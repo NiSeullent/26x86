@@ -34,9 +34,41 @@
 
   function api(method, ...args) {
     if (window.pywebview && window.pywebview.api && window.pywebview.api[method]) {
-      return window.pywebview.api[method](...args);
+      const result = window.pywebview.api[method](...args);
+      return result && typeof result.then === "function" ? result : Promise.resolve(result);
     }
     return Promise.reject(new Error("pywebview API unavailable"));
+  }
+
+  function whenBridgeReady(callback) {
+    if (window.pywebview && window.pywebview.api) {
+      callback();
+      return;
+    }
+
+    let attempts = 0;
+    const maxAttempts = 120;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (window.pywebview && window.pywebview.api) {
+        window.clearInterval(timer);
+        callback();
+      } else if (attempts >= maxAttempts) {
+        window.clearInterval(timer);
+        els.stepContent.innerHTML =
+          '<p class="lead">Python 브릿지에 연결하지 못했습니다. 앱을 다시 시작하거나 터미널에서 <code>python3 -m x86 wizard</code>를 실행해 주세요.</p>';
+        toast("pywebview API 연결 실패", "error");
+      }
+    }, 50);
+
+    window.addEventListener(
+      "pywebviewready",
+      () => {
+        window.clearInterval(timer);
+        callback();
+      },
+      { once: true }
+    );
   }
 
   function setStatus(text) {
@@ -103,14 +135,20 @@
 
   function renderDetect(step) {
     const d = state.detect || {};
+    const platformNote = !d.host_is_mac && d.macos_only_note
+      ? `<div class="note">${escapeHtml(d.macos_only_note)}</div>`
+      : "";
+    const modelLabel = d.host_is_mac === false ? "호스트" : "Mac 모델";
+    const osLabel = d.host_is_mac === false ? "호스트 OS" : "현재 macOS";
     return `
       <h2>${escapeHtml(step.heading)}</h2>
       <p class="lead">${escapeHtml(step.desc)}</p>
+      ${platformNote}
       <div class="info-grid">
-        ${infoRow("Mac 모델", d.model)}
+        ${infoRow(modelLabel, d.model)}
         ${infoRow("제품명", d.marketing_name)}
         ${infoRow("프로세서", d.cpu || "확인됨")}
-        ${infoRow("현재 macOS", `${d.os_version || "—"} (${d.os_build || "—"})`)}
+        ${infoRow(osLabel, `${d.os_version || "—"} (${d.os_build || "—"})`)}
       </div>
       <div class="actions">
         <button type="button" class="btn secondary" id="action-redetect">다시 확인</button>
@@ -123,7 +161,11 @@
     const macos = state.macos || { choices: [], selected_kernel: null };
     const selected = macos.choices.find((c) => c.kernel === macos.selected_kernel) || macos.choices[0];
     const warn = !state.canBuild
-      ? `<div class="note">이 Mac에서는 EFI를 만들 수 없습니다. 다른 지원 Mac에서 실행하거나 고급 모드 설정을 확인해 주세요.</div>`
+      ? `<div class="note">${escapeHtml(
+          state.buildMessage ||
+            state.appInfo?.macos_only_message ||
+            "이 Mac에서는 EFI를 만들 수 없습니다. 다른 지원 Mac에서 실행하거나 고급 모드 설정을 확인해 주세요."
+        )}</div>`
       : "";
     const options = macos.choices
       .map(
@@ -327,6 +369,7 @@
     state.detect = detectResult.detect;
     state.macos = macos;
     state.canBuild = !!buildCheck.can_build;
+    state.buildMessage = buildCheck.message || null;
     state.buildCompleted = !!status.build_completed;
 
     els.appTitle.textContent = appInfo.app_name;
@@ -388,15 +431,11 @@
     });
   }
 
-  window.addEventListener("pywebviewready", () => {
+  whenBridgeReady(() => {
     bindGlobalActions();
     loadInitialData().catch((err) => {
       toast(String(err.message || err), "error");
       els.stepContent.innerHTML = `<p class="lead">UI를 초기화하지 못했습니다. Python 브릿지를 확인해 주세요.</p>`;
     });
   });
-
-  if (window.pywebview) {
-    window.dispatchEvent(new Event("pywebviewready"));
-  }
 })();

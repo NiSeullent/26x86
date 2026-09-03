@@ -360,6 +360,9 @@ class NeumoButton(wx.Panel):
         self.Bind(wx.EVT_LEFT_DOWN, self._on_down)
         self.Bind(wx.EVT_LEFT_UP, self._on_up)
         self.Bind(wx.EVT_SIZE, self._on_size)
+        for target in (self._text,):
+            target.Bind(wx.EVT_LEFT_DOWN, self._on_down)
+            target.Bind(wx.EVT_LEFT_UP, self._on_up)
 
     def SetToolTip(self, tip: str) -> None:
         super().SetToolTip(tip)

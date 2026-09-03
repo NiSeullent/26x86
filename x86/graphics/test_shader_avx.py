@@ -108,12 +108,30 @@ class StageJHookTest(unittest.TestCase):
         stage = _load_stage()
         plan = stage.mc_merge_plan()
         self.assertEqual(plan["integrate_after"], "52f7298")
+        self.assertEqual(plan["rebase_on"], "d1093ef")
+        self.assertEqual(stage.REBASE_ON, "d1093ef")
         self.assertEqual(plan["queue_id"], "next:J-detect-stage")
         paths = {t["path"] for t in plan["shared_targets"]}
         self.assertIn("x86/graphics/detect.py", paths)
         self.assertIn("x86/graphics/skylight_tracks.py", paths)
         self.assertIn("serialize_shader_avx_fields", plan["snippets"]["detect.py"])
         self.assertIn('"J"', plan["snippets"]["skylight_tracks.py"])
+        self.assertIn("payload.update(yellow)", plan["snippets"]["detect.py"])
+        self.assertIn("do NOT add", plan["snippets"]["skylight_tracks.py"])
+        self.assertIn('"H", "J", "L5"', plan["snippets"]["skylight_tracks.py"])
+        detect_tgt = next(t for t in plan["shared_targets"] if t["path"].endswith("detect.py"))
+        tracks_tgt = next(
+            t for t in plan["shared_targets"] if t["path"].endswith("skylight_tracks.py")
+        )
+        self.assertEqual(detect_tgt["anchor_after"], "payload.update(yellow)")
+        self.assertFalse(tracks_tgt["sys_patch"])
+        self.assertEqual(
+            tracks_tgt["tid_tuple_after"],
+            ["A", "B", "C", "D", "E", "F", "G", "H", "J", "L5"],
+        )
+        self.assertIn("H", tracks_tgt["preserve_parallel_tids"])
+        self.assertIn("L5", tracks_tgt["preserve_parallel_tids"])
+        self.assertIn("x86/graphics/detect.py", plan["do_not_modify_from_track_j"])
 
 
 class StandaloneScanSmokeTest(unittest.TestCase):

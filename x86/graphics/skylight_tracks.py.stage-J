@@ -1,24 +1,33 @@
-# Track J — proposed patch for x86/graphics/skylight_tracks.py
-# MC applies; Track J must not edit skylight_tracks.py. Base: 52f7298.
-# Detect-only — do NOT add J to SYS_PATCH_TRACKS.
+# =============================================================================
+# skylight_tracks.py.stage-J — Track J MC-merge candidate (NOT live until MC)
+# =============================================================================
+# TARGET:  x86/graphics/skylight_tracks.py
+# BASE:    d1093ef — H + L5 already live; ADD J only (detect-only).
+# RULE:    Track J must NOT edit skylight_tracks.py — MC applies these deltas.
+# POLICY:  do NOT add "J" to SYS_PATCH_TRACKS
+#          (live remains ("B", "C", "E", "F", "L5")).
+# =============================================================================
 
-# TRACK_MODULE_CANDIDATES:
+# --- 1) TRACK_MODULE_CANDIDATES (after L5 / beside H) ---
     "J": (
         "x86.graphics.shader_avx_gate",
     ),
 
-# TRACK_ROLES:
+# --- 2) TRACK_ROLES ---
     "J": "shader_compiler_avx",
 
-# serialize_skylight_lut_tracks:
-    for tid in ("A", "B", "C", "D", "E", "F", "G", "J")
+# --- 3) serialize_skylight_lut_tracks tid tuple ---
+# d1093ef:
+#   for tid in ("A", "B", "C", "D", "E", "F", "G", "H", "L5")
+# after J:
+    for tid in ("A", "B", "C", "D", "E", "F", "G", "H", "J", "L5")
 
-# merge_optional_detect_fields detect_attrs:
+# --- 4) merge_optional_detect_fields → detect_attrs (beside H/L5) ---
         "J": (
             "serialize_track_detect_fields",
             "serialize_shader_avx_fields",
         ),
 
-# track_status_entry optional:
+# --- 5) track_status_entry (with other detect_fn fallbacks) ---
     if detect_fn is None and track_id == "J":
         detect_fn = _callable_attr(mod, "serialize_shader_avx_fields")

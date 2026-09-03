@@ -45,13 +45,16 @@ from importlib.util import spec_from_file_location, module_from_spec
 3. pre-AVX에서 `hw.optional.avx*=1` 스푸핑 **금지**
 
 
-## MC INTEGRATE — J detect merge (`52f7298` 다음 큐)
+## MC INTEGRATE — J detect merge (다음 큐 · base `d1093ef`)
 
-`integrate_queue`: `next:J-detect-stage`
+`integrate_queue`: `next:J-detect-stage` · `rebase_on`: **`d1093ef`** (H + L5 tracks live)
 
 1. `shader_avx_detect.stage-J.py` → `mc_merge_plan()` / `MC_MERGE_*`.
 2. MC만 적용: `detect.py.stage-J` → `detect.py`, `skylight_tracks.py.stage-J` → `skylight_tracks.py`.
 3. Track J는 공유 detect/skylight_tracks/__init__ 직접 수정 금지.
+4. **detect.py 앵커:** `payload.update(yellow)` 직후 · Track G soft-merge 직전 (`report.has_avx*` 필요).
+5. **skylight_tracks @ d1093ef:** J detect-only (`SYS_PATCH_TRACKS`에 J 금지).  
+   tid: `("A", "B", "C", "D", "E", "F", "G", "H", "J", "L5")` — **H/L5 유지**.
 
 ## 변경 이력
 
@@ -59,3 +62,4 @@ from importlib.util import spec_from_file_location, module_from_spec
 |------|------|
 | 2026-09-04 | Track J 전용 파일만 추가 (공유 파일 무수정) |
 | 2026-09-04 | INTEGRATE 52f7298 — stage-J mc_merge_plan + detect/tracks stage snippets |
+| 2026-09-04 | stage-J를 `d1093ef` (H+L5) 기준으로 재정렬 — 다음 INTEGRATE = J detect |

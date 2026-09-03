@@ -1,0 +1,68 @@
+# Tahoe-SkyLight-LUT-Research — stage-A (post-`52f7298`)
+
+> **파일:** `docs/Tahoe-SkyLight-LUT-Research.md.stage-A`  
+> **원본 직접 수정 금지.** MC 병합 대기.  
+> **기준:** INTEGRATE [52f7298](https://github.com/NiSeullent/26x86/commit/52f7298)
+
+---
+
+## MC에 전달 — 원본 Research에 반영할 패치
+
+### 헤더 교체 제안
+
+```markdown
+> **Mission Control:** [SkyLight-LUT-Tracks.md](./SkyLight-LUT-Tracks.md) · [STAGE-WORKFLOW.md](./STAGE-WORKFLOW.md)
+> **마지막 INTEGRATE:** `52f7298` — A docs · M 3802 · N Non-Metal · F PSP **live**
+> **다음 큐:** H → J → D → L5-R/B → I↔K
+```
+
+트랙 A = 문서 `.stage-A`만. 3802/Non-Metal **코드는 M/N 라이브** (재구현 금지).
+
+### §0 성공 기준 표 — 기준 2 상태 갱신
+
+| # | 제안 상태 문구 |
+|---|----------------|
+| 2 | 31001 부분; **3802/NM = 기본 `{}` + 옵트인 live** (`52f7298` / M·N) — 실기 스모크 대기 |
+
+### §0 가드 표 — “금지” 열 톤 정리
+
+바이트패치 행: Tracks와 같이 **기본 경로 비활성 / extreme 옵트인 허용**으로 맞출 것 (영구 절대금지 문구 삭제 — EXTREME 문서와 정합).  
+EFI agdpmod 재작성: 여전히 D=검증만 (d3a7b87).
+
+### 새 절 (Executive Summary 직후 또는 §9)
+
+```markdown
+## INTEGRATE 스냅샷 (`52f7298`)
+
+| 축 | 상태 |
+|----|------|
+| STAGE-WORKFLOW | **정식화** |
+| A 문서 | INTEGRATE |
+| M `metal_3802.py` | Tahoe 옵트인 **live** |
+| N `non_metal*.py` | Tahoe 옵트인 **live** |
+| F PSP overlay | `dmg_mount` / yellow_screen **live** |
+
+### 다음 큐 (Tracks와 동일)
+
+**H → J → D → L5-R/B → I↔K**
+
+- **H:** IOSurface/CA · N과 extreme 병행
+- **J:** 셰이더 AVX detect (≠ 노란 화면)
+- **D:** AGDC `.stage-D`
+- **L5-R/B:** 루트볼륨 패치셋 ↔ SkyLight bytepatch 조율
+- **I↔K:** interpose apply_live ↔ MacPro5+Vega E2E extreme 프로파일
+```
+
+### §10 변경 이력 행
+
+```markdown
+| 2026-09-04 | post-`52f7298` stage-A: live M/N/F · 다음 큐 H→J→D→L5-R/B→I↔K |
+```
+
+---
+
+## 변경 이력 (stage-A)
+
+| 날짜 | 내용 |
+|------|------|
+| 2026-09-04 | Research를 INTEGRATE 이후 상태에 맞춤 (제안만) |

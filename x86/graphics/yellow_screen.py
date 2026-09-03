@@ -231,8 +231,11 @@ def tahoe_psp_overlay_copy_pairs(
     (source, dest) directories to ditto into the mounted Universal-Binaries tree.
 
     Only Tahoe-specific version folders (12.5-25+) are copied. 12.5-24 already
-    lives in Universal-Binaries.dmg and is not duplicated.
+    lives in Universal-Binaries.dmg and is not duplicated. RenderBox-25+ trees
+    (OCLP Metal 31001 metallib) are merged when present.
     """
+    from x86.graphics.skylight_lut import renderbox_overlay_copy_pairs
+
     pairs: list[tuple[Path, Path]] = []
     dest = Path(dest_root)
     roots = [Path(p) for p in (search_roots if search_roots is not None else default_psp_binaries_roots())]
@@ -254,6 +257,7 @@ def tahoe_psp_overlay_copy_pairs(
                     pairs.append((src, dest / version))
             except OSError:
                 continue
+    pairs.extend(renderbox_overlay_copy_pairs(dest, search_roots=roots))
     return pairs
 
 
@@ -298,8 +302,9 @@ def yellow_screen_mitigations(
     xnu_major: Optional[int] = None,
     assume_tahoe: bool = False,
     cpu_generation: Optional[int] = None,
+    search_roots: Optional[Iterable[Path]] = None,
 ) -> list[str]:
-    """Mitigations the patcher will apply (not a compositor LUT/shader fix)."""
+    """Mitigations the patcher will apply (not a full LUT/shader compositor fix)."""
     if not is_compositor_yellow_screen_hardware(model, gpu_archs):
         return []
     if not (is_tahoe_os(os_version, xnu_major) or assume_tahoe):
@@ -310,6 +315,11 @@ def yellow_screen_mitigations(
         "coredisplay_clear_nonmetal_prefs",
         "psp_mtl_payload_prefer_12.5-25",
     ]
+    from x86.graphics.skylight_lut import resolve_renderbox_metallib_payload
+
+    major = xnu_major if xnu_major is not None else 25
+    if resolve_renderbox_metallib_payload(major, search_roots=search_roots):
+        items.append("renderbox_metallib_if_payload")
     if socket_amd_needs_kdkless(model, cpu_generation):
         items.append("kdkless_workaround")
     items.extend(recommended_efi_graphics_fixes(model, gpu_archs))
@@ -418,8 +428,11 @@ def serialize_yellow_screen_fields(
         os_version=os_version,
         xnu_major=xnu_major,
         assume_tahoe=assume_tahoe,
+        search_roots=psp_search_paths,
     )
-    return {
+    from x86.graphics.skylight_lut import serialize_skylight_lut_fields
+
+    payload = {
         "gpu_family": family,
         "recommended_efi_graphics_fixes": fixes,
         "yellow_screen_risk": risk,
@@ -432,6 +445,13 @@ def serialize_yellow_screen_fields(
         "yellow_screen_unpublished_issue": UNPUBLISHED_VEGA64_ISSUE,
         "yellow_screen_notes": _notes(model, family, fixes, risk, tahoe, present),
     }
+    major = xnu_major if xnu_major is not None else (25 if tahoe else None)
+    if major is not None:
+        payload.update(
+            serialize_skylight_lut_fields(major, search_roots=psp_search_paths)
+        )
+    return payload
+
 
 
 def _notes(

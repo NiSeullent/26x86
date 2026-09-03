@@ -2,8 +2,10 @@
 tahoe_yellow_screen.py: Tahoe WindowServer / ColorSync compositor mitigations.
 
 Does not lift Metal 3802 / Non-Metal shared guards (those panic on Tahoe).
-Does not inject guessed CoreDisplay/SkyLight bytes. Optional overlay kexts
-from PatcherSupportPkg 12.5-25+ are merged at DMG mount time.
+Does not inject guessed CoreDisplay/SkyLight bytes. SkyLightPlugins installs
+only SHA-pinned compositor stems (stock Tahoe SkyLight ignores the folder).
+Optional overlay kexts / RenderBox-25 from PatcherSupportPkg are merged at
+DMG mount time.
 """
 
 from pathlib import Path
@@ -14,6 +16,7 @@ from ..base import PatchType
 
 from ....datasets.os_data import os_data
 
+from x86.graphics.skylight_lut import enumerate_evidence_skylight_plugins
 from x86.graphics.yellow_screen import (
     TAHOE_YELLOW_SCREEN_PATCH_NAME,
     community_yellow_screen_overlay,
@@ -44,7 +47,7 @@ class TahoeYellowScreen(BaseSharedPatchSet):
         Install files only when the community overlay actually contains them.
 
         Expected PSP layout under Universal-Binaries/<version>/...
-        SkyLight dylibs (if a future evidence-based plugin is dropped in):
+        SkyLight dylibs (SHA-pinned compositor stems only):
         SkyLightPlugins/Library/Application Support/SkyLightPlugins/*.dylib
         """
         overlay = community_yellow_screen_overlay()
@@ -58,11 +61,7 @@ class TahoeYellowScreen(BaseSharedPatchSet):
             / "SkyLightPlugins"
         )
         if skylight_src.is_dir():
-            files = {
-                path.name: "SkyLightPlugins"
-                for path in skylight_src.iterdir()
-                if path.is_file() and path.suffix in {".dylib", ".txt"}
-            }
+            files = enumerate_evidence_skylight_plugins(skylight_src)
             if files:
                 merge[PatchType.OVERWRITE_DATA_VOLUME] = {
                     "/Library/Application Support/SkyLightPlugins": files,

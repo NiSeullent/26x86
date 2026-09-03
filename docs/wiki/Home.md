@@ -38,6 +38,7 @@ python3 -m x86 status
 | [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md) | Pre-AVX Mac Pro Phase 1 |
 | [Safari-PreAVX-Fix.md](./Safari-PreAVX-Fix.md) | MacPro5,1 Safari 26 Pre-AVX RestrictEvents |
 | [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md) | Mac Pro Tahoe 노란 화면 |
+| [Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md) | SkyLight / LUT / RenderBox 합성 Research·PoC |
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 주의 |
 | [Installation-Notes.md](./Installation-Notes.md) | 설치·업그레이드 |
 | [Configuration.md](./Configuration.md) | 설정 경로 |

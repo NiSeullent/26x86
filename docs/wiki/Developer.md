@@ -34,6 +34,11 @@ python3 -m x86 wizard
 
 상세: [SETUP.md](../SETUP.md), [SOURCE.md](../../SOURCE.md)
 
+## 그래픽·compositor Research
+
+- [Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md) — RenderBox metallib 게이트, SkyLightPlugins 프로토콜
+- [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md)
+
 ## 설정
 
 - **macOS:** `~/Library/Preferences/com.niseullent.26x86.plist` 또는 `~/Library/Application Support/26x86/config.json`

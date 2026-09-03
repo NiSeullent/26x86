@@ -35,7 +35,7 @@ Safari 크래시(AVX)와 WindowServer 노란 화면은 다릅니다.
 - **전체 화면 노란/주황:** Tahoe **WindowServer compositor** 실패. GCN만이 아니라 **Polaris·Vega 64**(Mac Pro 소켓 애프터마켓 포함)에서도 발생. 공개: [OCLP-T2 #194](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/issues/194). Vega 64 재현은 **unpublished / reporter: 내부**.
 - **Safari만 크래시:** Pre-AVX JavaScriptCore — WindowServer와 무관.
 - 진단: `Tools/collect_graphics_diagnostics.command`, `python3 -m x86 detect --json` (`gpu_family`, `yellow_screen_risk`).
-- 상세: [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md)
+- 상세: [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md) · [Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md)
 
 ---
 

@@ -43,7 +43,7 @@ python3 -m x86 detect --json
 ## MacPro6,1 / MacPro5,1 + Vega 64 권장 조치
 
 1. **EFI 재빌드** — `agdpmod` / `shikigva` (GCN·Polaris·Vega). Mac Pro 소켓은 **KDKlessWorkaround.kext**도 넣습니다 (MTL 번들 누락 시 WindowServer 루프).
-2. **루트 패치** — Vega `amd_vega.py` (Metal 31001) + **Tahoe Yellow Screen Mitigations**: WindowServer 캐시 잠금, ColorSync sRGB 폴백, PatcherSupportPkg `12.5-25` 오버레이가 있으면 MTL 번들 우선. **셰이더/LUT 본질은 아직 미해결**입니다.
+2. **루트 패치** — Vega `amd_vega.py` (Metal 31001) + **Tahoe Yellow Screen Mitigations**: WindowServer 캐시 잠금, ColorSync sRGB 폴백, PatcherSupportPkg `12.5-25` / **`RenderBox-25` `default.metallib`가 있으면** OCLP와 동일 overwrite. **페이로드 없으면** 셰이더/LUT 본질은 여전히 미해결입니다 ([Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md)).
 3. **진단** — `Tools/collect_graphics_diagnostics.command` · `python3 -m x86 detect --json` (`yellow_screen_mitigations`)
 4. **Safari** — 노란 화면과 별개.
 
@@ -68,4 +68,5 @@ Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다 (커널 패닉).
 - [GPU-Limitations.md](./GPU-Limitations.md)
 - [Warnings.md](./Warnings.md)
 - [docs/Tahoe-Yellow-Screen-Research.md](../Tahoe-Yellow-Screen-Research.md)
+- [docs/Tahoe-SkyLight-LUT-Research.md](../Tahoe-SkyLight-LUT-Research.md) — SkyLight/LUT/RenderBox 심층·PoC
 - [docs/Tahoe-Graphics-Roadmap.md](../Tahoe-Graphics-Roadmap.md) — Layer B compositor

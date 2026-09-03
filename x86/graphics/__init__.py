@@ -12,6 +12,11 @@ from .detect import (
     should_strip_tahoe_legacy_gpu_patches,
     tahoe_blocked_patch_ids,
 )
+from .skylight_lut import (
+    enumerate_evidence_skylight_plugins,
+    resolve_renderbox_metallib_payload,
+    serialize_skylight_lut_fields,
+)
 from .yellow_screen import (
     SOCKET_AMD_YELLOW_SCREEN_MODELS,
     STOCK_GCN_AGDP_MODELS,
@@ -33,10 +38,13 @@ __all__ = [
     "TAHOE_XNU_MAJOR",
     "classify_gpu_family",
     "detect_pre_avx_mac_pro",
+    "enumerate_evidence_skylight_plugins",
     "read_cpu_features_from_sysctl",
     "recommended_efi_graphics_fixes",
     "resolve_legacy_amd_mtl_payload",
+    "resolve_renderbox_metallib_payload",
     "serialize_graphics_detect_fields",
+    "serialize_skylight_lut_fields",
     "serialize_yellow_screen_fields",
     "should_disable_window_server_caching",
     "should_strip_tahoe_legacy_gpu_patches",

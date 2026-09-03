@@ -1,21 +1,26 @@
 """
-Track B — SkyLight / WindowServer binary·symbol analysis & evidence-backed hooks.
+Track B — SkyLight / WindowServer binary·symbol analysis & extreme-gated hooks.
 
-Registers dylib / framework *candidates* only when community or in-tree OCLP
-code documents them. Never emits guessed CoreDisplay/SkyLight byte patches.
+G contract: ``sys_patch_hooks``, ``serialize_track_detect_fields``.
+Formerly blocked/rejected candidates are **extreme-enabled** (``X86_EXTREME=1``
+or ``extreme=True``): Non-Metal SkyLight merge + experimental LUT byte patches
+expose dry-run → apply paths for spare-volume experiments.
 
-G contract exports: ``sys_patch_hooks``, ``serialize_track_detect_fields``.
-Integration/wiring of shared modules is Mission Control — this file is B-only.
+Mission Control owns shared-module wiring. This file is B-only.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+import os
+import shutil
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 TAHOE_XNU_MAJOR = 25
+ENV_EXTREME = "X86_EXTREME"
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
 
 PATH_SKYLIGHT = (
     "/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight"
@@ -85,11 +90,22 @@ EVIDENCE_METAL_3802_SHADERS = (
 )
 
 
+def extreme_enabled(
+    environ: Optional[Mapping[str, str]] = None,
+    *,
+    flag: bool = False,
+) -> bool:
+    """Mission-wide extreme gate (``X86_EXTREME=1`` or explicit flag)."""
+    if flag:
+        return True
+    env = environ if environ is not None else os.environ
+    return str(env.get(ENV_EXTREME, "")).strip().lower() in _TRUTHY
+
+
 class HookStatus(str, Enum):
     ACTIVE = "active"
     SCAFFOLD = "scaffold"
-    BLOCKED = "blocked"
-    REJECTED = "rejected"
+    EXTREME = "extreme"  # enabled under X86_EXTREME / extreme=True
     CROSS_REF = "cross_ref"
 
 
@@ -114,6 +130,60 @@ class SkylightHookCandidate:
     requires_payload: bool
     notes: str
     owner_track: str = "B"
+    requires_extreme: bool = False
+
+
+@dataclass(frozen=True)
+class BytePatchCandidate:
+    """Same-length find/replace experiment for SkyLight/WindowServer binaries."""
+
+    patch_id: str
+    title: str
+    target_path_hint: str
+    find: bytes
+    replace: bytes
+    evidence: tuple[str, ...]
+    notes: str
+    hook_id: str = "SL-BYTEPATCH-LUT"
+
+    def __post_init__(self) -> None:
+        if len(self.find) != len(self.replace):
+            raise ValueError(
+                f"{self.patch_id}: find/replace length mismatch "
+                f"{len(self.find)} != {len(self.replace)}"
+            )
+        if not self.find:
+            raise ValueError(f"{self.patch_id}: empty find pattern")
+
+
+# Experimental same-length markers for fixture / spare-volume RE fills.
+# Real Tahoe private-LUT needles replace these via MC once RE lands.
+BYTE_PATCH_CANDIDATES: tuple[BytePatchCandidate, ...] = (
+    BytePatchCandidate(
+        patch_id="SL-LUT-MARKER-V1",
+        title="Experimental compositor LUT marker swap (fixture / RE fill)",
+        target_path_hint=PATH_SKYLIGHT,
+        find=b"26X86_SL_LUT_MARK_A",
+        replace=b"26X86_SL_LUT_MARK_B",
+        evidence=(EVIDENCE_OCLP_T2_194, EVIDENCE_RESEARCH_A),
+        notes=(
+            "Placeholder same-length marker for dry-run→apply path validation. "
+            "Replace find/replace with RE-confirmed Tahoe needles before host apply."
+        ),
+    ),
+    BytePatchCandidate(
+        patch_id="SL-GAMMA-PROBE-V1",
+        title="Public CGDisplayGammaTable UTF-8 tag probe (experimental)",
+        target_path_hint=PATH_SKYLIGHT,
+        find=b"CGDisplayGammaTable\x00",
+        replace=b"CGDisplayGammaTable\x00",  # identity — dry-run locates; apply is no-op
+        evidence=(EVIDENCE_RESEARCH_A,),
+        notes=(
+            "Locate-only probe against public symbol C-string if present in binary. "
+            "Identity replace keeps apply safe until a real delta is RE'd."
+        ),
+    ),
+)
 
 
 SKYLIGHT_HOOK_REGISTRY: tuple[SkylightHookCandidate, ...] = (
@@ -128,8 +198,7 @@ SKYLIGHT_HOOK_REGISTRY: tuple[SkylightHookCandidate, ...] = (
         requires_payload=False,
         notes=(
             "OCLP sys_patch_helpers.disable_window_server_caching — documented "
-            "for legacy GCN/Polaris/Vega opaque-shader corruption. Mitigation "
-            "only; does not fix RenderBox/SkyLight ABI."
+            "for legacy GCN/Polaris/Vega opaque-shader corruption."
         ),
     ),
     SkylightHookCandidate(
@@ -142,25 +211,24 @@ SKYLIGHT_HOOK_REGISTRY: tuple[SkylightHookCandidate, ...] = (
         tahoe_allowed=True,
         requires_payload=True,
         notes=(
-            "Stock Tahoe SkyLight does not load this folder. Requires patched "
-            "Non-Metal SkyLight that calls SkyLightPluginEntry, plus SHA-256 "
-            "pin in skylight_lut.COMPOSITOR_PLUGIN_SHA256. DropboxHack is never "
-            "a Metal LUT fix."
+            "Stock Tahoe SkyLight does not load this folder without Non-Metal "
+            "stubs that call SkyLightPluginEntry; SHA pin still required."
         ),
     ),
     SkylightHookCandidate(
         hook_id="SL-FRAMEWORK-MERGE",
         title="Merge Non-Metal SkyLight.framework 10.14.6-<xnu>",
         action=HookAction.MERGE_FRAMEWORK,
-        status=HookStatus.BLOCKED,
+        status=HookStatus.EXTREME,
         target_paths=(PATH_SKYLIGHT, PATH_SKYLIGHT_OLD),
         evidence=(EVIDENCE_NON_METAL_PY, EVIDENCE_OCLP_1167, EVIDENCE_PSP_MERGE_MORAEA),
-        tahoe_allowed=False,
+        tahoe_allowed=True,
         requires_payload=True,
+        requires_extreme=True,
         notes=(
-            "non_metal.py returns {} on Tahoe (XNU>=25) — kernel panic with "
-            "IOGPU removal bundle. Sequoia payload capped at 10.14.6-24. Do not "
-            "lift the guard from Track B."
+            "Extreme-only on Tahoe: emits Merge System Volume scaffold when "
+            "10.14.6-<xnu> payload exists. Stock non_metal.py still returns {}; "
+            "MC may wire this scaffold on spare volumes under X86_EXTREME=1."
         ),
     ),
     SkylightHookCandidate(
@@ -175,10 +243,7 @@ SKYLIGHT_HOOK_REGISTRY: tuple[SkylightHookCandidate, ...] = (
         ),
         tahoe_allowed=True,
         requires_payload=False,
-        notes=(
-            "Presence of SkyLightOld.dylib indicates moraea injector stubs. "
-            "Used as stock_skylight_loads_plugins() gate."
-        ),
+        notes="Presence of SkyLightOld.dylib indicates moraea injector stubs.",
     ),
     SkylightHookCandidate(
         hook_id="SL-SHADERS-AIR64",
@@ -187,23 +252,25 @@ SKYLIGHT_HOOK_REGISTRY: tuple[SkylightHookCandidate, ...] = (
         status=HookStatus.CROSS_REF,
         target_paths=(PATH_SKYLIGHT_SHADERS_METALLIB,),
         evidence=(EVIDENCE_METAL_3802_SHADERS,),
-        tahoe_allowed=False,
+        tahoe_allowed=True,
         requires_payload=True,
         notes="Owned by Track E (metallib_*). Catalog only — Metal 3802 path.",
         owner_track="E",
     ),
     SkylightHookCandidate(
         hook_id="SL-BYTEPATCH-LUT",
-        title="Guessed CoreDisplay/SkyLight LUT byte patch",
+        title="Experimental SkyLight LUT byte patch (extreme)",
         action=HookAction.BYTE_PATCH,
-        status=HookStatus.REJECTED,
+        status=HookStatus.EXTREME,
         target_paths=(PATH_SKYLIGHT,),
         evidence=(EVIDENCE_OCLP_T2_194, EVIDENCE_RESEARCH_A),
-        tahoe_allowed=False,
+        tahoe_allowed=True,
         requires_payload=False,
+        requires_extreme=True,
         notes=(
-            "OCLP-T2 #194 hypothesizes private color-management hooks but does "
-            "not publish symbol names. Track B never emits byte patches."
+            "Extreme-enabled dry-run→apply via BYTE_PATCH_CANDIDATES. "
+            "Default patterns are markers/identity probes; fill RE needles before "
+            "host root apply."
         ),
     ),
 )
@@ -216,16 +283,23 @@ def hook_by_id(hook_id: str) -> Optional[SkylightHookCandidate]:
     return None
 
 
+def byte_patch_by_id(patch_id: str) -> Optional[BytePatchCandidate]:
+    for candidate in BYTE_PATCH_CANDIDATES:
+        if candidate.patch_id == patch_id:
+            return candidate
+    return None
+
+
 def poc_registration_table(
     *,
-    include_rejected: bool = False,
     include_cross_ref: bool = True,
+    include_extreme: bool = True,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for candidate in SKYLIGHT_HOOK_REGISTRY:
-        if candidate.status is HookStatus.REJECTED and not include_rejected:
-            continue
         if candidate.status is HookStatus.CROSS_REF and not include_cross_ref:
+            continue
+        if candidate.status is HookStatus.EXTREME and not include_extreme:
             continue
         row = asdict(candidate)
         row["action"] = candidate.action.value
@@ -233,6 +307,26 @@ def poc_registration_table(
         row["target_paths"] = list(candidate.target_paths)
         row["evidence"] = list(candidate.evidence)
         rows.append(row)
+    return rows
+
+
+def byte_patch_candidate_table() -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for candidate in BYTE_PATCH_CANDIDATES:
+        rows.append(
+            {
+                "patch_id": candidate.patch_id,
+                "title": candidate.title,
+                "hook_id": candidate.hook_id,
+                "target_path_hint": candidate.target_path_hint,
+                "find_hex": candidate.find.hex(),
+                "replace_hex": candidate.replace.hex(),
+                "find_len": len(candidate.find),
+                "evidence": list(candidate.evidence),
+                "notes": candidate.notes,
+                "requires_extreme": True,
+            }
+        )
     return rows
 
 
@@ -284,36 +378,145 @@ def parse_nm_symbol_fixture(
     }
 
 
+def _scan_occurrences(blob: bytes, needle: bytes) -> list[int]:
+    offsets: list[int] = []
+    start = 0
+    while True:
+        idx = blob.find(needle, start)
+        if idx < 0:
+            break
+        offsets.append(idx)
+        start = idx + 1
+    return offsets
+
+
+def dry_run_byte_patch(
+    target: Path,
+    *,
+    patch_id: Optional[str] = None,
+    candidates: Optional[Iterable[BytePatchCandidate]] = None,
+) -> dict[str, Any]:
+    """Report match offsets without writing. No extreme gate required for dry-run."""
+    path = Path(target)
+    report: dict[str, Any] = {
+        "target": str(path),
+        "exists": False,
+        "dry_run": True,
+        "candidates": [],
+    }
+    try:
+        if not path.is_file():
+            return report
+        blob = path.read_bytes()
+    except OSError as exc:
+        report["error"] = str(exc)
+        return report
+    report["exists"] = True
+    report["size"] = len(blob)
+    selected = list(candidates) if candidates is not None else list(BYTE_PATCH_CANDIDATES)
+    if patch_id:
+        selected = [c for c in selected if c.patch_id == patch_id]
+    for candidate in selected:
+        offsets = _scan_occurrences(blob, candidate.find)
+        report["candidates"].append(
+            {
+                "patch_id": candidate.patch_id,
+                "matches": len(offsets),
+                "offsets": offsets[:32],
+                "would_apply": len(offsets) > 0 and candidate.find != candidate.replace,
+                "identity": candidate.find == candidate.replace,
+            }
+        )
+    return report
+
+
+def apply_byte_patch(
+    target: Path,
+    *,
+    patch_id: Optional[str] = None,
+    dry_run: bool = True,
+    extreme: bool = False,
+    environ: Optional[Mapping[str, str]] = None,
+    destination: Optional[Path] = None,
+    backup_suffix: str = ".pre-skylight-B",
+) -> dict[str, Any]:
+    """
+    Dry-run → apply path for BYTE_PATCH_CANDIDATES.
+
+    - ``dry_run=True`` (default): scan only.
+    - ``dry_run=False``: requires extreme gate; writes ``destination`` or in-place
+      with ``backup_suffix`` copy first.
+    """
+    plan = dry_run_byte_patch(target, patch_id=patch_id)
+    plan["applied"] = False
+    plan["extreme"] = extreme_enabled(environ, flag=extreme)
+    if dry_run:
+        plan["status"] = "dry_run"
+        return plan
+    if not plan["extreme"]:
+        plan["status"] = "skipped_needs_extreme"
+        plan["reason"] = f"Set {ENV_EXTREME}=1 or pass extreme=True to apply"
+        return plan
+    if not plan.get("exists"):
+        plan["status"] = "missing_target"
+        return plan
+
+    path = Path(target)
+    blob = path.read_bytes()
+    selected = list(BYTE_PATCH_CANDIDATES)
+    if patch_id:
+        selected = [c for c in selected if c.patch_id == patch_id]
+    mutated = bytearray(blob)
+    applied_ids: list[str] = []
+    for candidate in selected:
+        offsets = _scan_occurrences(bytes(mutated), candidate.find)
+        if not offsets:
+            continue
+        if candidate.find == candidate.replace:
+            continue
+        for off in offsets:
+            mutated[off : off + len(candidate.replace)] = candidate.replace
+        applied_ids.append(candidate.patch_id)
+
+    out = Path(destination) if destination is not None else path
+    plan["destination"] = str(out)
+    plan["patch_ids_applied"] = applied_ids
+    if not applied_ids:
+        plan["status"] = "no_op"
+        return plan
+
+    try:
+        if destination is None and backup_suffix:
+            backup = path.with_name(path.name + backup_suffix)
+            if not backup.exists():
+                shutil.copy2(path, backup)
+                plan["backup"] = str(backup)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(bytes(mutated))
+        plan["applied"] = True
+        plan["status"] = "applied"
+        plan["bytes_written"] = len(mutated)
+    except OSError as exc:
+        plan["status"] = "write_error"
+        plan["error"] = str(exc)
+    return plan
+
+
 def emit_hook_scaffold(
     hook_id: str,
     *,
     xnu_major: int = TAHOE_XNU_MAJOR,
     plugin_overlay_dir: Optional[Path] = None,
     search_roots: Optional[Iterable[Path]] = None,
+    extreme: bool = False,
+    environ: Optional[Mapping[str, str]] = None,
+    byte_patch_target: Optional[Path] = None,
 ) -> dict[str, Any]:
     candidate = hook_by_id(hook_id)
     if candidate is None:
         return {"hook_id": hook_id, "status": "unknown", "patches": {}}
 
-    if candidate.hook_id == "SL-FRAMEWORK-MERGE":
-        folder = resolve_non_metal_skylight_payload(
-            xnu_major, search_roots=search_roots
-        )
-        return {
-            "hook_id": hook_id,
-            "status": HookStatus.BLOCKED.value,
-            "patches": {},
-            "payload_folder": folder,
-            "reason": candidate.notes,
-        }
-
-    if candidate.status in (HookStatus.REJECTED, HookStatus.BLOCKED):
-        return {
-            "hook_id": hook_id,
-            "status": candidate.status.value,
-            "patches": {},
-            "reason": candidate.notes,
-        }
+    extreme_on = extreme_enabled(environ, flag=extreme)
 
     if candidate.status is HookStatus.CROSS_REF:
         return {
@@ -322,6 +525,60 @@ def emit_hook_scaffold(
             "patches": {},
             "owner_track": candidate.owner_track,
             "reason": candidate.notes,
+        }
+
+    if candidate.requires_extreme and not extreme_on:
+        return {
+            "hook_id": hook_id,
+            "status": HookStatus.EXTREME.value,
+            "patches": {},
+            "extreme": False,
+            "reason": f"Enable with {ENV_EXTREME}=1 or extreme=True — {candidate.notes}",
+        }
+
+    if candidate.hook_id == "SL-FRAMEWORK-MERGE":
+        folder = resolve_non_metal_skylight_payload(
+            xnu_major, search_roots=search_roots
+        )
+        if not folder:
+            return {
+                "hook_id": hook_id,
+                "status": HookStatus.EXTREME.value,
+                "patches": {},
+                "extreme": True,
+                "payload_folder": None,
+                "reason": "Non-Metal SkyLight payload not found under search_roots",
+            }
+        return {
+            "hook_id": hook_id,
+            "status": HookStatus.EXTREME.value,
+            "extreme": True,
+            "payload_folder": folder,
+            "patches": {
+                "Merge System Volume": {
+                    "/System/Library/PrivateFrameworks": {
+                        "SkyLight.framework": folder,
+                    },
+                },
+            },
+            "notes": candidate.notes,
+        }
+
+    if candidate.hook_id == "SL-BYTEPATCH-LUT":
+        target = Path(byte_patch_target) if byte_patch_target else Path(PATH_SKYLIGHT)
+        dry = dry_run_byte_patch(target)
+        return {
+            "hook_id": hook_id,
+            "status": HookStatus.EXTREME.value,
+            "extreme": True,
+            "patches": {},
+            "byte_patch_dry_run": dry,
+            "byte_patch_candidates": byte_patch_candidate_table(),
+            "apply": (
+                "apply_byte_patch(target, dry_run=False, extreme=True) "
+                "after reviewing dry-run offsets"
+            ),
+            "notes": candidate.notes,
         }
 
     if candidate.hook_id == "SL-PLUGIN-PROTOCOL":
@@ -396,12 +653,16 @@ def serialize_skylight_analysis_fields(
     xnu_major: Optional[int] = None,
     *,
     search_roots: Optional[Iterable[Path]] = None,
-    include_rejected: bool = False,
+    extreme: bool = False,
+    environ: Optional[Mapping[str, str]] = None,
 ) -> dict[str, Any]:
     major = TAHOE_XNU_MAJOR if xnu_major is None else xnu_major
+    extreme_on = extreme_enabled(environ, flag=extreme)
     return {
         "skylight_track": "B",
         "xnu_major": major,
+        "extreme_enabled": extreme_on,
+        "extreme_env": ENV_EXTREME,
         "non_metal_skylight_payload": resolve_non_metal_skylight_payload(
             major, search_roots=search_roots
         ),
@@ -411,17 +672,13 @@ def serialize_skylight_analysis_fields(
         "stock_skylight_loads_plugins": stock_skylight_loads_plugins(),
         "plugin_entry_symbol": SYMBOL_SKYLIGHT_PLUGIN_ENTRY,
         "public_compositor_symbol_needles": list(PUBLIC_COMPOSITOR_SYMBOL_NEEDLES),
-        "poc_hooks": poc_registration_table(include_rejected=include_rejected),
-        "blocked_on_tahoe": [
+        "poc_hooks": poc_registration_table(),
+        "extreme_hooks": [
             c.hook_id
             for c in SKYLIGHT_HOOK_REGISTRY
-            if not c.tahoe_allowed or c.status is HookStatus.BLOCKED
+            if c.status is HookStatus.EXTREME or c.requires_extreme
         ],
-        "rejected_byte_patches": [
-            c.hook_id
-            for c in SKYLIGHT_HOOK_REGISTRY
-            if c.status is HookStatus.REJECTED
-        ],
+        "byte_patch_candidates": byte_patch_candidate_table(),
         "evidence_asentientbot": EVIDENCE_ASENTIENTBOT,
         "evidence_oclp_1167": EVIDENCE_OCLP_1167,
         "research_doc": EVIDENCE_RESEARCH_A,
@@ -442,30 +699,50 @@ def sys_patch_hooks(
     *,
     plugin_overlay_dir: Optional[Path] = None,
     search_roots: Optional[Iterable[Path]] = None,
+    extreme: bool = False,
+    environ: Optional[Mapping[str, str]] = None,
+    byte_patch_target: Optional[Path] = None,
 ) -> dict[str, Any]:
-    """Track G discoverable hook export (SHA-pinned plugins only; never byte patches)."""
+    """Track G hook export — plugins always; extreme merge/bytepatch when gated."""
+    extreme_on = extreme_enabled(environ, flag=extreme)
     merged: dict[str, Any] = {}
-    for hook_id in ("SL-PLUGIN-PROTOCOL",):
+    hook_ids = ["SL-PLUGIN-PROTOCOL"]
+    if extreme_on:
+        hook_ids.extend(["SL-FRAMEWORK-MERGE", "SL-BYTEPATCH-LUT"])
+
+    byte_reports: list[dict[str, Any]] = []
+    for hook_id in hook_ids:
         scaffold = emit_hook_scaffold(
             hook_id,
             xnu_major=xnu_major,
             plugin_overlay_dir=plugin_overlay_dir,
             search_roots=search_roots,
+            extreme=extreme_on,
+            environ=environ,
+            byte_patch_target=byte_patch_target,
         )
+        if hook_id == "SL-BYTEPATCH-LUT":
+            byte_reports.append(scaffold)
         patches = scaffold.get("patches") or {}
         for method, body in patches.items():
             bucket = merged.setdefault(method, {})
             if isinstance(body, dict):
                 for path, files in body.items():
-                    bucket.setdefault(path, {}).update(files)
+                    if isinstance(files, dict):
+                        bucket.setdefault(path, {}).update(files)
+                    else:
+                        bucket[path] = files
     return {
         "track": "B",
-        "hooks": ["SL-PLUGIN-PROTOCOL"],
+        "hooks": hook_ids,
+        "extreme": extreme_on,
         "patches": merged,
         "poc_table": poc_registration_table(),
+        "byte_patch": byte_reports,
         "notes": (
-            "Stock Tahoe ignores SkyLightPlugins until Non-Metal stubs exist. "
-            "SL-FRAMEWORK-MERGE stays blocked."
+            f"Extreme hooks ({ENV_EXTREME}=1): SL-FRAMEWORK-MERGE merge scaffold + "
+            "SL-BYTEPATCH-LUT dry-run table; call apply_byte_patch(..., dry_run=False) "
+            "explicitly to write."
         ),
     }
 

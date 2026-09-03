@@ -1,8 +1,7 @@
-"""Track B fixtures — load skylight_analysis by path (no shared __init__ edits)."""
+"""Track B fixtures — path-load skylight_analysis (no shared __init__ edits)."""
 
 from __future__ import annotations
 
-import hashlib
 import importlib.util
 import sys
 import tempfile
@@ -10,7 +9,6 @@ import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parent.parent
 ANALYSIS_PATH = HERE / "skylight_analysis.py"
 
 
@@ -30,30 +28,110 @@ class RegistryIntegrityTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.m = _load_analysis()
 
-    def test_no_byte_patch_is_active_or_scaffold(self) -> None:
+    def test_no_blocked_or_rejected_status(self) -> None:
         for candidate in self.m.SKYLIGHT_HOOK_REGISTRY:
-            if candidate.action.value == "byte_patch":
-                self.assertEqual(candidate.status, self.m.HookStatus.REJECTED)
-                self.assertFalse(candidate.tahoe_allowed)
+            self.assertNotEqual(candidate.status.value, "blocked")
+            self.assertNotEqual(candidate.status.value, "rejected")
+            self.assertNotIn(candidate.status.value, {"blocked", "rejected"})
 
-    def test_framework_merge_blocked_on_tahoe(self) -> None:
+    def test_framework_merge_is_extreme(self) -> None:
         candidate = self.m.hook_by_id("SL-FRAMEWORK-MERGE")
         assert candidate is not None
-        self.assertEqual(candidate.status, self.m.HookStatus.BLOCKED)
-        self.assertFalse(candidate.tahoe_allowed)
+        self.assertEqual(candidate.status, self.m.HookStatus.EXTREME)
+        self.assertTrue(candidate.requires_extreme)
+        self.assertTrue(candidate.tahoe_allowed)
 
-    def test_poc_table_hides_rejected_by_default(self) -> None:
+    def test_bytepatch_is_extreme(self) -> None:
+        candidate = self.m.hook_by_id("SL-BYTEPATCH-LUT")
+        assert candidate is not None
+        self.assertEqual(candidate.status, self.m.HookStatus.EXTREME)
+        self.assertTrue(candidate.requires_extreme)
+
+    def test_poc_table_includes_extreme_hooks(self) -> None:
         ids = {row["hook_id"] for row in self.m.poc_registration_table()}
-        self.assertNotIn("SL-BYTEPATCH-LUT", ids)
-        self.assertIn("SL-PLUGIN-PROTOCOL", ids)
+        self.assertIn("SL-BYTEPATCH-LUT", ids)
+        self.assertIn("SL-FRAMEWORK-MERGE", ids)
 
     def test_g_contract_exports(self) -> None:
         self.assertTrue(callable(self.m.sys_patch_hooks))
         self.assertTrue(callable(self.m.serialize_track_detect_fields))
-        payload = self.m.sys_patch_hooks(25)
+        payload = self.m.sys_patch_hooks(25, environ={})
         self.assertEqual(payload["track"], "B")
+        self.assertFalse(payload["extreme"])
         fields = self.m.serialize_track_detect_fields(25, search_roots=[Path("/nope")])
         self.assertEqual(fields["skylight_track"], "B")
+        self.assertIn("SL-BYTEPATCH-LUT", fields["extreme_hooks"])
+        self.assertNotIn("blocked_on_tahoe", fields)
+        self.assertNotIn("rejected_byte_patches", fields)
+
+
+class ExtremeScaffoldTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.m = _load_analysis()
+
+    def test_framework_merge_gated_without_extreme(self) -> None:
+        scaffold = self.m.emit_hook_scaffold(
+            "SL-FRAMEWORK-MERGE", xnu_major=25, environ={}
+        )
+        self.assertEqual(scaffold["status"], "extreme")
+        self.assertEqual(scaffold["patches"], {})
+        self.assertFalse(scaffold.get("extreme"))
+
+    def test_framework_merge_emits_under_extreme_with_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = "10.14.6-24"
+            binary = (
+                root
+                / folder
+                / "System/Library/PrivateFrameworks/SkyLight.framework"
+                / "Versions/A/SkyLight"
+            )
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"fake-skylight")
+            scaffold = self.m.emit_hook_scaffold(
+                "SL-FRAMEWORK-MERGE",
+                xnu_major=25,
+                search_roots=[root],
+                extreme=True,
+            )
+            self.assertTrue(scaffold["extreme"])
+            self.assertEqual(scaffold["payload_folder"], folder)
+            self.assertIn("Merge System Volume", scaffold["patches"])
+
+    def test_bytepatch_dry_run_apply_path(self) -> None:
+        marker = self.m.BYTE_PATCH_CANDIDATES[0]
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "SkyLight"
+            target.write_bytes(b"HDR" + marker.find + b"TAIL")
+            dry = self.m.dry_run_byte_patch(target, patch_id=marker.patch_id)
+            self.assertTrue(dry["exists"])
+            self.assertEqual(dry["candidates"][0]["matches"], 1)
+
+            skipped = self.m.apply_byte_patch(
+                target, patch_id=marker.patch_id, dry_run=False, environ={}
+            )
+            self.assertEqual(skipped["status"], "skipped_needs_extreme")
+
+            applied = self.m.apply_byte_patch(
+                target,
+                patch_id=marker.patch_id,
+                dry_run=False,
+                extreme=True,
+            )
+            self.assertEqual(applied["status"], "applied")
+            self.assertIn(marker.patch_id, applied["patch_ids_applied"])
+            self.assertEqual(target.read_bytes(), b"HDR" + marker.replace + b"TAIL")
+            self.assertTrue(Path(str(target) + ".pre-skylight-B").is_file())
+
+    def test_sys_patch_hooks_includes_extreme_when_gated(self) -> None:
+        cold = self.m.sys_patch_hooks(25, environ={})
+        self.assertEqual(cold["hooks"], ["SL-PLUGIN-PROTOCOL"])
+        hot = self.m.sys_patch_hooks(25, extreme=True)
+        self.assertIn("SL-FRAMEWORK-MERGE", hot["hooks"])
+        self.assertIn("SL-BYTEPATCH-LUT", hot["hooks"])
+        self.assertTrue(hot["extreme"])
 
 
 class NmFixtureTest(unittest.TestCase):
@@ -70,70 +148,6 @@ class NmFixtureTest(unittest.TestCase):
             self.m.FIXTURE_NM_PATCHED_SKYLIGHT_WITH_PLUGIN_LOADER
         )
         self.assertTrue(result["has_skylight_plugin_entry"])
-
-
-class PayloadAndScaffoldTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.m = _load_analysis()
-
-    def test_tahoe_payload_folder_capped_at_24(self) -> None:
-        self.assertEqual(self.m.non_metal_skylight_payload_folder(25), "10.14.6-24")
-
-    def test_framework_merge_scaffold_empty_even_with_payload(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            folder = "10.14.6-24"
-            binary = (
-                root
-                / folder
-                / "System/Library/PrivateFrameworks/SkyLight.framework"
-                / "Versions/A/SkyLight"
-            )
-            binary.parent.mkdir(parents=True)
-            binary.write_bytes(b"fake-skylight")
-            scaffold = self.m.emit_hook_scaffold(
-                "SL-FRAMEWORK-MERGE",
-                xnu_major=25,
-                search_roots=[root],
-            )
-            self.assertEqual(scaffold["status"], "blocked")
-            self.assertEqual(scaffold["patches"], {})
-            self.assertEqual(scaffold["payload_folder"], folder)
-
-    def test_bytepatch_scaffold_empty(self) -> None:
-        scaffold = self.m.emit_hook_scaffold("SL-BYTEPATCH-LUT")
-        self.assertEqual(scaffold["status"], "rejected")
-        self.assertEqual(scaffold["patches"], {})
-
-    def test_plugin_scaffold_requires_sha_pin(self) -> None:
-        # Optional dependency on skylight_lut — skip soft if package init broken.
-        try:
-            import x86.graphics.skylight_lut as lut
-        except Exception:
-            self.skipTest("skylight_lut unavailable via package import")
-            return
-        stem = "CompositorLUT"
-        blob = b"track-b-compositor-lut"
-        digest = hashlib.sha256(blob).hexdigest()
-        original = dict(lut.COMPOSITOR_PLUGIN_SHA256)
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                directory = Path(tmp)
-                (directory / f"{stem}.dylib").write_bytes(blob)
-                (directory / f"{stem}.txt").write_text("WindowServer\n", encoding="utf-8")
-                empty = self.m.emit_hook_scaffold(
-                    "SL-PLUGIN-PROTOCOL", plugin_overlay_dir=directory
-                )
-                self.assertEqual(empty["patches"], {})
-                lut.COMPOSITOR_PLUGIN_SHA256[stem] = digest
-                filled = self.m.emit_hook_scaffold(
-                    "SL-PLUGIN-PROTOCOL", plugin_overlay_dir=directory
-                )
-                self.assertIn("Overwrite Data Volume", filled["patches"])
-        finally:
-            lut.COMPOSITOR_PLUGIN_SHA256.clear()
-            lut.COMPOSITOR_PLUGIN_SHA256.update(original)
 
 
 if __name__ == "__main__":

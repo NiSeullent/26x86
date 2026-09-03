@@ -64,14 +64,13 @@
 
 extreme에서 **병행 허용**: H=IOSurface/CA·QuartzCore 실험 더블래치, N=Non-Metal shared 재주입. 충돌 키는 INTEGRATE 시 MC가 병합·문서화만 (상호 차단하지 않음).
 
-### INTEGRATE 우선순위 (고정)
+### INTEGRATE 우선순위 (현재)
 
-1. stage-A docs  
-2. stage-M (3802)  
-3. stage-N (Non-Metal)  
-4. stage-F (PSP)  
-이후: H · J detect · D · L5-R/B · I↔K
+1. ✅ A docs · M · N · F (`52f7298`)  
+2. **대기 (MC):** **H** stage-H · **J** stage-J detect만  
+3. **보류:** D / L5-R·B / I↔K 코드 — **Tahoe 루트패치·이 Mac 배포 전담 에이전트**와 충돌 방지  
 
+**루트패치:** `is_tahoe` / macOS 26에서만 적용. Sequoia + `X86_EXTREME`이어도 루트 **no-op** ([EXTREME](./EXTREME-Tahoe-PreAVX-Vega64.md)).
 ---
 
 ## OCLP 세대 해금

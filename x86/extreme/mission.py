@@ -56,16 +56,19 @@ def track_gaps() -> list[TrackGap]:
 
 
 def integrate_queue() -> list[str]:
+    """MC waits only on H/J while deploy/Tahoe-root agent owns the rest."""
     return [
         "done:A-docs",
         "done:M-3802",
         "done:N-nonmetal",
         "done:F-psp",
-        "next:H-iosurface-stage",
-        "next:J-detect-stage",
-        "next:D-diagnostics-stage",
-        "next:L5R-B-bytepatch-coord",
-        "next:I-K-extreme-profile",
+        "waiting:H-iosurface-stage",
+        "waiting:J-detect-stage",
+        "deferred:D-diagnostics-deploy-agent",
+        "deferred:L5R-B-deploy-agent",
+        "deferred:I-K-extreme-deploy-agent",
+        "host_gate:root_patches_require_is_tahoe",
+        "host_gate:sequoia_extreme_root_noop",
     ]
 
 

@@ -1,0 +1,19 @@
+# MC stage — Tahoe-only root-patch note (병합용)
+
+> **파일:** `docs/EXTREME-Tahoe-Rootpatch-HostGate.md.stage-MC`  
+> MC가 정식 `EXTREME-Tahoe-PreAVX-Vega64.md`에 이미 반영. 이 stage는 감사/재적용용.
+
+## 한 줄
+
+루트패치는 **macOS 26 Tahoe (`is_tahoe`)에서만** 동작. Sequoia 호스트에서 `X86_EXTREME=1`이어도 루트패치 **no-op**.
+
+## 소유 분리
+
+| 소유 | 범위 |
+|------|------|
+| **배포/루트 전담 에이전트** | Tahoe-only 루트패치 게이트, 이 Mac 앱·PKG 설치 |
+| **MC** | EXTREME/Tracks 갭, H/J stage INTEGRATE 대기 목록 |
+
+## INTEGRATE (MC)
+
+지금은 **H · J stage만** 대기. D / L5-R / I↔K 코드는 배포 에이전트와 충돌 없게 보류.

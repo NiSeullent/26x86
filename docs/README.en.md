@@ -1,5 +1,9 @@
 # 26x86 — Project Overview (English)
 
+<div align="center">
+<img src="../resources/branding/26x86-logo-256.png" alt="26x86 logo" width="128" />
+</div>
+
 > Korean is the primary language for user docs and the GUI. These pages are supplementary.
 
 ## What is 26x86?
@@ -14,7 +18,7 @@ Experimental community patcher for **macOS 26 Tahoe** on **x86 Macs** (including
 | Document | Path |
 |----------|------|
 | Wiki (Korean) | [wiki/Home.md](./wiki/Home.md) |
-| Migration | [wiki/Migration-from-OCLP.md](./wiki/Migration-from-OCLP.md) |
+| Migration | [wiki/Migration.md](./wiki/Migration.md) |
 | Dev setup | [SETUP.md](./SETUP.md) |
 | Run from source | [SOURCE.md](../SOURCE.md) |
 

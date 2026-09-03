@@ -1,6 +1,6 @@
 # 제거·정리된 파일 목록
 
-2026-09-04 찌꺼기 정리로 저장소에서 **삭제**한 항목입니다. Git 히스토리에서 복구 가능합니다.
+2026-09-04 찌꺼기 정리로 저장소에서 **삭제**한 항목입니다.
 
 ## 삭제된 문서
 
@@ -9,14 +9,13 @@
 | `docs/ARCHITECTURE-26x86.md` | 내부 설계서 → [Developer.md](./Developer.md) |
 | `docs/DEPENDENCY-AUDIT.md` | 개발자 감사 로그 |
 | `docs/CLEANROOM-ARCHITECTURE.md` | Developer.md로 통합 |
-| `docs/wiki/Migration-from-OCLP.md` | [Migration-from-OCLP.md](./Migration-from-OCLP.md)와 중복 |
+| `docs/wiki/Migration-from-OCLP.md` | [Migration.md](./Migration.md)와 중복 |
 
 ## 삭제된 빌드·진입점
 
 | 파일 | 사유 |
 |------|------|
-| `OpenCore-Patcher-GUI.spec` | `26x86-GUI.spec`과 중복 |
-| `OpenCore-Patcher-GUI.command` | `26x86.command`로 통일 |
+| `OpenCore-Patcher-GUI.spec` / `.command` | `26x86-GUI.spec` / `26x86-GUI.command`으로 이름 통일 (PyInstaller용) |
 
 ## 삭제된 CI·로컬 아카이브
 

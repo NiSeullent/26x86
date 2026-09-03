@@ -1,7 +1,7 @@
 # 26x86
 
 <div align="center">
-<img src="https://github.com/dortania/OpenCore-Legacy-Patcher/blob/macos-next/docs/images/OC-Patcher.png" alt="26x86 로고" width="256" />
+<img src="resources/branding/26x86-logo-256.png" alt="26x86 로고" width="256" />
 <h1>26x86</h1>
 <h3>x86 Mac을 위한 macOS 26 (Tahoe) 패처</h3>
 </div>

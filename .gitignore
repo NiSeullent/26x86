@@ -279,3 +279,6 @@ archive/**/*
 # Built privileged helper (debug/release)
 ci_tooling/privileged_helper_tool/com.niseullent.26x86.privileged-helper
 ci_tooling/privileged_helper_tool/com.dortania.opencore-legacy-patcher.privileged-helper
+
+# Logo asset build intermediate
+resources/branding/*.iconset/

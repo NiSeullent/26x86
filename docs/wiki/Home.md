@@ -1,5 +1,9 @@
 # 26x86 위키
 
+<div align="center">
+<img src="../../resources/branding/26x86-logo-256.png" alt="26x86 로고" width="128" />
+</div>
+
 **26x86** — x86 Mac을 위한 macOS 26 (Tahoe) 패처
 
 > **한국어가 기본 문서 언어입니다.** 영문: [README.en.md](./README.en.md) · [docs/README.en.md](../README.en.md)
@@ -34,7 +38,7 @@ python3 -m x86 status
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 주의 |
 | [Installation-Notes.md](./Installation-Notes.md) | 설치·업그레이드 |
 | [Configuration.md](./Configuration.md) | 설정 경로 |
-| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | 이전 패처에서 전환 |
+| [Migration.md](./Migration.md) | 이전 패처에서 전환 |
 | [Upstream-Repositories.md](./Upstream-Repositories.md) | 원본 저장소 (법적) |
 | [Developer.md](./Developer.md) | 개발자 안내 |
 | [Orphan-Files-Archive.md](./Orphan-Files-Archive.md) | 제거된 찌꺼기 파일 목록 |

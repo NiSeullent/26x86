@@ -2,7 +2,7 @@
 
 26x86은 **이전 OpenCore Legacy Patcher**와 설정·자동 패치·앱 설치 경로를 **공유하지 않습니다.**
 
-> 이전 패처에서 전환: [Migration-from-OCLP.md](./Migration-from-OCLP.md)
+> 이전 패처에서 전환: [Migration.md](./Migration.md)
 
 ---
 
@@ -68,4 +68,4 @@ defaults write com.niseullent.26x86 DisableCrashAndAnalyticsReporting -bool true
 | `/Library/Application Support/Dortania/` | `/Library/Application Support/26x86/` |
 | 이전 패처 자동 작업 | `com.niseullent.26x86.*` |
 
-전환 절차: [Migration-from-OCLP.md](./Migration-from-OCLP.md)
+전환 절차: [Migration.md](./Migration.md)

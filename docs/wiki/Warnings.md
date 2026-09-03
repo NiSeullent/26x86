@@ -85,4 +85,4 @@ macOS 27 Golden Gate 및 이후 버전은 **Apple Silicon(arm64) 전용**으로 
 - **설정:** `~/Library/Application Support/26x86/config.json` — 공유 plist에 **쓰지 않습니다.**
 - **권장 실행:** `26x86.command` 또는 `python3 -m x86 wizard`
 - **이전 패처와 자동 패치 동시 사용 금지** — 충돌할 수 있습니다.
-- 이전 패처에서 전환: [Migration-from-OCLP.md](./Migration-from-OCLP.md)
+- 이전 패처에서 전환: [Migration.md](./Migration.md)

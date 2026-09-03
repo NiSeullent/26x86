@@ -58,15 +58,15 @@
 
 본 프로젝트는 **「있는 그대로」** 제공되며 공식적인 기술 지원을 보장하지 않습니다. 문제 발생 시 GitHub Issues 또는 커뮤니티를 통해 자발적으로 도움을 구할 수 있습니다.
 
-## 설정 파일 및 OCLP 분리
+## 이전 패처와의 분리
 
-26x86은 Dortania OpenCore Legacy Patcher(OCLP)와 **런타임 설정·Launch Services·앱 설치 경로를 공유하지 않습니다.** OCLP 공유 plist를 **읽거나 쓰지 않으며**, OCLP plist 존재 여부와 **무관하게** 동작합니다.
+26x86은 **OpenCore Legacy Patcher**(공식 패처) 등 이전 패처와 설정·자동 패치·앱 경로를 **공유하지 않습니다.**
 
-- **26x86 설정:** `~/Library/Preferences/com.niseullent.26x86.plist`
+- **설정:** `~/Library/Preferences/com.sharhene777.26x86.plist` (또는 Application Support의 `config.json`)
 - **로그:** `~/Library/Logs/26x86/`
 - **앱 설치(PKG):** `/Library/Application Support/26x86/26x86.app`
 
-OCLP에서 전환하거나 디스크 정리가 필요하면 [docs/wiki/Migration-from-OCLP.md](./docs/wiki/Migration-from-OCLP.md)를 참고하세요. 자세한 설정 경로는 [docs/wiki/Configuration.md](./docs/wiki/Configuration.md)를 참고하세요.
+이전 패처에서 전환: [docs/wiki/Migration.md](./docs/wiki/Migration.md) · [docs/wiki/Configuration.md](./docs/wiki/Configuration.md)
 
 ---
 

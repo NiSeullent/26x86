@@ -279,6 +279,16 @@ def serialize_skylight_lut_tracks() -> dict[str, Any]:
     }
 
 
+def _call_hooks(hooks, xnu_major: int, xnu_minor: int, marketing_version: str):
+    try:
+        return hooks(xnu_major, xnu_minor, marketing_version)
+    except TypeError:
+        try:
+            return hooks(xnu_major)
+        except TypeError:
+            return hooks()
+
+
 def merge_sys_patch_hooks(
     xnu_major: int,
     xnu_minor: int,
@@ -348,6 +358,8 @@ def merge_optional_detect_fields(
     xnu_major: Optional[int] = None,
     agdpmod_present: Optional[bool] = None,
     assume_tahoe: bool = False,
+    agdp_on_correct_gfx0: Optional[bool] = None,
+    yellow_symptoms: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Optional detect extras from landed track modules (e.g. D agdc_*)."""
     extras: dict[str, Any] = {}
@@ -357,6 +369,8 @@ def merge_optional_detect_fields(
         "xnu_major": xnu_major,
         "agdpmod_present": agdpmod_present,
         "assume_tahoe": assume_tahoe,
+        "agdp_on_correct_gfx0": agdp_on_correct_gfx0,
+        "symptoms": yellow_symptoms,
     }
 
     mod_d, _ = resolve_track_module("D")
@@ -389,6 +403,7 @@ def merge_optional_detect_fields(
             DETECT_FIELDS,
         ),
         "E": (
+            "serialize_metallib_preflight_fields",
             "serialize_opaque_shader_fields",
             "serialize_metallib_fields",
             DETECT_FIELDS,

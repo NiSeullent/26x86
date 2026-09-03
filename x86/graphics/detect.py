@@ -207,12 +207,6 @@ def serialize_graphics_detect_fields(
     """JSON-friendly graphics policy fields for `x86 detect --json`."""
     from .yellow_screen import serialize_yellow_screen_fields
 
-    try:
-        from .agdc_diagnose import serialize_agdc_diagnose_fields
-    except ImportError:
-        def serialize_agdc_diagnose_fields(**_kwargs):
-            return {}
-
     report = detect_pre_avx_mac_pro(
         model=model,
         cpu_features=cpu_features,
@@ -239,21 +233,30 @@ def serialize_graphics_detect_fields(
     )
     payload.update(yellow)
 
-    # Track D — extend only; never replace yellow_screen_risk.
-    present = yellow.get("agdpmod_detected", agdpmod_present)
-    agdc = serialize_agdc_diagnose_fields(
-        model,
-        gpu_archs=gpu_archs,
-        os_version=os_version,
-        xnu_major=xnu_major,
-        agdpmod_present=present,
-        agdp_on_correct_gfx0=agdp_on_correct_gfx0,
-        assume_tahoe=assume_tahoe,
-        symptoms=yellow_symptoms,
+    # Track G: soft-merge B/C/D/E detect extras (missing modules → no-op).
+    from .skylight_tracks import (
+        merge_optional_detect_fields,
+        serialize_skylight_lut_tracks,
     )
-    for key, value in agdc.items():
+
+    extras_kwargs = {
+        "gpu_archs": gpu_archs,
+        "os_version": os_version,
+        "xnu_major": xnu_major,
+        "agdpmod_present": yellow.get("agdpmod_detected", agdpmod_present),
+        "assume_tahoe": assume_tahoe,
+    }
+    # Optional Track D kwargs when present on the call signature.
+    if "agdp_on_correct_gfx0" in locals():
+        extras_kwargs["agdp_on_correct_gfx0"] = agdp_on_correct_gfx0
+    if "yellow_symptoms" in locals():
+        extras_kwargs["yellow_symptoms"] = yellow_symptoms
+
+    extras = merge_optional_detect_fields(model, **extras_kwargs)
+    for key, value in extras.items():
         if key == "yellow_screen_risk":
             continue
         if key not in payload:
             payload[key] = value
+    payload["skylight_lut_tracks"] = serialize_skylight_lut_tracks()
     return payload

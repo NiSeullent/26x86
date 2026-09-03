@@ -68,14 +68,16 @@ Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다 (커널 패닉).
 소유권·Mission Control: [SkyLight-LUT-Tracks.md](../SkyLight-LUT-Tracks.md).  
 `python3 -m x86 detect --json` 의 `skylight_lut_tracks` 필드(트랙 G)가 연결 상태를 요약할 수 있습니다.
 
-| 트랙 | 역할 |
-|------|------|
-| **A** | 문서·Mission Control — Research · Tracks · Roadmap |
-| **B–C** | SkyLight/WS 심볼 · CoreDisplay/ColorSync/ICC |
-| **D** | AGDC 검증만 (EFI agdpmod **재작성 금지**) |
-| **E–F** | RenderBox/31001 · PSP Tahoe 오버레이 |
-| **G** | 루트패치 통합 · detect · 테스트 |
-| **H–L** | Plugins 로더 · UI · #234 분리 · 3802(가드) · 재부팅/KDK |
+| 트랙 | 역할 | 링크 |
+|------|------|------|
+| **A** | 문서·Mission Control | [Research](../Tahoe-SkyLight-LUT-Research.md) · [Tracks](../SkyLight-LUT-Tracks.md) · [Roadmap](../Tahoe-Graphics-Roadmap.md) |
+| **B** | SkyLight / WindowServer 심볼·훅 | `x86/graphics/skylight_*.py` |
+| **C** | CoreDisplay / ColorSync / ICC | `x86/graphics/colorsync_*` · `coredisplay_*` |
+| **D** | AGDC 검증만 (EFI agdpmod **재작성 금지**) | `x86/graphics/agdc_*.py` |
+| **E** | Metallib / RenderBox / 31001 | [skylight_lut.py](../../x86/graphics/skylight_lut.py) · `metallib_*.py` |
+| **F** | PSP Tahoe 오버레이 | [SOURCE.md](../../payloads/Kexts/Community/Tahoe-Yellow-Screen/SOURCE.md) |
+| **G** | 루트패치 통합 · detect · 테스트 | [skylight_tracks.py](../../x86/graphics/skylight_tracks.py) |
+| **H–L** | Plugins · UI · #234 · 3802(가드) · KDK | [Tracks H–Z](../SkyLight-LUT-Tracks.md) |
 
 Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다.
 

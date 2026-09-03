@@ -40,7 +40,22 @@ class TahoeYellowScreen(BaseSharedPatchSet):
         overlay_merge = self._optional_overlay_payloads()
         if overlay_merge:
             body.update(overlay_merge)
-        return {TAHOE_YELLOW_SCREEN_PATCH_NAME: body}
+
+        # Track G: merge B/C/E/F sys_patch_hooks (missing → no-op).
+        from x86.graphics.skylight_tracks import merge_sys_patch_hooks
+
+        track_hooks = merge_sys_patch_hooks(
+            self._xnu_major,
+            self._xnu_minor,
+            self._marketing_version,
+        )
+        result: dict = {TAHOE_YELLOW_SCREEN_PATCH_NAME: body}
+        for key, value in track_hooks.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = {**result[key], **value}
+            else:
+                result[key] = value
+        return result
 
     def _optional_overlay_payloads(self) -> dict:
         """

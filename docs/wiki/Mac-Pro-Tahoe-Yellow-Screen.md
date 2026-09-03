@@ -42,10 +42,14 @@ python3 -m x86 detect --json
 
 ## MacPro6,1 / MacPro5,1 + Vega 64 권장 조치
 
-1. **EFI 재빌드** — `efi_builder/graphics_audio.py`가 Mac Pro 소켓(5,1/6,1)과 GCN/Polaris/**Vega**에 `agdpmod` / `shikigva`를 넣습니다.
-2. **루트 패치** — Vega는 `amd_vega.py` (Metal 31001). GCN은 Legacy GCN kext. **이 kext만으로 노란 화면은 해결되지 않습니다.**
-3. **진단** — `Tools/collect_graphics_diagnostics.command`
+1. **EFI 재빌드** — `agdpmod` / `shikigva` (GCN·Polaris·Vega). Mac Pro 소켓은 **KDKlessWorkaround.kext**도 넣습니다 (MTL 번들 누락 시 WindowServer 루프).
+2. **루트 패치** — Vega `amd_vega.py` (Metal 31001) + **Tahoe Yellow Screen Mitigations**: WindowServer 캐시 잠금, ColorSync sRGB 폴백, PatcherSupportPkg `12.5-25` 오버레이가 있으면 MTL 번들 우선. **셰이더/LUT 본질은 아직 미해결**입니다.
+3. **진단** — `Tools/collect_graphics_diagnostics.command` · `python3 -m x86 detect --json` (`yellow_screen_mitigations`)
 4. **Safari** — 노란 화면과 별개.
+
+오버레이 슬롯: `payloads/Kexts/Community/Tahoe-Yellow-Screen/` (`SOURCE.md`). Apple kext는 DMG에만 있으며 이 폴더에 재배포하지 않습니다.
+
+Metal 3802 / Non-Metal Tahoe 가드는 **유지**합니다 (커널 패닉).
 
 ---
 

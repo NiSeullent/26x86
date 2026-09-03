@@ -12,6 +12,7 @@ from ...shared_patches.metal_31001     import LegacyMetal31001
 from ...shared_patches.monterey_gva    import MontereyGVA
 from ...shared_patches.monterey_opencl import MontereyOpenCL
 from ...shared_patches.amd_opencl      import AMDOpenCL
+from ...shared_patches.tahoe_yellow_screen import compositor_patches
 
 from .....constants  import Constants
 from .....detections import device_probe
@@ -113,7 +114,7 @@ class AMDPolaris(BaseHardware):
                         "AMDRadeonX4000HWServices.kext": "12.5",
                         "AMDRadeonVADriver2.bundle":     "12.5",
                         "AMDRadeonX4000GLDriver.bundle": "12.5",
-                        **({ "AMDMTLBronzeDriver.bundle": f"12.5-{self._xnu_major}" if self._xnu_major < os_data.sequoia.value else "12.5-24" }),
+                        **({ "AMDMTLBronzeDriver.bundle": self._amd_mtl_payload("AMDMTLBronzeDriver.bundle") }),
                         "AMDShared.bundle":              "12.5",
                     },
                 },
@@ -130,7 +131,10 @@ class AMDPolaris(BaseHardware):
 
         # Minimal amount of patches required for 2017 Polaris
         if self._computer.real_model in ["MacBookPro14,3"]:
-            return self._model_specific_patches()
+            return {
+                **self._model_specific_patches(),
+                **compositor_patches(self._xnu_major, self._xnu_minor, self._constants.detected_os_version),
+            }
 
         _base = {
             **LegacyMetal31001(self._xnu_major, self._xnu_minor, self._constants.detected_os_version).patches(),
@@ -145,6 +149,7 @@ class AMDPolaris(BaseHardware):
         # AMD GCN and newer GPUs can still use the native GVA stack
         _base.update({
             **MontereyGVA(self._xnu_major, self._xnu_minor, self._constants.detected_os_version).revert_patches(),
+            **compositor_patches(self._xnu_major, self._xnu_minor, self._constants.detected_os_version),
         })
 
         return _base

@@ -174,6 +174,26 @@ class BaseHardware(BasePatchset):
         return "12.5-23.4"
 
 
+    def _amd_mtl_payload(self, bundle_name: str) -> str:
+        """Prefer PatcherSupportPkg 12.5-25+ overlay when present, else 12.5-24 on Sequoia+."""
+        from pathlib import Path
+
+        from x86.graphics.yellow_screen import (
+            community_yellow_screen_overlay,
+            resolve_legacy_amd_mtl_payload,
+        )
+
+        roots = [community_yellow_screen_overlay()]
+        mounted = getattr(self._constants, "payload_local_binaries_root_path", None)
+        if mounted:
+            roots.append(Path(mounted))
+        return resolve_legacy_amd_mtl_payload(
+            self._xnu_major,
+            bundle_name=bundle_name,
+            search_roots=roots,
+        )
+
+
     def _26x86_internal_check(self) -> None:
         """
         Determine whether to unlock 26x86 developer mode

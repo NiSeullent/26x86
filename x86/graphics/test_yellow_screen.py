@@ -12,8 +12,13 @@ if str(REPO) not in sys.path:
 
 from x86.graphics.detect import TAHOE_XNU_MAJOR, serialize_graphics_detect_fields  # noqa: E402
 from x86.graphics.yellow_screen import (  # noqa: E402
+    TAHOE_YELLOW_SCREEN_PATCH_NAME,
     classify_gpu_family,
     recommended_efi_graphics_fixes,
+    resolve_legacy_amd_mtl_payload,
+    should_disable_window_server_caching,
+    socket_amd_needs_kdkless,
+    yellow_screen_mitigations,
     yellow_screen_risk,
 )
 
@@ -89,6 +94,145 @@ class EfiAgdpFallbackTest(unittest.TestCase):
 
     def test_boot_args_need_gcn_agdp_skips_when_present(self) -> None:
         self.assertEqual(boot_args_need_gcn_agdp("agdpmod=pikera shikigva=128"), [])
+
+
+class CompositorMitigationTest(unittest.TestCase):
+    def test_window_server_cache_keys_include_vega_and_polaris(self) -> None:
+        self.assertTrue(should_disable_window_server_caching({"AMD Vega": {}}))
+        self.assertTrue(should_disable_window_server_caching({"AMD Polaris": {}}))
+        self.assertTrue(should_disable_window_server_caching({"AMD Legacy GCN": {}}))
+        self.assertTrue(
+            should_disable_window_server_caching({TAHOE_YELLOW_SCREEN_PATCH_NAME: {}})
+        )
+        self.assertFalse(should_disable_window_server_caching({"Modern Wireless": {}}))
+
+    def test_kdkless_mac_pro_socket_not_imac_pro(self) -> None:
+        self.assertTrue(socket_amd_needs_kdkless("MacPro5,1", cpu_generation=4))
+        self.assertTrue(socket_amd_needs_kdkless("MacPro6,1", cpu_generation=6))
+        self.assertFalse(socket_amd_needs_kdkless("iMacPro1,1", cpu_generation=9))
+        self.assertFalse(socket_amd_needs_kdkless("iMac18,3", cpu_generation=6))
+
+    def test_mitigations_listed_for_vega64_tahoe(self) -> None:
+        items = yellow_screen_mitigations(
+            "MacPro5,1",
+            gpu_archs=["Vega", "0x687F"],
+            xnu_major=TAHOE_XNU_MAJOR,
+            cpu_generation=4,
+        )
+        self.assertIn("window_server_cache_disable", items)
+        self.assertIn("colorsync_srgb_fallback", items)
+        self.assertIn("kdkless_workaround", items)
+        self.assertIn("agdpmod", items)
+
+    def test_psp_prefers_12_5_25_when_overlay_has_bundle(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = (
+                root
+                / "12.5-25"
+                / "System"
+                / "Library"
+                / "Extensions"
+                / "AMDRadeonX5000MTLDriver.bundle"
+            )
+            bundle.mkdir(parents=True)
+            (bundle / "Contents").mkdir()
+            self.assertEqual(
+                resolve_legacy_amd_mtl_payload(
+                    TAHOE_XNU_MAJOR,
+                    bundle_name="AMDRadeonX5000MTLDriver.bundle",
+                    search_roots=[root],
+                ),
+                "12.5-25",
+            )
+            self.assertEqual(
+                resolve_legacy_amd_mtl_payload(
+                    TAHOE_XNU_MAJOR,
+                    bundle_name="AMDRadeonX5000MTLDriver.bundle",
+                    search_roots=[root / "missing"],
+                ),
+                "12.5-24",
+            )
+
+
+class RootPatchDictFixtureTest(unittest.TestCase):
+    """Tahoe patch dicts include compositor mitigations for Vega / Polaris / GCN."""
+
+    def _constants(self, model: str, gpu):
+        from opencore_legacy_patcher.constants import Constants
+        from opencore_legacy_patcher.detections.device_probe import CPU, Computer
+
+        constants = Constants()
+        computer = Computer()
+        computer.real_model = model
+        computer.rosetta_active = False
+        computer.cpu = CPU(name="Xeon", flags=["AVX1.0"], leafs=[])
+        computer.gpus = [gpu]
+        constants.computer = computer
+        constants.detected_os_version = "26.0"
+        constants.detected_os = TAHOE_XNU_MAJOR
+        return constants
+
+    def _amd(self, device_id: int):
+        from opencore_legacy_patcher.detections.device_probe import AMD
+
+        return AMD(
+            vendor_id=0x1002,
+            device_id=device_id,
+            class_code=0x030000,
+            name="fixture",
+        )
+
+    def test_vega64_macpro51_patch_dict_has_compositor_key(self) -> None:
+        from opencore_legacy_patcher.sys_patch.patchsets.hardware.graphics.amd_vega import (
+            AMDVega,
+        )
+
+        gpu = self._amd(0x687F)
+        self.assertEqual(gpu.arch.name, "Vega")
+        patcher = AMDVega(TAHOE_XNU_MAJOR, 0, "25A", self._constants("MacPro5,1", gpu))
+        patches = patcher.patches()
+        self.assertIn("AMD Vega", patches)
+        self.assertIn(TAHOE_YELLOW_SCREEN_PATCH_NAME, patches)
+        mtl = patches["AMD Vega"]["Overwrite System Volume"]["/System/Library/Extensions"][
+            "AMDRadeonX5000MTLDriver.bundle"
+        ]
+        self.assertIn(mtl, {"12.5-24", "12.5-25", f"12.5-{TAHOE_XNU_MAJOR}"})
+
+    def test_polaris_macpro51_patch_dict_has_compositor_key(self) -> None:
+        from opencore_legacy_patcher.sys_patch.patchsets.hardware.graphics.amd_polaris import (
+            AMDPolaris,
+        )
+
+        gpu = self._amd(0x67FF)
+        self.assertEqual(gpu.arch.name, "Polaris")
+        patcher = AMDPolaris(TAHOE_XNU_MAJOR, 0, "25A", self._constants("MacPro5,1", gpu))
+        patches = patcher.patches()
+        self.assertIn("AMD Polaris", patches)
+        self.assertIn(TAHOE_YELLOW_SCREEN_PATCH_NAME, patches)
+
+    def test_gcn_macpro61_patch_dict_has_compositor_key(self) -> None:
+        from opencore_legacy_patcher.sys_patch.patchsets.hardware.graphics.amd_legacy_gcn import (
+            AMDLegacyGCN,
+        )
+
+        gpu = self._amd(0x6800)
+        self.assertTrue(gpu.arch.name.startswith("Legacy_GCN") or "GCN" in gpu.arch.value)
+        patcher = AMDLegacyGCN(TAHOE_XNU_MAJOR, 0, "25A", self._constants("MacPro6,1", gpu))
+        patches = patcher.patches()
+        self.assertIn("AMD Legacy GCN", patches)
+        self.assertIn(TAHOE_YELLOW_SCREEN_PATCH_NAME, patches)
+
+    def test_sequoia_does_not_add_tahoe_compositor_key(self) -> None:
+        from opencore_legacy_patcher.sys_patch.patchsets.hardware.graphics.amd_vega import (
+            AMDVega,
+        )
+
+        gpu = self._amd(0x687F)
+        patcher = AMDVega(24, 0, "24A", self._constants("MacPro5,1", gpu))
+        self.assertNotIn(TAHOE_YELLOW_SCREEN_PATCH_NAME, patcher.patches())
 
 
 if __name__ == "__main__":

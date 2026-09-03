@@ -657,6 +657,29 @@ class HardwarePatchsetDetection:
                 continue
             patches.update(item.patches())
 
+        try:
+            from x86.graphics.yellow_screen import (
+                TAHOE_YELLOW_SCREEN_PATCH_NAME,
+                yellow_screen_mitigations,
+            )
+
+            if TAHOE_YELLOW_SCREEN_PATCH_NAME in patches:
+                gpu_archs = []
+                computer = getattr(self._constants, "computer", None)
+                if computer is not None:
+                    gpu_archs = getattr(computer, "gpus", []) or []
+                logging.info(
+                    "yellow_screen_mitigations: %s",
+                    yellow_screen_mitigations(
+                        self._constants.computer.real_model,
+                        gpu_archs=gpu_archs,
+                        os_version=self._os_version,
+                        xnu_major=self._xnu_major,
+                    ),
+                )
+        except Exception as error:
+            logging.debug("yellow_screen_mitigations log skipped: %s", error)
+
         _cant_patch = not self._can_patch(requirements)
 
         requirements[HardwarePatchsetValidation.PATCHING_NOT_POSSIBLE]   = _cant_patch

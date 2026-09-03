@@ -10,6 +10,7 @@ from ...shared_patches.metal_31001     import LegacyMetal31001
 from ...shared_patches.monterey_gva    import MontereyGVA
 from ...shared_patches.monterey_opencl import MontereyOpenCL
 from ...shared_patches.amd_opencl      import AMDOpenCL
+from ...shared_patches.tahoe_yellow_screen import compositor_patches
 
 from .....constants  import Constants
 from .....detections import device_probe
@@ -85,7 +86,7 @@ class AMDLegacyGCN(BaseHardware):
             ]
         ) is False:
             if self._xnu_major >= os_data.sequoia:
-                bronze_bundle_source = "12.5-24"
+                bronze_bundle_source = self._amd_mtl_payload("AMDMTLBronzeDriver.bundle")
 
         return {
             "AMD Legacy GCN": {
@@ -132,6 +133,7 @@ class AMDLegacyGCN(BaseHardware):
             **MontereyOpenCL(self._xnu_major, self._xnu_minor, self._constants.detected_os_version).patches(),
             **AMDOpenCL(self._xnu_major, self._xnu_minor, self._constants.detected_os_version).patches(),
             **self._model_specific_patches(),
+            **compositor_patches(self._xnu_major, self._xnu_minor, self._constants.detected_os_version),
         })
 
         return _base

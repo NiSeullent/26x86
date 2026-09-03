@@ -670,3 +670,19 @@ class BuildGraphicsAudio:
             ]:
                 support.BuildSupport(self.model, self.constants, self.config).enable_kext("KDKlessWorkaround.kext", self.constants.kdkless_version, self.constants.kdkless_path)
                 return
+
+        from x86.graphics.yellow_screen import socket_amd_needs_kdkless
+
+        cpu_gen = None
+        if self.model in smbios_data.smbios_dictionary:
+            cpu_gen = smbios_data.smbios_dictionary[self.model].get("CPU Generation")
+        if socket_amd_needs_kdkless(self.model, cpu_gen):
+            logging.info(
+                "- yellow_screen_mitigations: enabling KDKlessWorkaround for Mac Pro socket "
+                "(aftermarket Vega/Polaris MTL-missing WindowServer)"
+            )
+            support.BuildSupport(self.model, self.constants, self.config).enable_kext(
+                "KDKlessWorkaround.kext",
+                self.constants.kdkless_version,
+                self.constants.kdkless_path,
+            )

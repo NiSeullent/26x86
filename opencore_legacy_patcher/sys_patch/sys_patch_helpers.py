@@ -188,8 +188,8 @@ class SysPatchHelpers:
         """
         Disable WindowServer's asset caching
 
-        On legacy GCN GPUs, the WindowServer cache generated creates
-        corrupted Opaque shaders.
+        On legacy GCN, Polaris, and Vega GPUs the WindowServer cache can
+        create corrupted Opaque shaders (yellow/orange desktop on Tahoe).
 
         To work-around this, we disable WindowServer caching
         And force macOS into properly generating the Opaque shaders
@@ -223,6 +223,47 @@ class SysPatchHelpers:
         # Reference:
         #   To reverse write lock:
         #   'chflags nouchg /private/var/folders/*/*/*/WindowServer'
+
+
+    def apply_colorsync_srgb_fallback(self):
+        """
+        ColorSync / ICC fallback for tinted (not solid-yellow) desktops.
+
+        OCLP-T2 #194 reports default .icc / LUT load failure. Forcing
+        CoreDisplay useMetal=no is Non-Metal Enforcement and is blocked on
+        Tahoe. Linking the system sRGB profile is the documented ColorSync
+        layout; leftover useMetal/useIOP keys are deleted in sys_patch
+        preflight (_delete_nonmetal_enforcement).
+        """
+        logging.info("yellow_screen_mitigations: ColorSync sRGB display profile fallback")
+        cache_dir = "/Library/Caches/com.apple.colorsyncd"
+        if Path(cache_dir).exists():
+            try:
+                subprocess_wrapper.run_as_root(
+                    ["/bin/rm", "-rf", cache_dir],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                )
+            except Exception as exc:
+                logging.warning("Failed to clear ColorSync cache: %s", exc)
+
+        dest_dir = "/Library/ColorSync/Profiles/Displays"
+        src_icc = "/System/Library/ColorSync/Profiles/sRGB Profile.icc"
+        dest_icc = f"{dest_dir}/sRGB Profile.icc"
+        try:
+            subprocess_wrapper.run_as_root(
+                ["/bin/mkdir", "-p", dest_dir],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+            if Path(src_icc).exists():
+                subprocess_wrapper.run_as_root(
+                    ["/bin/ln", "-sf", src_icc, dest_icc],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                )
+        except Exception as exc:
+            logging.warning("Failed to link sRGB ColorSync profile: %s", exc)
 
 
     def install_rsr_repair_binary(self):

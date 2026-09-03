@@ -16,6 +16,7 @@ from ...shared_patches.metal_31001     import LegacyMetal31001
 from ...shared_patches.monterey_gva    import MontereyGVA
 from ...shared_patches.monterey_opencl import MontereyOpenCL
 from ...shared_patches.amd_opencl      import AMDOpenCL
+from ...shared_patches.tahoe_yellow_screen import compositor_patches
 
 from .....constants  import Constants
 from .....detections import device_probe
@@ -90,7 +91,7 @@ class AMDVega(BaseHardware):
 
                         "AMDRadeonVADriver2.bundle":      "12.5",
                         "AMDRadeonX5000GLDriver.bundle":  "12.5",
-                        **({ "AMDRadeonX5000MTLDriver.bundle": f"12.5-{self._xnu_major}" if self._xnu_major < os_data.sequoia.value else "12.5-24" }),
+                        **({ "AMDRadeonX5000MTLDriver.bundle": self._amd_mtl_payload("AMDRadeonX5000MTLDriver.bundle") }),
                         "AMDRadeonX5000Shared.bundle":    "12.5",
 
                         "AMDShared.bundle":               "12.5",
@@ -141,4 +142,5 @@ class AMDVega(BaseHardware):
             **AMDOpenCL(self._xnu_major, self._xnu_minor, self._constants.detected_os_version).patches(),
             **self._model_specific_patches(),
             **self._model_specific_patches_extended(),
+            **compositor_patches(self._xnu_major, self._xnu_minor, self._constants.detected_os_version),
         }

@@ -7,6 +7,7 @@ this module is wrapped by PayloadManager and kept for backward compatibility.
 
 import logging
 import subprocess
+import shutil
 import applescript
 import sys
 from pathlib import Path
@@ -132,7 +133,36 @@ class PatcherSupportPkgMount:
     def _display_too_many_attempts(self) -> None:
         applescript.AppleScript(f'display dialog "Failed to mount 26x86 internal resources, too many incorrect passwords." with title "26x86" with icon file "{self.icon_path}"').run()
 
+    def _merge_tahoe_yellow_screen_overlay(self) -> None:
+        """Ditto PatcherSupportPkg 12.5-25+ overlay into the mounted Universal-Binaries tree."""
+        from x86.graphics.yellow_screen import tahoe_psp_overlay_copy_pairs
+
+        dest = Path(self.constants.payload_local_binaries_root_path)
+        if not dest.exists():
+            return
+        ditto = Path("/usr/bin/ditto")
+        for src, target in tahoe_psp_overlay_copy_pairs(dest):
+            logging.info(
+                "yellow_screen_mitigations: injecting PatcherSupportPkg Tahoe payload %s -> %s",
+                src,
+                target,
+            )
+            try:
+                if ditto.exists():
+                    subprocess.run(
+                        [str(ditto), str(src), str(target)],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        check=False,
+                    )
+                else:
+                    shutil.copytree(src, target, dirs_exist_ok=True)
+            except OSError as exc:
+                logging.warning("yellow_screen_mitigations: overlay copy failed: %s", exc)
+
     def mount(self) -> bool:
-        if Path(self.constants.payload_local_binaries_root_path).exists():
-            return True
-        return self._mount_universal_binaries_dmg() and self._mount_26x86_internal_resources_dmg()
+        if not Path(self.constants.payload_local_binaries_root_path).exists():
+            if not (self._mount_universal_binaries_dmg() and self._mount_26x86_internal_resources_dmg()):
+                return False
+        self._merge_tahoe_yellow_screen_overlay()
+        return True

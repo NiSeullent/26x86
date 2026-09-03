@@ -699,11 +699,26 @@ class PatchSysVolume:
                             logging.exception("Stack Trace:")
 
         # Handle GPU-specific patches
-        if any(x in required_patches for x in ["AMD Legacy GCN", "AMD Legacy Polaris", "AMD Legacy Vega"]):
+        from x86.graphics.yellow_screen import (
+            should_disable_window_server_caching,
+            yellow_screen_mitigations,
+        )
+
+        if should_disable_window_server_caching(required_patches, self.model):
             try:
-                sys_patch_helpers.SysPatchHelpers(self.constants).disable_window_server_caching()
+                logging.info(
+                    "yellow_screen_mitigations: %s",
+                    yellow_screen_mitigations(
+                        self.model,
+                        xnu_major=self.constants.detected_os,
+                        assume_tahoe=self.constants.detected_os >= 25,
+                    ),
+                )
+                helpers = sys_patch_helpers.SysPatchHelpers(self.constants)
+                helpers.disable_window_server_caching()
+                helpers.apply_colorsync_srgb_fallback()
             except Exception as e:
-                logging.error(f"- Failed to disable window server caching: {e}")
+                logging.error(f"- Failed to apply yellow-screen compositor mitigations: {e}")
                 logging.exception("Stack Trace:")
         
         if "Metal 3802 Common Extended" in required_patches:

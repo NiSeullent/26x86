@@ -17,7 +17,11 @@ from .yellow_screen import (
     STOCK_GCN_AGDP_MODELS,
     classify_gpu_family,
     recommended_efi_graphics_fixes,
+    resolve_legacy_amd_mtl_payload,
     serialize_yellow_screen_fields,
+    should_disable_window_server_caching,
+    socket_amd_needs_kdkless,
+    yellow_screen_mitigations,
     yellow_screen_risk,
 )
 
@@ -31,9 +35,13 @@ __all__ = [
     "detect_pre_avx_mac_pro",
     "read_cpu_features_from_sysctl",
     "recommended_efi_graphics_fixes",
+    "resolve_legacy_amd_mtl_payload",
     "serialize_graphics_detect_fields",
     "serialize_yellow_screen_fields",
+    "should_disable_window_server_caching",
     "should_strip_tahoe_legacy_gpu_patches",
+    "socket_amd_needs_kdkless",
     "tahoe_blocked_patch_ids",
+    "yellow_screen_mitigations",
     "yellow_screen_risk",
 ]

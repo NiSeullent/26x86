@@ -15,6 +15,14 @@ from .. import constants
 
 from ..support import utilities
 from ..detections import device_probe
+from .gcn_agdp import (
+    DEFAULT_GCN_GFX0_PATH,
+    SOCKET_AMD_AGDP_MODELS,
+    STOCK_GCN_AGDP_MODELS,
+    apply_gcn_agdp_fallbacks,
+    boot_args_need_gcn_agdp,
+    config_has_agdpmod,
+)
 
 from ..datasets import (
     smbios_data,
@@ -123,8 +131,13 @@ class BuildGraphicsAudio:
                     logging.info("- No socketed dGPU found")
 
             else:
-                logging.info("- Adding Mac Pro, Xserve DRM patches")
-                self.config["NVRAM"]["Add"]["7C436110-AB2A-4BBB-A880-FE41995C9F82"]["boot-args"] += " shikigva=128 unfairgva=1 -wegtree"
+                logging.info("- Adding Mac Pro, Xserve DRM patches (agdpmod required for Vega/Polaris/GCN yellow screen)")
+                boot = self.config["NVRAM"]["Add"]["7C436110-AB2A-4BBB-A880-FE41995C9F82"]["boot-args"]
+                extra = boot_args_need_gcn_agdp(boot)
+                suffix = " " + " ".join(extra) if extra else ""
+                if "-wegtree" not in boot:
+                    suffix += " -wegtree"
+                self.config["NVRAM"]["Add"]["7C436110-AB2A-4BBB-A880-FE41995C9F82"]["boot-args"] += suffix
 
             if not support.BuildSupport(self.model, self.constants, self.config).get_kext_by_bundle_path("WhateverGreen.kext")["Enabled"] is True:
                 support.BuildSupport(self.model, self.constants, self.config).enable_kext("WhateverGreen.kext", self.constants.whatevergreen_version, self.constants.whatevergreen_path)
@@ -537,7 +550,15 @@ class BuildGraphicsAudio:
         # dGPU in this codebase gets: without it, any boot needing GPU compositing -- including
         # the plain installer's own progress UI, before root patching ever runs -- renders a
         # solid yellow/garbled screen instead of finishing.
-        elif not self.constants.custom_model and (self.model in model_array.LegacyGPU or self.model in ["iMac15,1", "iMac17,1", "MacPro6,1"]) and self.computer.dgpu:
+        elif (
+            not self.constants.custom_model
+            and (
+                self.model in model_array.LegacyGPU
+                or self.model in STOCK_GCN_AGDP_MODELS
+                or self.model in SOCKET_AMD_AGDP_MODELS
+            )
+            and getattr(self.computer, "dgpu", None)
+        ):
             logging.info(f"- Detected dGPU: {utilities.friendly_hex(self.computer.dgpu.vendor_id)}:{utilities.friendly_hex(self.computer.dgpu.device_id)}")
             if self.computer.dgpu.arch in [
                 device_probe.AMD.Archs.Legacy_GCN_7000,
@@ -551,6 +572,21 @@ class BuildGraphicsAudio:
                 self._amd_mxm_patch(self.gfx0_path)
             elif self.computer.dgpu.arch == device_probe.NVIDIA.Archs.Kepler:
                 self._nvidia_mxm_patch(self.gfx0_path)
+
+        # custom_model / failed GPU probe / aftermarket Vega 64:
+        # MacPro6,1 is not in model_array.MacPro; MacPro5,1 custom EFI used to
+        # omit agdpmod. Tahoe yellow screen is compositor-level (not GCN-only).
+        needs_agdp = self.model in STOCK_GCN_AGDP_MODELS or self.model in SOCKET_AMD_AGDP_MODELS
+        if needs_agdp and not config_has_agdpmod(self.config):
+            if not self.gfx0_path:
+                self.gfx0_path = DEFAULT_GCN_GFX0_PATH
+            logging.info("- Applying legacy AMD agdpmod/shikigva (Tahoe yellow-screen mitigation, GCN/Polaris/Vega)")
+            try:
+                self._amd_mxm_patch(self.gfx0_path)
+            except Exception as exc:
+                logging.info("- MXM AMD patch skipped (%s); using DeviceProperties/boot-args fallback", exc)
+        if needs_agdp:
+            apply_gcn_agdp_fallbacks(self.config, self.gfx0_path or DEFAULT_GCN_GFX0_PATH)
 
     def _ioaccel_workaround(self) -> None:
         """

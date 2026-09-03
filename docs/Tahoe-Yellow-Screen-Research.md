@@ -13,7 +13,7 @@ macOS 26 Tahoe 업그레이드 후 **WindowServer/데스크톱 출력이 망가�
 
 | 증상 계열 | 대표 원인 | AVX와의 관계 |
 |-----------|-----------|--------------|
-| **전체 화면 단색 노란/주황** | GCN dGPU + CoreDisplay LUT/ICC, EFI `agdpmod` 미적용, PatcherSupportPkg kext 누락 | **직접 인과 아님** (GPU/프레임워크) |
+| **전체 화면 단색 노란/주황** | **Tahoe WindowServer/SkyLight/CoreDisplay/ColorSync 합성 실패** (GPU 세대 무관). EFI `agdpmod` 미적용·PatcherSupportPkg kext 공백은 악화 요인. **Vega 64에서도 재현** (unpublished / reporter: 내부). OCLP-T2 #194는 MacPro5,1/6,1 + RX570도 GPU와 무관하게 보고 | **직접 인과 아님** |
 | **검은 화면 + 커서만** | Broadwell iGPU + WindowServer 합성 실패 (`SkyLight`/`CoreDisplay`) | AVX2 부재 Mac에서 31001 패치 불완 | 
 | **Safari/WebContent SIGILL** | JavaScriptCore `ctiMasmProbeTrampoline`의 무조건 AVX `vmovaps` | **직접 인과** (pre-AVX CPU) |
 | **루트패치 후 KP / 가속 없음** | Metal 3802 / Non-Metal shared 패치 Tahoe 미완 | APFS `NoAVXFSCompressionTypeZlib` 등 **별도** AVX 이슈 |
@@ -152,7 +152,7 @@ METAL_31001_GRAPHICS = "Metal 31001 Graphics"
 | Intel Skylake | MacBookPro13,x | ✅ | 🟡 | ↑ |
 | AMD Legacy GCN (7000–9000) | MacPro6,1 D300/D500/D700, iMac15,1 | ✅ | 🟡 kext + **EFI agdpmod** | `_amd_mxm_patch`, CoreDisplay LUT |
 | AMD Polaris | MacBookPro14,3 (AVX2 없을 때) | ✅ | 🟡 | Polaris kext + interposer |
-| AMD Vega | iMac Pro, cMP Vega | ✅ | 🟡 | Vega kext |
+| AMD Vega | iMac Pro, **cMP 소켓 Vega 64** | ✅ | 🟡 kext + **EFI agdpmod** — **노란 화면 재현됨** (unpublished / reporter: 내부) | `amd_vega.py` 31001 kext; compositor는 루트패치로 미해결 |
 
 **Tahoe 한계:** `LegacyMetal31001._patches_metal_31001_common()` = **의도적 no-op** (RenderBox Tahoe payload 부재)
 
@@ -170,8 +170,8 @@ Liquid Glass: Non-Metal은 **UI 다운그레이드**만 가능 (OCLP #1167)
 
 | 모델 | CPU | GPU | Tahoe 증상 | 권장 패치 경로 |
 |------|-----|-----|------------|----------------|
-| MacPro5,1 | Westmere (**no AVX**) | Kepler / GCN / Non-Metal | 노란 화면 + Safari SIGILL | **분리:** EFI graphics + (선택) Safari26-PreAVX-Fix; 3802 루트패치 **Tahoe 가드로 차단됨** |
-| MacPro6,1 | Ivy Bridge (**no AVX2**) | D700 (GCN 31001) | #194 노란 화면 | EFI `agdpmod=vit9696` + GCN kext; PatcherSupportPkg Tahoe payload |
+| MacPro5,1 | Westmere (**no AVX**) | Kepler / GCN / **Vega 64 애프터마켓** / Polaris | 노란 화면 + (별도) Safari SIGILL | **분리:** EFI agdpmod/shikigva + Vega/GCN kext; Safari는 RestrictEvents. 노란 화면은 **GPU 무관 compositor** |
+| MacPro6,1 | Ivy Bridge (**no AVX2**) | D700 (GCN) 또는 소켓 Vega | #194 + Vega 64 동일 증상 | EFI `agdpmod` + 31001 kext; PatcherSupportPkg Tahoe payload |
 
 ---
 
@@ -198,20 +198,29 @@ Liquid Glass: Non-Metal은 **UI 다운그레이드**만 가능 (OCLP #1167)
 
 > due to the CPU being Ivy Bridge and lacking AVX2, no matter what GPU is there
 
-**평가:** MacPro6,1은 **GPU가 31001(GCN)** 이므로 3802 패치와 무관. 실제 블로커는 **PatcherSupportPkg + CoreDisplay**, AVX2는 Polaris 등 **일부 31001** 경로에만 게이트. MacPro5,1 Westmere는 **AVX 자체 없음** → Safari/ APFS 별도 처리 필요.
+**평가:** WhiteLighter78의 “GPU가 뭐든 Ivy Bridge라서”는 **부분적으로 맞음** — 다만 원인은 AVX2 부재가 아니라 **Tahoe compositor**. **Vega 64(unpublished / reporter: 내부)** 와 #194 RX570이 GCN LUT 가설을 기각한다. AVX2는 Polaris 등 **일부 31001 kext 게이트**에만 해당. Safari/APFS는 **별도** AVX 경로.
+
+### 6.3.1 Vega 64 재현 (미공개)
+
+| 항목 | 내용 |
+|------|------|
+| **상태** | unpublished / reporter: 내부 (공개 GitHub URL 없음) |
+| **구성** | Mac Pro 소켓 **Vega 64** (`pci_data.vega_ids` `0x687F`) + Tahoe |
+| **증상** | 전체 화면 노란/주황 — GCN 전용 LUT 가설과 불일치 |
+| **26x86 경로** | `amd_vega.py` (Metal 31001 kext+OpenCL). EFI는 `graphics_audio.py` agdpmod/shikigva. **루트 Vega 패치만으로는 compositor를 고치지 못함** |
 
 ### 6.4 인과 관계 다이어그램
 
 ```
-[Tahoe 업그레이드 + 루트패치]
+[Tahoe 업그레이드]
         │
-        ├─► PatcherSupportPkg kext 누락 ──► GPU driver load fail ──► WindowServer/Yellow (#194)
+        ├─► 공통 compositor 실패 (WindowServer / SkyLight / CoreDisplay / ColorSync·ICC)
+        │         ▲ GCN · Polaris(RX570) · Vega 64 모두 재현
+        │         ▲ PatcherSupportPkg kext 공백이 악화
+        │
+        ├─► EFI agdpmod/shikigva 누락 또는 잘못된 PCI path ──► AGDCDiagnose yellow (완화 가능)
         │
         ├─► Metal 3802/Non-Metal shared (Tahoe) ──► 26x86 가드 ──► 가속 없음 (의도)
-        │
-        ├─► CoreDisplay LUT/ICC (GCN) ──► solid yellow tint (#194)
-        │
-        ├─► EFI agdpmod wrong GPU path ──► AGDCDiagnose yellow (graphics_audio.py)
         │
         └─► [별도] pre-AVX CPU + Safari 26.6.1 ──► JSC SIGILL (Safari26-PreAVX-Fix)
                     │
@@ -233,7 +242,7 @@ Liquid Glass: Non-Metal은 **UI 다운그레이드**만 가능 (OCLP #1167)
 | `sys_patch/patchsets/hardware/graphics/*.py` | GPU별 kext downgrade (14 파일) |
 | `sys_patch/patchsets/detect.py` | Metal/Non-Metal 혼합 GPU strip, metallib 요구 |
 | `support/metallib_handler.py` | NiSeullent/26x86-MetallibSupportPkg manifest |
-| `efi_builder/graphics_audio.py` | **노란 화면 EFI 완화** — MacPro6,1/iMac15,1/17,1 `agdpmod` |
+| `efi_builder/graphics_audio.py` | **노란 화면 EFI 완화** — MacPro5,1/6,1 + GCN/Polaris/Vega `agdpmod`/`shikigva` |
 | `constants.py` | `NoAVXFSCompressionTypeZlib`, `tahoe_ui_render`, USB-Map-Tahoe |
 | `Tools/collect_graphics_diagnostics.command` | WindowServer/CoreDisplay 로그 수집 |
 
@@ -321,3 +330,4 @@ if self._xnu_major >= os_data.tahoe.value:
 | 날짜 | 내용 |
 |------|------|
 | 2026-09-04 | 초안 — GitHub 이슈·Safari26-PreAVX-Fix·26x86 코드 grep 종합 |
+| 2026-09-04 | Vega 64 재현(unpublished / reporter: 내부) — 본질을 GPU 세대 무관 compositor 실패로 격상 |

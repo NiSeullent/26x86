@@ -1,5 +1,11 @@
 """
-amd_vega.py: AMD Vega detection
+amd_vega.py: AMD Vega detection (Metal 31001 kext + OpenCL/GVA).
+
+Root kexts here do not inject EFI DeviceProperties. Mac Pro 5,1/6,1 + aftermarket
+Vega 64 still need WhateverGreen agdpmod/shikigva from efi_builder/graphics_audio.py.
+Tahoe full-screen yellow is a WindowServer/CoreDisplay compositor failure
+(unpublished internal Vega 64 reproduction) — not unique to GCN LUT, and not
+fixed by this patchset alone.
 """
 
 from ..base import BaseHardware, HardwareVariant, HardwareVariantGraphicsSubclass

@@ -42,6 +42,7 @@ class PreAvxDetectFields:
     cpu_leaf7_features: Optional[list[str]] = None
     host_is_macos: bool = True
     cpu_flags: Optional[tuple[str, ...]] = None
+    gpu_archs: Optional[tuple[Any, ...]] = None
 
 
 def read_avx_capabilities(
@@ -204,6 +205,7 @@ def build_detect_fields(
         cpu_leaf7_features=cpu_leaf7_features,
         host_is_macos=macos,
         cpu_flags=tuple(combined_flags),
+        gpu_archs=tuple(gpus) if gpus else (),
     )
 
 
@@ -216,6 +218,7 @@ def serialize_detect_fields(fields: PreAvxDetectFields) -> dict[str, Any]:
         xnu_major=xnu,
         cpu_features=fields.cpu_features,
         cpu_leaf7_features=fields.cpu_leaf7_features,
+        gpu_archs=list(fields.gpu_archs) if fields.gpu_archs else None,
     )
     payload = {
         "pre_avx_mac_pro": fields.pre_avx_mac_pro,

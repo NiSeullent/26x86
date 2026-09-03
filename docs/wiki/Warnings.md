@@ -29,7 +29,7 @@ macOS 26에서 다음 GPU 클래스는 **그래픽 패치가 없어 커널 패�
 
 작업 진행 중이며, 해당 환경에서는 패치 주입을 막아 **가속 없이 사용**할 수 있도록 안전 장치를 두고 있습니다.
 
-상세: [GPU-Limitations.md](./GPU-Limitations.md)
+상세: [GPU-Limitations.md](./GPU-Limitations.md) · [Mac-Pro-Tahoe-Yellow-Screen.md](./Mac-Pro-Tahoe-Yellow-Screen.md)
 
 ---
 

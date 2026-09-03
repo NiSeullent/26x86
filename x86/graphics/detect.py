@@ -196,8 +196,15 @@ def serialize_graphics_detect_fields(
     cpu_features: Optional[list[str]] = None,
     cpu_leaf7_features: Optional[list[str]] = None,
     cpu_brand: Optional[str] = None,
+    gpu_archs: Optional[list[Any]] = None,
+    os_version: Optional[str] = None,
+    agdpmod_present: Optional[bool] = None,
+    probe_host_agdpmod: bool = False,
+    assume_tahoe: bool = False,
 ) -> dict[str, Any]:
     """JSON-friendly graphics policy fields for `x86 detect --json`."""
+    from .yellow_screen import serialize_yellow_screen_fields
+
     report = detect_pre_avx_mac_pro(
         model=model,
         cpu_features=cpu_features,
@@ -205,7 +212,7 @@ def serialize_graphics_detect_fields(
         cpu_brand=cpu_brand,
         xnu_major=xnu_major,
     )
-    return {
+    payload: dict[str, Any] = {
         "pre_avx_mac_pro": report.is_pre_avx2_mac_pro_like,
         "avx_available": report.has_avx1,
         "avx2_available": report.has_avx2,
@@ -213,3 +220,15 @@ def serialize_graphics_detect_fields(
         "tahoe_blocked_patches": list(report.tahoe_blocked_patches),
         "graphics_policy_notes": list(report.notes),
     }
+    payload.update(
+        serialize_yellow_screen_fields(
+            model,
+            gpu_archs=gpu_archs,
+            os_version=os_version,
+            xnu_major=xnu_major,
+            agdpmod_present=agdpmod_present,
+            probe_host_agdpmod=probe_host_agdpmod,
+            assume_tahoe=assume_tahoe,
+        )
+    )
+    return payload

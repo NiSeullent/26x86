@@ -1,21 +1,25 @@
 # Mac Pro · macOS 26 Tahoe 노란 화면 (WindowServer)
 
-Safari 크래시(AVX SIGILL)와 **전체 화면 노란/주황**은 별개입니다. Safari 경로는 [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md)를 보세요.
+Safari 크래시(AVX SIGILL)와 **전체 화면 노란/주황**은 별개입니다. Safari 경로는 [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md) · [Safari-PreAVX-Fix.md](./Safari-PreAVX-Fix.md)를 보세요.
 
-이 문서는 **WindowServer / CoreDisplay** 노란 화면, 커널 패닉, 가속 없음의 원인과 권장 조치입니다.
+이 문서는 **WindowServer / CoreDisplay compositor** 노란 화면의 원인과 권장 조치입니다.
 
 ---
 
 ## 원인 요약
 
+전체 화면 노란/주황은 **AVX와 무관**하며, **GCN LUT만의 문제도 아닙니다.**
+
 | 요인 | 설명 |
 |------|------|
-| **Metal 3802 / Non-Metal shared 패치 차단** | Tahoe에서 `Metal 3802 Common`, `Non-Metal Common` 등은 **의도적으로 비활성화**되어 있습니다. 강제 적용 시 KP·노란 화면·WS crash loop 위험이 있습니다. |
-| **MacPro6,1 + GCN 7000** | Ivy Bridge Xeon(AVX1, AVX2 없음) + 듀얼 FirePro D300/D500/D700. 루트 Metal 3802/Non-Metal로는 가속을 기대할 수 없습니다. |
-| **EFI DeviceProperties 미설정** | `agdpmod` / `shikigva` 없이 부팅하면 AGDCDiagnose solid yellow 또는 설치 99% 노란 화면이 발생할 수 있습니다. |
-| **Pre-AVX2 CPU** | MacPro5,1(Westmere) 등은 AVX2가 없어 Polaris 자동 경로와 맞물리지 않습니다. |
+| **공통 compositor 실패 (본질)** | Tahoe **WindowServer / SkyLight / CoreDisplay / ColorSync(ICC)** 합성. **Vega 64에서도 재현** (unpublished / reporter: 내부). 공개: [OCLP-T2 #194](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2/issues/194) — MacPro5,1/6,1 + RX570도 GPU와 무관하게 보고. |
+| **PatcherSupportPkg kext 공백** | `GPUCompanionBundles` 없음, PSP #16/#18 Tahoe payload 미병합. |
+| **EFI DeviceProperties (완화)** | `agdpmod` / `shikigva` 누락은 증상을 악화합니다. GCN·Polaris·**Vega 64 소켓** 모두 EFI에 넣습니다. |
+| **Metal 3802 / Non-Metal shared 차단** | Tahoe에서 의도적 비활성화. Vega는 별도 **31001** (`amd_vega.py`) 경로이며, 그 kext만으로 compositor는 고쳐지지 않습니다. |
 
-26x86은 `x86/graphics/detect.py` → `HardwarePatchsetDetection`에서 Tahoe + Pre-AVX Mac Pro일 때 **3802/Non-Metal 하드웨어 변형을 패치 목록에서 제거**하고, **AMD Legacy GCN kext + EFI agdpmod** 경로를 안내합니다.
+`python3 -m x86 detect --json` 필드: `gpu_family`, `yellow_screen_risk`, `recommended_efi_graphics_fixes`, `patcher_support_pkg_kexts_present`.
+
+진단: `Tools/collect_graphics_diagnostics.command`
 
 ---
 
@@ -23,10 +27,8 @@ Safari 크래시(AVX SIGILL)와 **전체 화면 노란/주황**은 별개입니�
 
 | 모델 | CPU | AVX1 | AVX2 | 기본 GPU | Tahoe 권장 정책 |
 |------|-----|------|------|----------|-----------------|
-| MacPro5,1 | Westmere Xeon | ✅(업그레이드 CPU) | ❌ | 소켓 GPU / TeraScale 2 | `tahoe_no_legacy_gpu_root_patch` |
-| MacPro6,1 | Ivy Bridge Xeon | ✅ | ❌ | 듀얼 GCN 7000 (FirePro D) | `tahoe_gcn_efi_only` |
-
-진단:
+| MacPro5,1 | Westmere Xeon | ✅(업그레이드 CPU) | ❌ | 소켓 GPU (TeraScale / **Vega 64** / Polaris) | `tahoe_no_legacy_gpu_root_patch` + EFI AGDP |
+| MacPro6,1 | Ivy Bridge Xeon | ✅ | ❌ | 듀얼 GCN 7000 또는 소켓 Vega | `tahoe_gcn_efi_only` + EFI AGDP |
 
 ```bash
 python3 -m x86 detect --json
@@ -38,20 +40,12 @@ python3 -m x86 detect --json
 
 ---
 
-## MacPro6,1 권장 조치 (GCN / 노란 화면)
+## MacPro6,1 / MacPro5,1 + Vega 64 권장 조치
 
-1. **EFI 빌드·재설치** — `efi_builder/graphics_audio.py`가 MacPro6,1에 `agdpmod` / `shikigva`를 주입합니다.
-2. **루트 패치** — **AMD Legacy GCN** kext 다운그레이드만 기대하세요. Metal 3802 / Non-Metal shared 패치는 Tahoe에서 차단됩니다 (`tahoe_blocked_patches`).
-3. **WindowServer 캐시** — GCN 패치 후 WS 캐시 비활성화가 적용될 수 있습니다.
-4. **진단** — `Tools/collect_graphics_diagnostics.command`로 WindowServer 로그를 수집하세요.
-
----
-
-## MacPro5,1 권장 조치
-
-1. **GPU 세대 확인** — TeraScale 2 / Kepler dGPU는 Non-Metal·3802 계열입니다. Tahoe에서 **루트 GPU 가속 패치는 적용되지 않습니다**.
-2. **CPU 업그레이드(AVX2)** — Haswell/Broadwell Xeon 등 AVX2 CPU면 Polaris/Vega kext 경로(`tahoe_modern_mac_pro`)를 검토하세요. **3802/Non-Metal shared 패치는 여전히 Tahoe에서 차단**됩니다.
-3. **Safari / AVX** — AVX1 미지원 5,1은 Safari SIGILL 가능. 조치는 [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md)입니다.
+1. **EFI 재빌드** — `efi_builder/graphics_audio.py`가 Mac Pro 소켓(5,1/6,1)과 GCN/Polaris/**Vega**에 `agdpmod` / `shikigva`를 넣습니다.
+2. **루트 패치** — Vega는 `amd_vega.py` (Metal 31001). GCN은 Legacy GCN kext. **이 kext만으로 노란 화면은 해결되지 않습니다.**
+3. **진단** — `Tools/collect_graphics_diagnostics.command`
+4. **Safari** — 노란 화면과 별개.
 
 ---
 
@@ -69,3 +63,5 @@ python3 -m x86 detect --json
 - [Pre-AVX-Mac-Pro.md](./Pre-AVX-Mac-Pro.md) — Safari AVX / RestrictEvents
 - [GPU-Limitations.md](./GPU-Limitations.md)
 - [Warnings.md](./Warnings.md)
+- [docs/Tahoe-Yellow-Screen-Research.md](../Tahoe-Yellow-Screen-Research.md)
+- [docs/Tahoe-Graphics-Roadmap.md](../Tahoe-Graphics-Roadmap.md) — Layer B compositor

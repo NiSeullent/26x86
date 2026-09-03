@@ -1,10 +1,14 @@
 # 고아 파일 보관 목록
 
-클린룸 아키텍처 정리(`docs/CLEANROOM-ARCHITECTURE.md`)에 따라 **일회성 OCLP 개발 산출물·T1 범위 밖 설치 스크립트·디버그 심볼**을 제거하거나 `archive/legacy-oclp/`로 이동했습니다. 애플리케이션·`payloads/` 핵심·CI 경로는 유지했습니다.
+26x86 독립 설계 정리(`docs/ARCHITECTURE-26x86.md`)에 따라 **일회성 OCLP 개발 산출물·T1 범위 밖 설치 스크립트·디버그 심볼**을 제거하거나 `archive/legacy-oclp/`로 이동했습니다. 애플리케이션·`payloads/` 핵심·CI 경로는 유지했습니다.
 
 ---
 
-## `archive/legacy-oclp/`로 이동 (2026-09-04)
+## Git 추적
+
+`archive/` 전체는 **로컬 전용**입니다. `.gitignore`에 포함되어 원격 저장소에는 올라가지 않습니다. 아래 목록은 워크스페이스에서 `archive/legacy-oclp/`로 옮긴 **내용**을 기록한 것이며, 클론만으로는 해당 파일이 제공되지 않습니다. 과거에 커밋된 내용은 Git 히스토리에서만 조회할 수 있습니다.
+
+## `archive/legacy-oclp/`로 이동 (로컬) (2026-09-04)
 
 기존 `archive/` 루트에 있던 항목을 `archive/legacy-oclp/`로 통합했습니다.
 
@@ -50,7 +54,7 @@
 
 ## 신규 LaunchAgent 템플릿
 
-클린룸 번들 ID `com.niseullent.26x86`용 템플릿을 추가했습니다 (`payloads/Launch Services/com.niseullent.26x86.*` 기반):
+번들 ID `com.niseullent.26x86`용 LaunchAgent 템플릿을 추가했습니다 (`payloads/Launch Services/com.niseullent.26x86.*` 기반):
 
 | 파일 |
 |------|
@@ -69,10 +73,10 @@
 |------|------|
 | `Tools/verify_efi.command` | READ-ONLY EFI 감사 도구 ([Tools/README.md](../../Tools/README.md)) |
 | `payloads/Launch Services/com.niseullent.26x86.*.plist` | 기존 NiSeullent 페이로드; 점진 이전 예정 |
-| `archive/README.md` | 아카이브 디렉터리 안내 |
+| `archive/README.md` | 아카이브 디렉터리 안내 (로컬 전용, Git 미추적) |
 
 ---
 
 ## 복원 방법
 
-필요 시 `archive/legacy-oclp/`에서 참고용으로 복사할 수 있습니다. Git 히스토리에도 이전 커밋이 보존됩니다. 운영 경로로 되돌리는 것은 권장하지 않습니다.
+필요 시 로컬 `archive/legacy-oclp/`에서 참고용으로 복사할 수 있습니다. 원격에는 포함되지 않으며, 과거 커밋은 Git 히스토리에서만 조회할 수 있습니다. 운영 경로로 되돌리는 것은 권장하지 않습니다.

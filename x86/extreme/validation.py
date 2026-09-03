@@ -286,13 +286,14 @@ def step_h_n_iosurface_prefer() -> StepResult:
 
 
 def step_track_e_renderbox() -> StepResult:
-    """Track E: missing RenderBox-25 → noop hooks; mock MTLB → Metal 31001."""
+    """Track E: module resolve + live/provisional RenderBox-25 readiness."""
     import tempfile
 
     from x86.graphics.metallib_preflight import METALLIB_MAGIC, MIN_RENDERBOX_METALLIB_BYTES
     from x86.graphics.metallib_renderbox import renderbox_gap_status, sys_patch_hooks
     from x86.graphics.skylight_lut import RENDERBOX_METALLIB_RELATIVE
     from x86.graphics.skylight_tracks import resolve_track_module
+    from x86.graphics.yellow_screen import default_psp_binaries_roots
 
     mod, name = resolve_track_module("E")
     resolved = name == "x86.graphics.metallib_renderbox" and mod is not None
@@ -306,11 +307,18 @@ def step_track_e_renderbox() -> StepResult:
         metallib.parent.mkdir(parents=True)
         metallib.write_bytes(METALLIB_MAGIC + (b"\x03" * MIN_RENDERBOX_METALLIB_BYTES))
         hooks_ok = sys_patch_hooks(25, 0, "26.0", search_roots=[filled])
+
+    live = renderbox_gap_status(25)
+    provisional = any(
+        (Path(r) / "RenderBox-25" / "PROVISIONAL_FROM_RENDERBOX_24").is_file()
+        for r in default_psp_binaries_roots()
+    )
     ok = (
         resolved
         and gap["noop"]
         and hooks_empty == {}
         and "Metal 31001 Common" in hooks_ok
+        and bool(live.get("valid_for_overwrite"))
     )
     return StepResult(
         name="track_e_renderbox",
@@ -319,6 +327,33 @@ def step_track_e_renderbox() -> StepResult:
             "resolved_module": name,
             "gap_noop": gap["noop"],
             "hooks_when_present": list(hooks_ok.keys()),
+            "live_renderbox_ready": live.get("valid_for_overwrite"),
+            "live_provisional": provisional,
+            "live_reason": live.get("reason"),
+        },
+    )
+
+
+def step_renderbox_payload_ready() -> StepResult:
+    """Dedicated gate: RenderBox-25 metallib on disk (authentic or provisional)."""
+    from x86.graphics.metallib_renderbox import renderbox_gap_status
+    from x86.graphics.yellow_screen import default_psp_binaries_roots
+
+    status = renderbox_gap_status(25)
+    provisional = any(
+        (Path(r) / "RenderBox-25" / "PROVISIONAL_FROM_RENDERBOX_24").is_file()
+        for r in default_psp_binaries_roots()
+    )
+    ok = bool(status.get("valid_for_overwrite"))
+    return StepResult(
+        name="renderbox_payload_ready",
+        ok=ok,
+        detail={
+            "ready": ok,
+            "provisional": provisional,
+            "present": status.get("present"),
+            "resolved_folder": status.get("resolved_folder"),
+            "acquire": "Tools/fetch_renderbox25.py",
         },
     )
 
@@ -376,6 +411,7 @@ def run_gates() -> list[StepResult]:
         step_efi_bridge,
         step_h_n_iosurface_prefer,
         step_track_e_renderbox,
+        step_renderbox_payload_ready,
         step_l5_macho_probe,
         step_apply_order_dry_run,
         step_mock_guest_matrix,

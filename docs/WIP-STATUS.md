@@ -47,7 +47,7 @@
 - L5 Mach-O probe + `Tools/check_extreme_payloads.py`
 - Apply-order dry-run + mock guest matrix
 - L5-patched Mach-O 실기 · 앱/PKG — **배포 에이전트**
-- Track E RenderBox-25 **바이너리** — PSP DRAFT 공백 (코드 가드 ✅)
+- Track E RenderBox-25 **바이너리** — 공개 미러 없음 → `fetch_renderbox25.py --provisional-from-24` (path gate ✅, ABI research)
 - Track B bytepatch 실기 조율 — deploy
 - Tahoe VM guest smoke — UTM/qemu 없음 → mock guest harness
 

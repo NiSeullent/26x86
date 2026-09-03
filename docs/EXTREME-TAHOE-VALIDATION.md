@@ -116,14 +116,29 @@ python -m x86 detect --json 2>/dev/null | head -c 4000
 
 | 페이로드 | 이 개발기 상태 | 획득 |
 |----------|----------------|------|
-| `RenderBox-25/.../default.metallib` | **없음** (22–24만) | OCLP/PSP nightly · `Tools/check_extreme_payloads.py` |
+| `RenderBox-25/.../default.metallib` | **provisional** (from-24) or authentic | `Tools/fetch_renderbox25.py` · Apple proprietary, **not committed** |
 | `10.14.6-24` SkyLight Mach-O | PSP sibling 있으면 ✅ | `26x86-PatcherSupportPkg` |
 | `10.14.4-24` CoreDisplay | PSP sibling 있으면 ✅ | 동일 |
 | `L5-patched/` binary | optional | B needle handoff |
+
+### RenderBox-25 미러 시도 (2026-09-04)
+
+| 미러 | 결과 |
+|------|------|
+| NiSeullent / hackdoc / dortania / YBronst / albert-mueller / laobamac raw | **404** — `RenderBox-25` 없음 |
+| YBronst PSP 2.0.0 DMG (622MB) | mount OK · RenderBox-22..24 및 3802 paths만 · **RenderBox-25 없음** |
+| 우회 | `--provisional-from-24` → Community overlay + sibling PSP (MTLB 검증 통과, provisional 마커) |
+
+```bash
+python Tools/fetch_renderbox25.py                 # 공개 미러 + DMG
+python Tools/fetch_renderbox25.py --provisional-from-24 --also-sibling-psp
+python Tools/check_extreme_payloads.py            # L5 ✅ + RB ✅ (provisional note)
+```
 
 ## 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-09-04 | RenderBox-25 fetch script + provisional-from-24 staging · RB gate |
 | 2026-09-04 | Track E soft-import · L5 Mach-O probe · apply-order · mock guest |
 | 2026-09-04 | 검증 매트릭스 · entrypoint · H→N IOSurface prefer · combo tests |

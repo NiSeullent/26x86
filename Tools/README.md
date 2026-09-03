@@ -11,6 +11,7 @@ Diagnostic and recovery tools for 26x86 T1 on MacBookPro14,3.
 | `collect_graphics_diagnostics.command` | ✅ READ-ONLY | Collects GPU/display/WindowServer logs for troubleshooting |
 | `run_extreme_validation.py` | ✅ READ-ONLY | Extreme Tahoe gate/patchset/profile dry-run + unit suite |
 | `check_extreme_payloads.py` | ✅ READ-ONLY | RenderBox-25 + L5 Mach-O existence / acquire notes |
+| `fetch_renderbox25.py` | ✅ READ-ONLY fetch | Multi-mirror RenderBox-25 acquire (+ optional provisional-from-24) |
 | `run_apply_order_dry_run.py` | ✅ READ-ONLY | EFI→root→yellow→extreme order dry-run |
 | `revert_snapshot.command` | ⚠️ POTENTIALLY DESTRUCTIVE | Reverts to sealed APFS snapshot (requires explicit `YES` confirmation + `sudo`) |
 

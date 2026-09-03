@@ -17,7 +17,9 @@ PSP #18 today is AppleHDA-only (not graphics).
 
 ## Placement
 
-Copy licensed trees into `Universal-Binaries/12.5-25/...` or sibling `26x86-PatcherSupportPkg`. Never commit Apple binaries.
+Copy licensed trees into `Universal-Binaries/12.5-25/...`, `RenderBox-25/...`, or sibling `26x86-PatcherSupportPkg`. Never commit Apple binaries.
+
+RenderBox-25: see `Universal-Binaries/RenderBox-25/SOURCE.md` and `Tools/fetch_renderbox25.py`.
 
 ## Stage-F
 

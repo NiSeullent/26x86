@@ -51,7 +51,11 @@ def track_gaps() -> list[TrackGap]:
         TrackGap("K", "landed", "E2E profile --extreme → interpose_apply"),
         TrackGap("L", "landed", "L5=refused_by_agent; L5-R root-volume patchset"),
         TrackGap("M", "integrated", "metal_3802 live opt-in + tahoe_gate"),
-        TrackGap("N", "integrated", "non_metal* live opt-in + tahoe_gate"),
+        TrackGap(
+            "N",
+            "integrated",
+            "non_metal* + tahoe_gate; H latch → IOSurface 10.15.7 prefer",
+        ),
     ]
 
 

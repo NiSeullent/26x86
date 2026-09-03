@@ -22,7 +22,8 @@ Sequoia + `X86_EXTREME=1` → 루트 **no-op**. 구현: `x86/graphics/tahoe_gate
 - [x] `skylight_lut_rootpatch.py` → `is_tahoe` / `root_patches_allowed`
 - [x] `metal3802_tahoe.py` / `nonmetal_tahoe.py` → gate import
 - [x] **J** detect stage → live (`33e506a`)
-- [ ] (선택) N IOSurface 10.15.7 prefer when H latch
+- [x] N IOSurface 10.15.7 prefer when H latch (`prefer_h_iosurface_versions`)
+- [x] Validation entry `Tools/run_extreme_validation.py`
 
 ## 이미 landed (재 INTEGRATE 금지)
 

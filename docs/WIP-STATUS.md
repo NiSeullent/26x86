@@ -41,14 +41,17 @@
 
 ## 남은 실무 (비-Sweep 또는 deferred)
 
-- N IOSurface 10.14.6 vs H 10.15.7 prefer — docs/later
+- N IOSurface 10.15.7 prefer when H latch — ✅ code (`prefer_h_iosurface_versions`)
+- 검증 엔트리 — `Tools/run_extreme_validation.py` · `docs/EXTREME-TAHOE-VALIDATION.md`
 - L5-patched Mach-O 실기 · 앱/PKG — **배포 에이전트**
 - Track E RenderBox-25 — partial
 - Track B bytepatch 실기 조율 — deploy
+- Tahoe VM guest smoke — UTM/qemu 없음 → mock only
 
 ## 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-09-04 | Validate: extreme suite + H→N IOSurface prefer + docs matrix |
 | 2026-09-04 | MC J INTEGRATE `33e506a` |
 | 2026-09-04 | Sweep: `tahoe_gate` land + L5/M/N/I soft-import + WIP-STATUS |

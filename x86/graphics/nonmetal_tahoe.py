@@ -161,6 +161,59 @@ def allow_nonmetal_enforcement_on_tahoe(
     return STAGE_ENFORCEMENT in enabled_nonmetal_stages(environ)
 
 
+# When Track H double-latch is on, prefer Non-Metal Common IOSurface 10.15.7
+# over IOAccel's older 10.14.6 (Metal AMD CA experiment — see EXTREME docs).
+H_PREFERRED_IOSURFACE_KEXT = "10.15.7"
+H_PREFERRED_IOSURFACE_FRAMEWORK = "10.15.7-24"
+ENV_IOSURFACE_CA = "X86_EXTREME_IOSURFACE_CA"
+
+
+def h_iosurface_latch_on(environ: Optional[Mapping[str, str]] = None) -> bool:
+    """True when Track H extreme IOSurface/CA double latch is armed."""
+    return _env_truthy(ENV_EXTREME, environ) and _env_truthy(ENV_IOSURFACE_CA, environ)
+
+
+def prefer_h_iosurface_versions(
+    patches: Mapping[str, Any],
+    *,
+    environ: Optional[Mapping[str, str]] = None,
+) -> dict[str, Any]:
+    """
+    Rewrite N IOAccel ``IOSurface.kext=10.14.6`` → ``10.15.7`` when H latch is on.
+
+    Idempotent with Non-Metal Common / Track H surgical keys (same version strings).
+    """
+    import copy
+
+    from opencore_legacy_patcher.sys_patch.patchsets.base import PatchType
+
+    out = copy.deepcopy(dict(patches))
+    if not h_iosurface_latch_on(environ):
+        return out
+
+    ioaccel = out.get("Non-Metal IOAccelerator Common")
+    if not isinstance(ioaccel, dict):
+        return out
+
+    overwrite = ioaccel.get(PatchType.OVERWRITE_SYSTEM_VOLUME) or ioaccel.get(
+        "OVERWRITE_SYSTEM_VOLUME"
+    )
+    if isinstance(overwrite, dict):
+        exts = overwrite.get("/System/Library/Extensions")
+        if isinstance(exts, dict) and "IOSurface.kext" in exts:
+            exts["IOSurface.kext"] = H_PREFERRED_IOSURFACE_KEXT
+
+    merge = ioaccel.get(PatchType.MERGE_SYSTEM_VOLUME) or ioaccel.get(
+        "MERGE_SYSTEM_VOLUME"
+    )
+    if isinstance(merge, dict):
+        frameworks = merge.get("/System/Library/Frameworks")
+        if isinstance(frameworks, dict) and "IOSurface.framework" in frameworks:
+            frameworks["IOSurface.framework"] = H_PREFERRED_IOSURFACE_FRAMEWORK
+
+    return out
+
+
 def filter_nonmetal_tahoe_patches(
     patches: Mapping[str, Any],
     *,
@@ -176,6 +229,8 @@ def filter_nonmetal_tahoe_patches(
     Tahoe without opt-in: ``{}``.
     Tahoe with opt-in: keep only enabled stage keys — **must be non-empty**
     when at least Common is enabled (no permanent closed gate under opt-in).
+
+    When Track H latch is on, IOAccel IOSurface versions are lifted to 10.15.7.
     """
     from x86.graphics.tahoe_gate import is_tahoe, nonmetal_root_unlocked
 
@@ -186,7 +241,8 @@ def filter_nonmetal_tahoe_patches(
     ):
         return {}
     allow = enabled_patch_keys(environ)
-    return {k: v for k, v in patches.items() if k in allow}
+    filtered = {k: v for k, v in patches.items() if k in allow}
+    return prefer_h_iosurface_versions(filtered, environ=environ)
 
 
 def stock_skylight_old_present(marker: Optional[str] = None) -> bool:

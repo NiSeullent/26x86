@@ -138,6 +138,36 @@ class FlashedMacProFixtureTest(unittest.TestCase):
         )
         self.assertFalse(miss["flashed_mac_pro"])
 
+    def test_macpro71_westmere_without_real_model(self) -> None:
+        hit = detect_flashed_mac_pro(
+            reported_model="MacPro7,1",
+            cpu_brand="Intel(R) Xeon(R) CPU X5675 @ 3.07GHz",
+            smc_version="1.39f11",
+        )
+        self.assertTrue(hit["flashed_mac_pro"])
+        self.assertEqual(hit["real_model_hint"], "MacPro5,1")
+
+
+class LiveHostSequoiaNoOpSmokeTest(unittest.TestCase):
+    """On Sequoia 15.x CI/dev hosts, probe must report non-Tahoe + no root unlock."""
+
+    def test_probe_matches_darwin_major_when_present(self) -> None:
+        info = probe_host_os()
+        if sys.platform != "darwin":
+            self.skipTest("non-darwin")
+        # This workspace is Sequoia 15.5 (xnu 24) — document no-op contract.
+        if info.macos_major == SEQUOIA_PRODUCT_MAJOR or (
+            info.xnu_major is not None and info.xnu_major < TAHOE_XNU_MAJOR
+        ):
+            self.assertFalse(info.is_tahoe)
+            fields = serialize_root_patch_gates(
+                xnu_major=info.xnu_major,
+                product_version=info.product_version,
+                environ={ENV_EXTREME: "1"},
+            )
+            self.assertFalse(fields["root_patches_allowed"])
+            self.assertFalse(fields["metal3802_root_unlocked"])
+
 
 if __name__ == "__main__":
     unittest.main()

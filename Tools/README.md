@@ -9,6 +9,7 @@ Diagnostic and recovery tools for 26x86 T1 on MacBookPro14,3.
 | `kdk_status.command` | ✅ READ-ONLY | Inspects KDK installation status and kernel compatibility |
 | `verify_efi.command` | ✅ READ-ONLY | Audits EFI partition contents without modification |
 | `collect_graphics_diagnostics.command` | ✅ READ-ONLY | Collects GPU/display/WindowServer logs for troubleshooting |
+| `run_extreme_validation.py` | ✅ READ-ONLY | Extreme Tahoe gate/patchset/profile dry-run + unit suite |
 | `revert_snapshot.command` | ⚠️ POTENTIALLY DESTRUCTIVE | Reverts to sealed APFS snapshot (requires explicit `YES` confirmation + `sudo`) |
 
 ## Usage

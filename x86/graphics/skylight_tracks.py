@@ -343,7 +343,8 @@ def merge_sys_patch_hooks(
             )
             continue
         try:
-            extra = hooks(xnu_major, xnu_minor, marketing_version) or {}
+            # Track B uses keyword-only after xnu_major; use adaptive caller.
+            extra = _call_hooks(hooks, xnu_major, xnu_minor, marketing_version) or {}
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "skylight_tracks: track %s sys_patch_hooks failed: %s",

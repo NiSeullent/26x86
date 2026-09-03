@@ -22,7 +22,8 @@
 | L5-R recipes | landed · G soft-import · **gate wired** | Sweep |
 | **J detect** | **integrated** `33e506a` | MC |
 | **`tahoe_gate.py`** | **landed** | **Sweep** |
-| N ioaccel 10.14.6 vs H 10.15.7 | prefer 10.15.7 when H latch | docs / later |
+| N ioaccel 10.14.6 vs H 10.15.7 | **prefer 10.15.7 when H latch** | landed |
+| Validation matrix | `docs/EXTREME-TAHOE-VALIDATION.md` | validate |
 | L5-patched Mach-O 실기 | deferred | 배포 |
 | 앱/PKG | deferred | 배포 전담 |
 

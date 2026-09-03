@@ -19,7 +19,8 @@
 ## 다음 큐
 
 1. deferred: L5-patched 실기 · 앱/PKG (배포 전담)  
-2. optional: N IOSurface 10.15.7 prefer when H latch  
+2. ✅ N IOSurface 10.15.7 prefer when H latch  
+3. ✅ Validation: `Tools/run_extreme_validation.py` · `docs/EXTREME-TAHOE-VALIDATION.md`  
 
 ## 변경 이력
 

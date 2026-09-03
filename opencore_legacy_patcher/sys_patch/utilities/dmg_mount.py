@@ -135,13 +135,27 @@ class PatcherSupportPkgMount:
 
     def _merge_tahoe_yellow_screen_overlay(self) -> None:
         """Ditto PatcherSupportPkg 12.5-25+ overlay into the mounted Universal-Binaries tree."""
-        from x86.graphics.yellow_screen import tahoe_psp_overlay_copy_pairs
+        # Track F: prefer psp_overlay (MC integrates this .stage-F file).
+        from x86.graphics.skylight_lut import renderbox_overlay_copy_pairs
+        from x86.graphics.psp_overlay import (
+            format_tahoe_psp_overlay_missing_message,
+            tahoe_psp_version_copy_pairs,
+        )
 
         dest = Path(self.constants.payload_local_binaries_root_path)
         if not dest.exists():
             return
+        pairs = tahoe_psp_version_copy_pairs(dest)
+        pairs.extend(renderbox_overlay_copy_pairs(dest))
+        if not pairs:
+            message = format_tahoe_psp_overlay_missing_message()
+            logging.warning(
+                "yellow_screen_mitigations: no Tahoe PSP overlay (12.5-25/26) to inject. %s",
+                message or "See payloads/Kexts/Community/Tahoe-Yellow-Screen/SOURCE.md",
+            )
+            return
         ditto = Path("/usr/bin/ditto")
-        for src, target in tahoe_psp_overlay_copy_pairs(dest):
+        for src, target in pairs:
             logging.info(
                 "yellow_screen_mitigations: injecting PatcherSupportPkg Tahoe payload %s -> %s",
                 src,

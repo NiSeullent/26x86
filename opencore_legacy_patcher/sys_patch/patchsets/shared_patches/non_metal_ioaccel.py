@@ -1,7 +1,13 @@
 """
-non_metal_ioaccel.py: Non-Metal IOAccelerator patches
-"""
+Track N stage sidecar (``non_metal_ioaccel.py.stage-N``).
+MC integrate copies this over shared ``non_metal_ioaccel.py`` — do not edit the
+in-tree shared file from Track N (file-monopoly ban).
 
+Tahoe default remains ``{}`` without opt-in; opt-in via
+``X86_TAHOE_NONMETAL=1`` or ``X86_EXTREME=1`` refills ``Non-Metal IOAccelerator Common``
+through ``filter_nonmetal_tahoe_patches`` (stage=ioaccel).
+See ``x86.graphics.nonmetal_tahoe``.
+"""
 from .base import BaseSharedPatchSet
 
 from ..base import PatchType
@@ -27,17 +33,10 @@ class NonMetalIOAccelerator(BaseSharedPatchSet):
         TeraScale 2 and Nvidia Web Drivers broke in Mojave due to mismatched structs in
         the IOAccelerator stack
         """
-        if self._xnu_major >= os_data.tahoe.value:
-            # Non-Metal GPU patches currently cause kernel panics on macOS 26, Tahoe.
-            # Safety guard: skip this patchset entirely until a working fix is found.
-            # Unrelated patchsets (eg. Legacy Wireless) are unaffected, as they come
-            # from separate hardware/shared patch classes and are not gated here.
-            return {}
-
         if self._os_requires_patches() is False:
             return {}
 
-        return {
+        base = {
             "Non-Metal IOAccelerator Common": {
                 PatchType.OVERWRITE_SYSTEM_VOLUME: {
                     "/System/Library/Extensions": {
@@ -65,3 +64,11 @@ class NonMetalIOAccelerator(BaseSharedPatchSet):
                 },
             },
         }
+
+        if self._xnu_major < os_data.tahoe.value:
+            return base
+
+        # Track N — opt-in refill (X86_TAHOE_NONMETAL / X86_EXTREME). Default stays {}.
+        from x86.graphics.nonmetal_tahoe import filter_nonmetal_tahoe_patches
+
+        return filter_nonmetal_tahoe_patches(base, xnu_major=self._xnu_major)

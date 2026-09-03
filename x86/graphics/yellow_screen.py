@@ -252,7 +252,8 @@ def tahoe_psp_overlay_copy_pairs(
             if key in seen:
                 continue
             try:
-                if src.is_dir() and any(src.rglob("*")):
+                from x86.graphics.psp_overlay import version_dir_has_injectable_payload
+                if version_dir_has_injectable_payload(src):
                     seen.add(key)
                     pairs.append((src, dest / version))
             except OSError:
@@ -448,6 +449,9 @@ def serialize_yellow_screen_fields(
         "yellow_screen_unpublished_issue": UNPUBLISHED_VEGA64_ISSUE,
         "yellow_screen_notes": _notes(model, family, fixes, risk, tahoe, present),
     }
+    from x86.graphics.psp_overlay import merge_tahoe_psp_overlay_into_detect
+
+    payload = merge_tahoe_psp_overlay_into_detect(payload, psp_search_paths)
     major = xnu_major if xnu_major is not None else (25 if tahoe else None)
     if major is not None:
         payload.update(

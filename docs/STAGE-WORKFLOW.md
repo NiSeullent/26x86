@@ -94,3 +94,12 @@ opencore_legacy_patcher/.../metal_3802.py.stage-M
 | 날짜 | 내용 |
 |------|------|
 | 2026-09-04 | 초안 — 파일 독재 금지 · `.stage-X` · MC 통합 |
+
+
+---
+
+## 9. 극한 실험 정책 (MC)
+
+- **기본 배포**와 무관하게 `X86_EXTREME=1` 이면 L5(루트볼륨 바이너리 패치셋)·3802·Non-Metal·interpose·bytepatch 등 **모든 극한 실험 허용**.
+- MC 문서/통합에 **"blocked forever" / 절대 금지 플래그를 넣지 않는다.**
+- 기본 경로의 `return {}` 는 안전 기본값일 뿐, extreme 옵트인 해금을 막지 않는다.

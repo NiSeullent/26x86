@@ -1,7 +1,13 @@
 """
-non_metal_coredisplay.py: Non-Metal CoreDisplay patches
-"""
+Track N stage sidecar (``non_metal_coredisplay.py.stage-N``).
+MC integrate copies this over shared ``non_metal_coredisplay.py`` — do not edit the
+in-tree shared file from Track N (file-monopoly ban).
 
+Tahoe default remains ``{}`` without opt-in; opt-in via
+``X86_TAHOE_NONMETAL=1`` or ``X86_EXTREME=1`` refills ``Non-Metal CoreDisplay Common``
+through ``filter_nonmetal_tahoe_patches`` (stage=coredisplay).
+See ``x86.graphics.nonmetal_tahoe``.
+"""
 from .base import BaseSharedPatchSet
 
 from ..base import PatchType
@@ -26,17 +32,10 @@ class NonMetalCoreDisplay(BaseSharedPatchSet):
         """
         Nvidia Web Drivers require an older build of CoreDisplay
         """
-        if self._xnu_major >= os_data.tahoe.value:
-            # Non-Metal GPU patches currently cause kernel panics on macOS 26, Tahoe.
-            # Safety guard: skip this patchset entirely until a working fix is found.
-            # Unrelated patchsets (eg. Legacy Wireless) are unaffected, as they come
-            # from separate hardware/shared patch classes and are not gated here.
-            return {}
-
         if self._os_requires_patches() is False:
             return {}
 
-        return {
+        base = {
             "Non-Metal CoreDisplay Common": {
                 PatchType.MERGE_SYSTEM_VOLUME: {
                     "/System/Library/Frameworks": {
@@ -47,3 +46,11 @@ class NonMetalCoreDisplay(BaseSharedPatchSet):
                 },
             },
         }
+
+        if self._xnu_major < os_data.tahoe.value:
+            return base
+
+        # Track N — opt-in refill (X86_TAHOE_NONMETAL / X86_EXTREME). Default stays {}.
+        from x86.graphics.nonmetal_tahoe import filter_nonmetal_tahoe_patches
+
+        return filter_nonmetal_tahoe_patches(base, xnu_major=self._xnu_major)

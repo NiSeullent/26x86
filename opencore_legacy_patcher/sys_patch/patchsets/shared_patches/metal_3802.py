@@ -1,5 +1,13 @@
 """
 metal_3802.py: Metal 3802 patches
+
+Track M stage sidecar (``metal_3802.py.stage-M``).
+MC integrate copies this over shared ``metal_3802.py`` — do not edit the
+in-tree shared file from Track M (file-monopoly ban).
+
+Tahoe default remains ``{}``; opt-in via ``X86_TAHOE_3802=1`` or
+``X86_EXTREME=1`` (slice filter: ``X86_TAHOE_3802_SLICES``). See
+``x86.graphics.metal3802_tahoe``.
 """
 
 import packaging.version
@@ -481,16 +489,19 @@ class LegacyMetal3802(BaseSharedPatchSet):
     def patches(self) -> dict:
         """
         Dictionary of patches
-        """
-        if self._xnu_major >= os_data.tahoe.value:
-            # Metal 3802 patches currently cause kernel panics on macOS 26, Tahoe.
-            # Safety guard: skip this patchset entirely until a working fix is found.
-            # Unrelated patchsets (eg. Legacy Wireless) are unaffected, as they come
-            # from separate hardware/shared patch classes and are not gated here.
-            return {}
 
-        return {
+        Tahoe: default ``{}`` (KP/yellow safety). Track M opt-in reactivates
+        Common / Extended / .metallibs slices via ``metal3802_tahoe``.
+        """
+        base = {
             **self._patches_metal_3802_common(),
             **self._patches_metal_3802_common_extended(),
             **self._patches_metal_3802_metallibs(),
         }
+        if self._xnu_major < os_data.tahoe.value:
+            return base
+
+        # Track M — opt-in only (X86_TAHOE_3802 / X86_EXTREME). Default stays {}.
+        from x86.graphics.metal3802_tahoe import filter_tahoe_3802_patches
+
+        return filter_tahoe_3802_patches(base, xnu_major=self._xnu_major)

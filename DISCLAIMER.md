@@ -62,7 +62,7 @@
 
 26x86은 **OpenCore Legacy Patcher**(공식 패처) 등 이전 패처와 설정·자동 패치·앱 경로를 **공유하지 않습니다.**
 
-- **설정:** `~/Library/Preferences/com.sharhene777.26x86.plist` (또는 Application Support의 `config.json`)
+- **설정:** `~/Library/Preferences/com.niseullent.26x86.plist` (또는 Application Support의 `config.json`)
 - **로그:** `~/Library/Logs/26x86/`
 - **앱 설치(PKG):** `/Library/Application Support/26x86/26x86.app`
 

@@ -2,6 +2,8 @@
 Window titles and branding helpers for 26x86 GUI.
 """
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 from typing import Optional

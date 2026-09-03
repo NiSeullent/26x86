@@ -4,10 +4,10 @@
 <dict>
 	<key>AssociatedBundleIdentifiers</key>
 	<array>
-		<string>com.sharhene777.26x86</string>
+		<string>com.niseullent.26x86</string>
 	</array>
 	<key>Label</key>
-	<string>com.sharhene777.26x86.rsr-monitor</string>
+	<string>com.niseullent.26x86.rsr-monitor</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>rm</string>

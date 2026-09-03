@@ -12,7 +12,7 @@
 |------|--------|
 | [Warnings.md](./Warnings.md) | Cautions |
 | [Configuration.md](./Configuration.md) | Settings paths |
-| [Migration-from-OCLP.md](./Migration-from-OCLP.md) | Migrate from previous patchers |
+| [Migration.md](./Migration.md) | Migrate from previous patchers |
 | [Developer.md](./Developer.md) | Developers |
 | [Upstream-Repositories.md](./Upstream-Repositories.md) | Legal / upstream |
 

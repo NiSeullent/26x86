@@ -8,7 +8,7 @@ Dortania **OpenCore Legacy Patcher(OCLP)**, **OCLP-T2**, **OCLP-Mod**, **OCLP-Pl
 
 ## English Summary
 
-26x86 uses only its own settings (`~/Library/Application Support/26x86/config.json` and `~/Library/Preferences/com.sharhene777.26x86.plist`). It **never reads or writes** OCLP legacy plists under `/Users/Shared/` or `com.dortania.*`. **Do not** run OCLP and 26x86 auto-patch launchd jobs at the same time.
+26x86 uses only its own settings (`~/Library/Application Support/26x86/config.json` and `~/Library/Preferences/com.niseullent.26x86.plist`). It **never reads or writes** OCLP legacy plists under `/Users/Shared/` or `com.dortania.*`. **Do not** run OCLP and 26x86 auto-patch launchd jobs at the same time.
 
 ---
 

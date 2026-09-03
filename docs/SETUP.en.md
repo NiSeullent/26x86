@@ -23,7 +23,7 @@ cd ~/Desktop/26x86
 bash scripts/setup-dev.sh
 source .venv/bin/activate
 cd 26x86
-python3 OpenCore-Patcher-GUI.command
+python3 26x86.command
 ```
 
 ## Requirements
@@ -41,7 +41,7 @@ python3 OpenCore-Patcher-GUI.command
 - The **GUI wizard** uses Korean strings (`opencore_legacy_patcher/wizard/strings.py`).
 - **CLI** help defaults to Korean; use `--lang en` for English help:
   ```bash
-  python3 OpenCore-Patcher-GUI.command --lang en --help
+  python3 26x86.command --lang en --help
   ```
 
 ## Building OpenCore / support forks

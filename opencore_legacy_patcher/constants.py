@@ -24,7 +24,7 @@ try:
 except ImportError:
     APP_NAME = "26x86"
     APP_BUNDLE_NAME = "26x86.app"
-    BUNDLE_ID = "com.sharhene777.26x86"
+    BUNDLE_ID = "com.niseullent.26x86"
     BUNDLE_ID_PRIVILEGED_HELPER = f"{BUNDLE_ID}.privileged-helper"
     BUNDLE_ID_UNINSTALLER = f"{BUNDLE_ID}-uninstaller"
     BUNDLE_ID_AUTOPKG = f"{BUNDLE_ID}.pkg.AutoPkg-Assets"

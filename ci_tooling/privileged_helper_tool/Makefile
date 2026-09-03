@@ -1,5 +1,5 @@
 CC=clang
-OUTPUT=com.sharhene777.26x86.privileged-helper
+OUTPUT=com.niseullent.26x86.privileged-helper
 
 all: clean release
 

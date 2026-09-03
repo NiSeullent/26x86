@@ -84,5 +84,5 @@ macOS 27 Golden Gate 및 이후 버전은 **Apple Silicon(arm64) 전용**으로 
 
 - **설정 경로:** `~/Library/Application Support/26x86/config.json` — `/Users/Shared/` OCLP plist에 **쓰지 않습니다.**
 - **권장 진입:** `python -m x86 wizard` 또는 `26x86.command` — `OpenCore-Patcher-GUI.command`는 **deprecated**.
-- **OCLP + 26x86 자동 패치 동시 실행 금지** — `com.dortania.*`와 `com.sharhene777.26x86.*` launchd가 충돌할 수 있습니다.
+- **OCLP + 26x86 자동 패치 동시 실행 금지** — `com.dortania.*`와 `com.niseullent.26x86.*` launchd가 충돌할 수 있습니다.
 - OCLP에서 전환: [Migration-from-OCLP.md](./Migration-from-OCLP.md)

@@ -108,6 +108,4 @@ ERR_INSTALL_FAILED = "EFI 설치에 실패했습니다. USB 또는 디스크 연
 ERR_PATCH_FAILED = "루트 패치에 실패했습니다. macOS를 재시작한 뒤 다시 시도해 주세요."
 ERR_UNSUPPORTED = "이 Mac에서는 해당 작업을 지원하지 않습니다."
 ERR_PERMISSION = "관리자 권한이 필요합니다. 비밀번호를 입력해 주세요."
-ERR_ADVANCED_DISABLED = (
-    "고급 모드는 환경 변수 X86_ADVANCED=1 이 설정된 경우에만 사용할 수 있습니다."
-)
+ERR_ADVANCED_DISABLED = "고급 모드는 개발자용 설정에서만 사용할 수 있습니다."

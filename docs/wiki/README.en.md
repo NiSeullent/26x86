@@ -11,7 +11,7 @@
 | Page | Topic |
 |------|--------|
 | [Warnings.md](./Warnings.md) | All cautions: C2D, GPU, T2 SIP, Hackintosh, 26x86 settings notes |
-| [Configuration.md](./Configuration.md) | `config.json`, `com.sharhene777.26x86`, launchd |
+| [Configuration.md](./Configuration.md) | `config.json`, `com.niseullent.26x86`, launchd |
 | [Migration-from-OCLP.md](./Migration-from-OCLP.md) | 이전 패처에서 26x86으로 전환 |
 | [Known-Issues.md](./Known-Issues.md) | T2 progress, known bugs |
 | [Disclaimer.md](./Disclaimer.md) | Disclaimer summary → [DISCLAIMER.md](../../DISCLAIMER.md) |

@@ -54,16 +54,16 @@
 
 ## 신규 LaunchAgent 템플릿
 
-번들 ID `com.sharhene777.26x86`용 LaunchAgent 템플릿을 추가했습니다 (`payloads/Launch Services/com.sharhene777.26x86.*` 기반):
+번들 ID `com.niseullent.26x86`용 LaunchAgent 템플릿을 추가했습니다 (`payloads/Launch Services/com.niseullent.26x86.*` 기반):
 
 | 파일 |
 |------|
-| `resources/launchagents/com.sharhene777.26x86.auto-patch.plist` |
-| `resources/launchagents/com.sharhene777.26x86.macos-update.plist` |
-| `resources/launchagents/com.sharhene777.26x86.rsr-monitor.plist` |
-| `resources/launchagents/com.sharhene777.26x86.os-caching.plist` |
+| `resources/launchagents/com.niseullent.26x86.auto-patch.plist` |
+| `resources/launchagents/com.niseullent.26x86.macos-update.plist` |
+| `resources/launchagents/com.niseullent.26x86.rsr-monitor.plist` |
+| `resources/launchagents/com.niseullent.26x86.os-caching.plist` |
 
-설치 시 대상: `~/Library/LaunchAgents/com.sharhene777.26x86.*.plist`
+설치 시 대상: `~/Library/LaunchAgents/com.niseullent.26x86.*.plist`
 
 ---
 
@@ -72,7 +72,7 @@
 | 파일 | 사유 |
 |------|------|
 | `Tools/verify_efi.command` | READ-ONLY EFI 감사 도구 ([Tools/README.md](../../Tools/README.md)) |
-| `payloads/Launch Services/com.sharhene777.26x86.*.plist` | 기존 NiSeullent 페이로드; 점진 이전 예정 |
+| `payloads/Launch Services/com.niseullent.26x86.*.plist` | 기존 NiSeullent 페이로드; 점진 이전 예정 |
 | `archive/README.md` | 아카이브 디렉터리 안내 (로컬 전용, Git 미추적) |
 
 ---

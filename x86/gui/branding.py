@@ -8,7 +8,7 @@ from x86.manifest import APP_NAME, BUNDLE_ID
 
 
 def window_title(version: str = "") -> str:
-    """Primary window title: ``26x86 (com.sharhene777.26x86)``."""
+    """Primary window title: ``26x86 (com.niseullent.26x86)``."""
     base = f"{APP_NAME} ({BUNDLE_ID})"
     if version:
         return f"{base} {version}"

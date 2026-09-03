@@ -1,9 +1,9 @@
 """
 Track I — Extreme dylib interpose safety gate.
 
-Dangerous Metal/SkyLight/CoreDisplay interpose paths stay inert unless the
-operator explicitly opts in with ``X86_EXTREME=1`` (and, for install scripts,
-``X86_EXTREME_INSTALL=1``).
+Metal/SkyLight/CoreDisplay interpose stays inert unless ``X86_EXTREME=1``.
+That single flag arms research hooks **and** build→copy→guide apply/recipe
+paths. ``X86_EXTREME_INSTALL=1`` additionally permits live ``/Library`` writes.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ def extreme_opt_in() -> bool:
 
 
 def extreme_install_opt_in() -> bool:
+    """True when live /Library (or similar) host writes are explicitly allowed."""
     return extreme_opt_in() and _truthy(os.environ.get(ENV_X86_EXTREME_INSTALL))
 
 
@@ -54,12 +55,17 @@ def lut_interpose_mode() -> str:
 
 
 def gate_blocks_reason(*, require_install: bool = False) -> str | None:
+    """
+    ``require_install=False`` — recipe / staging apply (needs ``X86_EXTREME`` only).
+    ``require_install=True`` — live /Library LaunchDaemon or system plugins copy.
+    """
     if not extreme_opt_in():
         return f"{ENV_X86_EXTREME}=1 required for Track I extreme interpose"
     if require_install and not extreme_install_opt_in():
         return (
-            f"{ENV_X86_EXTREME}=1 and {ENV_X86_EXTREME_INSTALL}=1 required "
-            "to install LaunchDaemons / root-volume wrappers"
+            f"{ENV_X86_EXTREME_INSTALL}=1 required for live /Library "
+            "LaunchDaemon or system SkyLightPlugins writes "
+            f"(staging apply already armed by {ENV_X86_EXTREME}=1)"
         )
     return None
 

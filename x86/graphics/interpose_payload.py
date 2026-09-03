@@ -19,6 +19,7 @@ from .interpose_plan import (
     community_payload_root,
 )
 
+# Optional documented digests (informational). Never used as an empty-dict gate.
 EXTREME_DYLIB_SHA256: dict[str, str] = {}
 
 SOURCE_FILES: tuple[str, ...] = (
@@ -32,6 +33,7 @@ SOURCE_FILES: tuple[str, ...] = (
     "src/SkyLightPluginShim.c",
     "scripts/build.sh",
     "scripts/install-dyld-insert.sh",
+    "scripts/apply.sh",
     "launchd/com.26x86.extreme-interpose.plist.example",
     "docs/SYMBOLS.md",
 )
@@ -46,6 +48,7 @@ def _sha256_file(path: Path) -> str:
 
 
 def pinned_dylib_sha256() -> Optional[str]:
+    """Optional pin lookup — never blocks recipe emission."""
     return EXTREME_DYLIB_SHA256.get(f"{DYLIB_STEM}.dylib")
 
 
@@ -67,7 +70,8 @@ def verify_built_dylib(repo_root: Optional[Path] = None) -> dict[str, Any]:
         "present": path is not None,
         "sha256_expected": expected,
         "sha256_actual": None,
-        "pin_ok": False,
+        "pin_ok": None,
+        "pin_required": False,
     }
     if path is None:
         return result
@@ -79,7 +83,8 @@ def verify_built_dylib(repo_root: Optional[Path] = None) -> dict[str, Any]:
     if expected:
         result["pin_ok"] = actual.lower() == expected.lower()
     else:
-        result["note"] = "no SHA-256 pin yet — research build only"
+        result["pin_ok"] = True
+        result["note"] = "no optional pin declared — local build digest recorded at apply"
     return result
 
 
@@ -122,8 +127,9 @@ def payload_status(repo_root: Optional[Path] = None) -> dict[str, Any]:
         "built_dylib": verify_built_dylib(repo_root),
         "plugin_pair_present": skylight_plugin_pair_paths(repo_root) is not None,
         "apple_blobs_vendored": False,
-        "install_blocked_reason": gate_blocks_reason(require_install=True),
+        "install_blocked_reason": gate_blocks_reason(require_install=False),
         "research_armed": extreme_opt_in(),
+        "sha_pin_required": False,
     }
 
 
@@ -134,10 +140,15 @@ def dyld_insert_command_preview(
 ) -> Optional[str]:
     if gate_blocks_reason(require_install=False):
         return None
-    dylib = resolve_built_dylib(repo_root)
-    if dylib is None:
+    from .interpose_apply import _ensure_built
+
+    built = _ensure_built(repo_root)
+    if not built.get("ok") or not built.get("dylib"):
         return None
-    return f'X86_EXTREME=1 DYLD_INSERT_LIBRARIES="{dylib}" "{target_executable}"'
+    return (
+        f'X86_EXTREME=1 DYLD_INSERT_LIBRARIES="{built["dylib"]}" '
+        f'"{target_executable}"'
+    )
 
 
 def sys_patch_hooks(
@@ -146,8 +157,16 @@ def sys_patch_hooks(
     *args: Any,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Optional Track G hook — empty unless pin + X86_EXTREME_INSTALL."""
+    """Track G optional hook — emits recipe when ``X86_EXTREME=1``."""
     del xnu_major, xnu_minor, args, kwargs
     from .interpose_plan import root_volume_interpose_recipe
 
-    return root_volume_interpose_recipe()
+    recipe = root_volume_interpose_recipe()
+    if not recipe:
+        return {}
+    # Best-effort apply into repo staging so artifacts exist for the patcher.
+    if extreme_opt_in():
+        from .interpose_apply import apply_extreme_interpose
+
+        apply_extreme_interpose()
+    return recipe

@@ -1,2 +1,4 @@
 build/
+staging/
 *.dylib
+!SkyLightPlugins/ExtremeCompositor.txt

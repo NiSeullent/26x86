@@ -8,6 +8,7 @@
 | `Makefile` | Builds dylib + optional plugin |
 | `scripts/build.sh` | Clean build |
 | `scripts/install-dyld-insert.sh` | Gated DYLD_INSERT helper |
+| `scripts/apply.sh` | X86_EXTREME=1 build→copy→guide |
 | `launchd/*.plist.example` | Disabled example |
 | `docs/SYMBOLS.md` | Symbol map |
 

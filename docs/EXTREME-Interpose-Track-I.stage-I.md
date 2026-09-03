@@ -8,20 +8,24 @@
 
 | Env | 역할 |
 |-----|------|
-| `X86_EXTREME=1` | 연구 훅 / 비패스스루 활성 |
-| `X86_EXTREME_INSTALL=1` | LaunchDaemon·루트 래퍼 설치 허용 |
+| `X86_EXTREME=1` | **레시피·빌드·staging 복사·가이드 적용** (SHA 핀 불필요) |
+| `X86_EXTREME_INSTALL=1` | 라이브 `/Library/.../SkyLightPlugins` 등 호스트 쓰기 |
 | `X86_INTERPOSE_AVX` | `passthrough` \| `report0` \| `report1` |
 | `X86_INTERPOSE_LUT` | `off` \| `log` \| `identity` |
 
-## PoC
+## PoC / Apply
 
-- 심볼 기반 `DYLD_INTERPOSE` (sysctl AVX 스푸핑, CG gamma, ColorSync 프로브)
-- SkyLightPlugins 스템 `ExtremeCompositor` + `SkyLightPluginEntry` 심 (스톡 Tahoe 미로드)
-- Apple blob 재배포 없음; SHA 핀 전 루트 레시피는 빈 dict
+- 심볼 기반 `DYLD_INTERPOSE` (sysctl AVX, CG gamma, ColorSync)
+- `X86_EXTREME=1` → `interpose_apply`: **make → staging/SkyLightPlugins 복사 → APPLY-GUIDE.txt**
+- 레시피는 로컬 빌드 digest를 기록하며, 사전 SHA 핀으로 빈 dict를 내지 않음
+- Apple blob 재배포 없음
 
-## 빌드
+## 실행
 
 ```bash
-cd payloads/Kexts/Community/Extreme-Interpose && ./scripts/build.sh
+export X86_EXTREME=1
+python3 -m x86.graphics.interpose_apply
+# 또는
+./payloads/Kexts/Community/Extreme-Interpose/scripts/apply.sh
 python3 -m unittest x86.graphics.test_interpose
 ```

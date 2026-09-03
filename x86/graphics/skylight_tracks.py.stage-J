@@ -1,0 +1,24 @@
+# Track J — proposed patch for x86/graphics/skylight_tracks.py
+# MC applies; Track J must not edit skylight_tracks.py. Base: 52f7298.
+# Detect-only — do NOT add J to SYS_PATCH_TRACKS.
+
+# TRACK_MODULE_CANDIDATES:
+    "J": (
+        "x86.graphics.shader_avx_gate",
+    ),
+
+# TRACK_ROLES:
+    "J": "shader_compiler_avx",
+
+# serialize_skylight_lut_tracks:
+    for tid in ("A", "B", "C", "D", "E", "F", "G", "J")
+
+# merge_optional_detect_fields detect_attrs:
+        "J": (
+            "serialize_track_detect_fields",
+            "serialize_shader_avx_fields",
+        ),
+
+# track_status_entry optional:
+    if detect_fn is None and track_id == "J":
+        detect_fn = _callable_attr(mod, "serialize_shader_avx_fields")

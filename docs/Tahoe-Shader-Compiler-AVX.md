@@ -44,8 +44,18 @@ from importlib.util import spec_from_file_location, module_from_spec
 2. `dense_trampoline_hints > 0` → SSE 치환 후보 — **자동 루트패치 없음**
 3. pre-AVX에서 `hw.optional.avx*=1` 스푸핑 **금지**
 
+
+## MC INTEGRATE — J detect merge (`52f7298` 다음 큐)
+
+`integrate_queue`: `next:J-detect-stage`
+
+1. `shader_avx_detect.stage-J.py` → `mc_merge_plan()` / `MC_MERGE_*`.
+2. MC만 적용: `detect.py.stage-J` → `detect.py`, `skylight_tracks.py.stage-J` → `skylight_tracks.py`.
+3. Track J는 공유 detect/skylight_tracks/__init__ 직접 수정 금지.
+
 ## 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
 | 2026-09-04 | Track J 전용 파일만 추가 (공유 파일 무수정) |
+| 2026-09-04 | INTEGRATE 52f7298 — stage-J mc_merge_plan + detect/tracks stage snippets |

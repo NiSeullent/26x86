@@ -204,8 +204,28 @@ def serialize_track_detect_fields(
     xnu_major: Optional[int] = None,
     agdpmod_present: Optional[bool] = None,
     assume_tahoe: bool = False,
+    agdp_on_correct_gfx0: Optional[bool] = None,
+    symptoms: Optional[dict[str, Any]] = None,
+    cpu_has_avx1: Optional[bool] = None,
+    cpu_has_avx2: Optional[bool] = None,
+    probe_host: bool = False,
+    environ: Optional[dict[str, str]] = None,
     **_kwargs: Any,
 ) -> dict[str, Any]:
-    """G-orchestrator detect merge export (Track J)."""
-    _ = (model, gpu_archs, os_version, xnu_major, agdpmod_present, assume_tahoe)
-    return serialize_shader_avx_fields()
+    """G merge_optional_detect_fields export — post-52f7298 kwargs."""
+    _ = (
+        model,
+        gpu_archs,
+        os_version,
+        xnu_major,
+        agdpmod_present,
+        assume_tahoe,
+        agdp_on_correct_gfx0,
+        symptoms,
+    )
+    return serialize_shader_avx_fields(
+        cpu_has_avx1=cpu_has_avx1,
+        cpu_has_avx2=cpu_has_avx2,
+        probe_host=probe_host,
+        environ=environ,
+    )

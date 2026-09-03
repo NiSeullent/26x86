@@ -39,6 +39,10 @@ class Paths:
         return Paths.user_config_dir() / "config.json"
 
     @staticmethod
+    def user_preferences_plist() -> Path:
+        return Path.home() / "Library/Preferences/com.niseullent.26x86.plist"
+
+    @staticmethod
     def user_cache_dir() -> Path:
         return Paths.user_config_dir() / "cache"
 
@@ -82,10 +86,3 @@ class Paths:
     def launch_agent_user_path(suffix: str) -> Path:
         return Paths.user_launch_agents_dir() / Paths.launch_agent_plist_name(suffix)
 
-    @staticmethod
-    def legacy_oclp_shared_settings() -> Path:
-        return Path("/Users/Shared/.com.dortania.opencore-legacy-patcher.plist")
-
-    @staticmethod
-    def legacy_oclp_preferences() -> Path:
-        return Path.home() / "Library/Preferences/com.dortania.opencore-legacy-patcher.plist"

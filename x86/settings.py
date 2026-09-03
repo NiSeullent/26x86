@@ -1,8 +1,7 @@
 """
-settings.py: JSON-backed user settings for 26x86.
+settings.py: SettingsStore — JSON at ~/Library/Application Support/26x86/config.json
 
-Settings live at ~/Library/Application Support/26x86/config.json.
-OCLP plist values are never read for PatcherSupportPkg version or URLs.
+26x86 does not read or write OCLP legacy plists.
 """
 
 from __future__ import annotations
@@ -10,89 +9,133 @@ from __future__ import annotations
 import json
 import logging
 import os
+import subprocess
+from copy import deepcopy
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
-from .manifest import PATCHER_SUPPORT_PKG_VERSION
 from .paths import Paths
 
-_DEFAULT_CONFIG: dict[str, Any] = {
+DEFAULT_SETTINGS: dict[str, Any] = {
     "version": 1,
     "auto_patch": False,
     "verbose_logging": False,
-    "migrated_from_oclp": False,
-    "patcher_support_pkg_version": PATCHER_SUPPORT_PKG_VERSION,
-    "force_latest_psp": False,
+    "last_detect": None,
 }
+
+
+def _resolve_config_path() -> Path:
+    """
+    Resolve user config path, using the console user when running as root.
+    """
+    home = Path.home()
+    if home == Path("/var/root"):
+        try:
+            result = subprocess.run(
+                ["/usr/bin/stat", "-f", "%Su", "/dev/console"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            console_user = result.stdout.strip()
+            if console_user and console_user != "root":
+                user_home = Path(f"/Users/{console_user}")
+                if user_home.is_dir():
+                    return user_home / "Library/Application Support/26x86/config.json"
+        except (OSError, subprocess.CalledProcessError):
+            pass
+    return Paths.user_config()
 
 
 class SettingsStore:
     """
-    Single JSON settings file for 26x86 user preferences.
+    26x86 user settings stored as JSON (0600, no symlinks).
     """
 
-    def __init__(self, paths: Paths | None = None) -> None:
-        self._paths = paths or Paths()
-        self._config_path = self._paths.user_config
+    def __init__(self, config_path: Optional[Path] = None) -> None:
+        self.config_path: Path = config_path or _resolve_config_path()
+        self._ensure_settings_file()
 
-    @property
-    def config_path(self) -> Path:
-        return self._config_path
-
-    def _ensure_parent(self) -> None:
-        self._config_path.parent.mkdir(parents=True, exist_ok=True)
-
-    def load(self) -> dict[str, Any]:
-        path = self._config_path
+    def _ensure_settings_file(self) -> None:
+        path = self.config_path
         if path.is_symlink():
-            logging.warning("Security: refusing to read symlinked config at %s", path)
-            return dict(_DEFAULT_CONFIG)
+            try:
+                path.unlink()
+            except (PermissionError, OSError):
+                return
 
-        if not path.exists():
-            return dict(_DEFAULT_CONFIG)
-
-        try:
-            with path.open(encoding="utf-8") as handle:
-                data = json.load(handle)
-            if not isinstance(data, dict):
-                return dict(_DEFAULT_CONFIG)
-            merged = dict(_DEFAULT_CONFIG)
-            merged.update(data)
-            return merged
-        except (OSError, json.JSONDecodeError) as error:
-            logging.warning("Unable to read settings at %s: %s", path, error)
-            return dict(_DEFAULT_CONFIG)
-
-    def save(self, config: dict[str, Any]) -> None:
-        path = self._config_path
-        if path.is_symlink():
-            logging.warning("Security: refusing to write symlinked config at %s", path)
+        if path.exists():
             return
 
-        self._ensure_parent()
         try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self._write_raw(deepcopy(DEFAULT_SETTINGS))
+        except (PermissionError, OSError) as error:
+            logging.debug("Unable to initialize settings file: %s", error)
+
+    def _read_raw(self) -> dict[str, Any]:
+        path = self.config_path
+        if path.is_symlink():
+            logging.warning("Security alert: symlink detected during read. Ignoring.")
+            return deepcopy(DEFAULT_SETTINGS)
+
+        if not path.exists():
+            return deepcopy(DEFAULT_SETTINGS)
+
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            if not isinstance(data, dict):
+                return deepcopy(DEFAULT_SETTINGS)
+            return data
+        except (PermissionError, json.JSONDecodeError, OSError) as error:
+            logging.error("Unable to read settings file: %s", error)
+            return deepcopy(DEFAULT_SETTINGS)
+
+    def _write_raw(self, data: dict[str, Any]) -> None:
+        path = self.config_path
+        if path.is_symlink():
+            try:
+                path.unlink()
+            except (PermissionError, OSError):
+                return
+
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("w", encoding="utf-8") as handle:
-                json.dump(config, handle, indent=2)
+                json.dump(data, handle, ensure_ascii=False, indent=2)
                 handle.write("\n")
             os.chmod(path, 0o600)
-        except OSError as error:
-            logging.error("Failed to write settings to %s: %s", path, error)
+        except (PermissionError, OSError) as error:
+            logging.error("Failed to write settings file: %s", error)
 
-    def get(self, key: str, default: Any = None) -> Any:
-        return self.load().get(key, default)
+    def load(self) -> dict[str, Any]:
+        return self._read_raw()
 
-    def set(self, key: str, value: Any) -> None:
-        config = self.load()
-        config[key] = value
-        self.save(config)
+    def save(self, data: dict[str, Any]) -> None:
+        self._write_raw(data)
 
-    def patcher_support_pkg_version(self) -> str:
-        """
-        PatcherSupportPkg version from manifest defaults, overridable in JSON.
+    def read(self, key: str, default: Any = None) -> Any:
+        return self._read_raw().get(key, default)
 
-        Never reads OCLP plist keys.
-        """
-        return str(self.get("patcher_support_pkg_version", PATCHER_SUPPORT_PKG_VERSION))
+    def write(self, key: str, value: Any) -> None:
+        data = self._read_raw()
+        data[key] = value
+        self._write_raw(data)
 
-    def force_latest_psp(self) -> bool:
-        return bool(self.get("force_latest_psp", False))
+    def delete(self, key: str) -> None:
+        data = self._read_raw()
+        if key not in data:
+            return
+        del data[key]
+        self._write_raw(data)
+
+    def record_detect(self, model: str, extra: Optional[dict[str, Any]] = None) -> None:
+        payload: dict[str, Any] = {
+            "model": model,
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        if extra:
+            payload.update(extra)
+        self.write("last_detect", payload)

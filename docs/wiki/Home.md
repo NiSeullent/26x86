@@ -16,6 +16,7 @@
 | [GPU-Limitations.md](./GPU-Limitations.md) | Metal 8302·Non-Metal GPU 제한 |
 | [T2-Mac-Notes.md](./T2-Mac-Notes.md) | T2 Mac 전용 주의 (SIP, APFS, 다운로드) |
 | [Installation-Notes.md](./Installation-Notes.md) | 클린 설치, OCLP 마이그레이션, 개발 환경 |
+| [Configuration.md](./Configuration.md) | 26x86 전용 설정 경로 및 OCLP 분리 |
 | [Orphan-Files-Archive.md](./Orphan-Files-Archive.md) | 제거·보관된 고아 파일 목록 |
 | [README.en.md](./README.en.md) | English wiki index |
 

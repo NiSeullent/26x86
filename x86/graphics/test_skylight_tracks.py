@@ -41,7 +41,10 @@ class SkylightTracksOrchestrationTest(unittest.TestCase):
             assume_tahoe=True,
         )
         self.assertIn("skylight_lut_tracks", payload)
-        self.assertEqual(payload["skylight_lut_tracks"]["sys_patch_tracks"], ["B", "C", "E", "F"])
+        self.assertEqual(
+            payload["skylight_lut_tracks"]["sys_patch_tracks"],
+            ["B", "C", "E", "F", "L5"],
+        )
 
     def test_merge_sys_patch_hooks_noop_when_tracks_missing(self) -> None:
         self.assertIsInstance(merge_sys_patch_hooks(TAHOE_XNU_MAJOR, 0, "26.0"), dict)

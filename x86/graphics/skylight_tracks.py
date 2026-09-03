@@ -47,9 +47,16 @@ TRACK_MODULE_CANDIDATES: dict[str, tuple[str, ...]] = {
         "x86.graphics.yellow_screen",
         "x86.graphics.psp_overlay",
     ),
+    "H": (
+        "x86.graphics.iosurface_ca_hooks",
+        "x86.graphics.iosurface_extreme",
+    ),
+    "L5": (
+        "x86.graphics.skylight_lut_rootpatch",
+    ),
 }
 
-SYS_PATCH_TRACKS: tuple[str, ...] = ("B", "C", "E", "F")
+SYS_PATCH_TRACKS: tuple[str, ...] = ("B", "C", "E", "F", "L5")
 
 TRACK_ROLES: dict[str, str] = {
     "A": "docs",
@@ -59,6 +66,8 @@ TRACK_ROLES: dict[str, str] = {
     "E": "metallib_renderbox",
     "F": "psp_overlay",
     "G": "orchestration",
+    "H": "iosurface_ca",
+    "L5": "skylight_coredisplay_rootpatch",
 }
 
 TRACK_DOCS: dict[str, tuple[str, ...]] = {
@@ -264,7 +273,10 @@ def track_status_entry(track_id: str) -> dict[str, Any]:
 
 def serialize_skylight_lut_tracks() -> dict[str, Any]:
     """Summary for ``python -m x86 detect --json`` → ``skylight_lut_tracks``."""
-    tracks = {tid: track_status_entry(tid) for tid in ("A", "B", "C", "D", "E", "F", "G")}
+    tracks = {
+        tid: track_status_entry(tid)
+        for tid in ("A", "B", "C", "D", "E", "F", "G", "H", "L5")
+    }
     connected = [t for t, e in tracks.items() if e["status"] == "connected"]
     partial = [t for t, e in tracks.items() if e["status"] == "partial"]
     missing = [t for t, e in tracks.items() if e["status"] == "missing"]
@@ -408,6 +420,8 @@ def merge_optional_detect_fields(
             "serialize_metallib_fields",
             DETECT_FIELDS,
         ),
+        "H": ("serialize_iosurface_ca_fields", DETECT_FIELDS),
+        "L5": (DETECT_FIELDS,),
     }
     for track_id, attrs in detect_attrs.items():
         mod, _ = resolve_track_module(track_id)

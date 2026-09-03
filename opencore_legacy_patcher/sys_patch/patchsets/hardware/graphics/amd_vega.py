@@ -17,6 +17,7 @@ from ...shared_patches.monterey_gva    import MontereyGVA
 from ...shared_patches.monterey_opencl import MontereyOpenCL
 from ...shared_patches.amd_opencl      import AMDOpenCL
 from ...shared_patches.tahoe_yellow_screen import compositor_patches
+from ...shared_patches.tahoe_iosurface_ca import iosurface_ca_patches
 
 from .....constants  import Constants
 from .....detections import device_probe
@@ -143,4 +144,5 @@ class AMDVega(BaseHardware):
             **self._model_specific_patches(),
             **self._model_specific_patches_extended(),
             **compositor_patches(self._xnu_major, self._xnu_minor, self._constants.detected_os_version),
+            **iosurface_ca_patches(self._xnu_major, self._xnu_minor, self._constants.detected_os_version),
         }

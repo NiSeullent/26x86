@@ -1,0 +1,50 @@
+"""
+Track H — ``shared_patches/tahoe_iosurface_ca.py`` (MC promote)
+
+Base: INTEGRATE ``52f7298`` (live M/N/F unlock already on main).
+Promoted from ``tahoe_iosurface_ca.py.stage-H`` (84d19f2/dd11a2d).
+
+## Parallel with Track N (allowed)
+- N (``non_metal.py`` live after 52f7298): under ``X86_EXTREME`` / ``X86_TAHOE_NONMETAL``
+  emits ``Non-Metal Common`` including ``IOSurface.kext=10.15.7``,
+  ``IOSurface.framework=10.15.7-24``, ``QuartzCore.framework=10.15.7-24`` (+ IOGPU REMOVE).
+- H (this module): under ``X86_EXTREME=1`` + ``X86_EXTREME_IOSURFACE_CA=1`` emits
+  surgical patch keys ``Track H Extreme Non-Metal IOSurface`` /
+  ``Track H Extreme QuartzCore`` with the **same** IOSurface/QuartzCore payload IDs.
+- Overlap is **idempotent** (same version strings) → parallel OK for Metal Vega
+  hosts that want H latch without waiting on full N GPU REMOVE path.
+
+## Conflict note (stage — do not edit N)
+- N ``non_metal_ioaccel`` may OVERWRITE ``IOSurface.kext=10.14.6`` when ioaccel stage
+  is enabled. That **conflicts** with H/Common ``10.15.7``.
+- MC resolve: prefer ``10.15.7`` when Track H latch is on (Metal AMD CA experiment);
+  or skip H kext overwrite if N Common already applied the same 10.15.7 key.
+- H never emits ``useMetal=no`` (Enforcement stays N / ``X86_TAHOE_NONMETAL_ENFORCEMENT``).
+
+Default without double latch: ``{}``.
+"""
+
+from .base import BaseSharedPatchSet
+
+from ....datasets.os_data import os_data
+
+from x86.graphics.iosurface_ca_hooks import iosurface_ca_extreme_patches
+
+
+class TahoeIOSurfaceCA(BaseSharedPatchSet):
+    def __init__(self, xnu_major: int, xnu_minor: int, marketing_version: str) -> None:
+        super().__init__(xnu_major, xnu_minor, marketing_version)
+
+    def _os_requires_patches(self) -> bool:
+        return self._xnu_major >= os_data.tahoe.value
+
+    def patches(self) -> dict:
+        if self._os_requires_patches() is False:
+            return {}
+        return iosurface_ca_extreme_patches(
+            self._xnu_major, self._xnu_minor, self._marketing_version
+        )
+
+
+def iosurface_ca_patches(xnu_major: int, xnu_minor: int, marketing_version: str) -> dict:
+    return TahoeIOSurfaceCA(xnu_major, xnu_minor, marketing_version).patches()

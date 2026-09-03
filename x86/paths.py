@@ -58,6 +58,10 @@ class Paths:
 
     @staticmethod
     def repo_root() -> Path:
+        if getattr(sys, "frozen", False):
+            meipass = getattr(sys, "_MEIPASS", None)
+            if meipass:
+                return Path(meipass)
         return Path(__file__).resolve().parent.parent
 
     @staticmethod

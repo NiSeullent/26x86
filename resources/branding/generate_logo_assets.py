@@ -15,6 +15,19 @@ APP_ICONS_DIR = REPO_ROOT / "payloads" / "Resources" / "AppIcons"
 SOURCE_IMAGE = BRANDING_DIR / "26x86-logo-source.jpg"
 
 
+def _strip_black_matte(img: Image.Image, threshold: int = 20) -> Image.Image:
+    """Turn opaque black letterbox pixels transparent for web/header use."""
+    rgba = img.convert("RGBA")
+    pixels = rgba.load()
+    width, height = rgba.size
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha and red <= threshold and green <= threshold and blue <= threshold:
+                pixels[x, y] = (0, 0, 0, 0)
+    return rgba
+
+
 def load_master() -> Image.Image:
     if not SOURCE_IMAGE.exists():
         raise SystemExit(f"Master image not found: {SOURCE_IMAGE}")
@@ -25,7 +38,7 @@ def load_master() -> Image.Image:
         left = (width - side) // 2
         top = (height - side) // 2
         img = img.crop((left, top, left + side, top + side))
-    return img
+    return _strip_black_matte(img)
 
 
 def resize(size: int) -> Image.Image:

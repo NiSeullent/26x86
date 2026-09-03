@@ -5,6 +5,7 @@ pywebview shell for the HTML hybrid 26x86 wizard.
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from typing import Any, Optional
 
@@ -59,10 +60,21 @@ class WebviewApi:
         return self._bridge.open_guide()
 
 
+def _ensure_stdio_for_frozen_gui() -> None:
+    """PyInstaller windowed apps may have no stdout/stderr; bottle needs them."""
+    if not getattr(sys, "frozen", False):
+        return
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
+
+
 def launch_webview_wizard(*, advanced: bool = False) -> None:
     """Open the HTML hybrid wizard in a native pywebview window."""
     import webview
 
+    _ensure_stdio_for_frozen_gui()
     bootstrap.ensure_repo_on_path()
     bridge = WizardBridge()
     api = WebviewApi(bridge)
@@ -86,7 +98,7 @@ def launch_webview_wizard(*, advanced: bool = False) -> None:
         text_select=True,
         background_color="#e8edf3",
     )
-    webview.start(debug=False, gui=resolve_pywebview_gui())
+    webview.start(debug=False, gui=resolve_pywebview_gui(), http_server=True)
 
 
 def smoke_test_bridge() -> dict[str, Any]:
@@ -110,7 +122,9 @@ def smoke_test_bridge() -> dict[str, Any]:
             results["ok"] = False
             results["checks"][name] = {"ok": False, "error": str(exc)}
 
-    results["web_index"] = str(bridge.web_root() / "index.html")
+    index_path = bridge.index_path()
+    results["web_index"] = str(index_path)
+    results["index_is_file_uri"] = bridge.index_uri().startswith("file://")
     return results
 
 

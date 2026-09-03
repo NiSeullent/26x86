@@ -19,7 +19,13 @@ class BridgeSmokeTest(unittest.TestCase):
         bridge = WizardBridge()
         info = bridge.get_app_info()
         self.assertEqual(info["bundle_id"], "com.niseullent.26x86")
-        self.assertTrue((bridge.web_root() / "index.html").exists())
+        self.assertTrue(bridge.index_path().exists())
+        self.assertFalse(bridge.index_uri().startswith("file://"))
+        if info.get("logo_url"):
+            self.assertTrue(
+                info["logo_url"].startswith("data:image/"),
+                "logo should be embedded for HTTP-served wizard UI",
+            )
 
         steps = bridge.get_steps()
         self.assertEqual(len(steps), 5)

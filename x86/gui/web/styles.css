@@ -71,6 +71,9 @@ body {
   width: 52px;
   height: 52px;
   flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
 }
 
 .logo,
@@ -81,8 +84,10 @@ body {
 }
 
 .logo {
-  object-fit: cover;
-  box-shadow: 0 6px 16px rgba(0, 122, 255, 0.25);
+  display: block;
+  object-fit: contain;
+  background: transparent;
+  box-shadow: none;
 }
 
 .logo-fallback {

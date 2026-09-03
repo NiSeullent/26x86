@@ -4,7 +4,9 @@ Python ↔ JS bridge backend for the HTML hybrid wizard.
 
 from __future__ import annotations
 
+import base64
 import logging
+import mimetypes
 import os
 import subprocess
 import sys
@@ -91,11 +93,9 @@ class WizardBridge:
     def get_app_info(self) -> dict[str, Any]:
         c = self._constants()
         logo = resolve_gui_logo_path(c.icns_resource_path)
-        logo_url = None
-        if logo and logo.exists():
-            logo_url = logo.as_uri()
-        elif logo_svg_path().exists():
-            logo_url = logo_svg_path().as_uri()
+        logo_url = self._logo_data_uri(logo)
+        if logo_url is None and logo_svg_path().exists():
+            logo_url = self._logo_data_uri(logo_svg_path())
 
         return {
             "app_name": APP_NAME,
@@ -319,17 +319,39 @@ class WizardBridge:
         webbrowser.open(c.guide_link)
         return {"ok": True, "url": c.guide_link}
 
-    def web_root(self) -> Path:
-        import sys
-
+    @staticmethod
+    def _bundle_root() -> Optional[Path]:
         if getattr(sys, "frozen", False):
             meipass = getattr(sys, "_MEIPASS", None)
             if meipass:
-                candidate = Path(meipass) / "x86" / "gui" / "web"
-                if candidate.exists():
-                    return candidate
+                return Path(meipass)
+        return None
+
+    @staticmethod
+    def _logo_data_uri(path: Optional[Path]) -> Optional[str]:
+        if path is None or not path.exists() or not path.is_file():
+            return None
+        mime, _ = mimetypes.guess_type(str(path))
+        if not mime:
+            suffix = path.suffix.lower()
+            mime = "image/svg+xml" if suffix == ".svg" else "image/png"
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        return f"data:{mime};base64,{encoded}"
+
+    def web_root(self) -> Path:
+        bundle_root = self._bundle_root()
+        if bundle_root is not None:
+            candidate = bundle_root / "x86" / "gui" / "web"
+            if candidate.exists():
+                return candidate
         return Path(__file__).resolve().parent / "web"
 
-    def index_uri(self) -> str:
+    def index_path(self) -> Path:
         index = self.web_root() / "index.html"
-        return index.resolve().as_uri()
+        if not index.exists():
+            raise FileNotFoundError(f"Wizard HTML not found: {index}")
+        return index.resolve()
+
+    def index_uri(self) -> str:
+        """Filesystem path for pywebview (not a file:// URI)."""
+        return str(self.index_path())

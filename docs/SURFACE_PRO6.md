@@ -59,9 +59,14 @@ the repository's supporting tools and resources.
 - Source payload inspection confirms AppleHDA version 600.2. The encrypted DMG
   itself requires macOS hdiutil; its mounted contents were not inspected on Windows.
 
-The KDK must match the installed Tahoe build as selected/validated by the existing
-patch engine. Keep tethering available for its KDK download. No Tahoe metallib
-package is required for this Surface graphics path.
+The KDK must be compatible with the installed Tahoe build. Preflight reports the
+installed OS build, the engine's selected KDK build, and whether it is an exact
+match. The existing engine can select a nearby compatible release; this is shown
+as a warning rather than silently described as an exact match. In particular,
+the recovery build 25A354 has no exact entry in the manifest checked on 2026-09-05
+(25A353 is present). The OS eventually installed from Recovery may have a
+different build. Keep tethering available for the engine's KDK download. No Tahoe
+metallib package is required for this Surface graphics path.
 
 ## Apply on the installed Tahoe
 

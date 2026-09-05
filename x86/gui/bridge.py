@@ -217,6 +217,9 @@ class WizardBridge:
             summary = ["Surface Pro 6 · Tahoe · AppleHDA root patch"]
             summary.extend(report.get("patches", []))
             summary.extend(report.get("blockers", []))
+            summary.extend(report.get("warnings", []))
+            if report.get("kdk"):
+                summary.append("KDK: " + str(report["kdk"].get("selected_build")) + " / macOS: " + str(report["kdk"].get("host_build")))
             if report.get("error"):
                 summary.append(report["error"])
             summary.append("Surface EFI는 그대로 사용합니다. UHD 620에는 레거시 GPU 루트 패치를 적용하지 않습니다.")

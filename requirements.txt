@@ -1,6 +1,7 @@
 requests
 pywebview>=5.0
-PySide6>=6.6; sys_platform == 'darwin'
+PySide6>=6.6; sys_platform == 'darwin' or sys_platform == 'linux'
+qtpy>=2.4; sys_platform == 'linux'
 wxpython<4.2.5; sys_platform == 'darwin'
 packaging
 markdown2
@@ -23,7 +24,7 @@ mac-signing-buddy; sys_platform == 'darwin'
 # "AssertionError: Executable contains code signature!" on hosts like
 # 10.13 High Sierra. Install with:
 #   PYINSTALLER_COMPILE_BOOTLOADER=1 pip install --no-binary pyinstaller -r requirements.txt --verbose
-pyinstaller --no-binary=pyinstaller; sys_platform == 'darwin'
+pyinstaller; sys_platform == 'darwin'
 
 # GUI notes:
 # - macOS default: PySide6 Qt WebEngine (Chromium). Cocoa WKWebView is fallback only.

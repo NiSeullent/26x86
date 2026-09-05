@@ -13,6 +13,8 @@ def _context(profile=None, payload_dir=None):
     from opencore_legacy_patcher.detections import device_probe, os_probe
 
     c = Constants()
+    from x86.paths import Paths
+    c.payload_path = Paths.repo_root() / "payloads"
     probe = os_probe.OSProbe()
     c.detected_os = probe.detect_kernel_major()
     c.detected_os_minor = probe.detect_kernel_minor()
@@ -49,13 +51,31 @@ def preflight(profile=None, payload_dir=None, *, constants=None):
             blockers.append("Unexpected patch set for UHD 620. This profile permits only Modern Audio: " + ", ".join(patches))
         if not detected.can_patch:
             blockers.append("Live SIP / AMFI / FileVault / update / security validation rejected patching.")
+        kdk_report = None
+        warnings = []
+        if detected.device_properties.get("Settings: Kernel Debug Kit required"):
+            from opencore_legacy_patcher.support.kdk_handler import KernelDebugKitObject
+            kdk = KernelDebugKitObject(c, c.detected_os_build, c.detected_os_version, passive=True)
+            selected_build = kdk.kdk_url_build
+            if not selected_build and kdk.kdk_installed_path:
+                selected_build = Path(kdk.kdk_installed_path).stem.rsplit("_", 1)[-1]
+            kdk_report = {"available": bool(kdk.success), "host_build": c.detected_os_build,
+                          "selected_build": selected_build or None,
+                          "exact_build_match": bool(selected_build) and selected_build == c.detected_os_build,
+                          "installed": bool(kdk.kdk_already_installed), "url": kdk.kdk_url or None,
+                          "error": kdk.error_msg or None}
+            if not kdk.success:
+                blockers.append("No usable KDK selected: " + kdk.error_msg)
+            elif not kdk_report["exact_build_match"]:
+                warnings.append("The existing engine selected a nearby KDK build, not an exact match. Review the KDK report before applying.")
         payload = Path(c.payload_local_binaries_root_path_dmg)
         if patches and not payload.is_file():
             blockers.append(f"Missing published support payload: {payload}. See docs/SURFACE_PRO6.md.")
         return {"ok": not blockers, "status": "blocked" if blockers else ("ready" if patches else "not_required"),
                 "can_patch": not blockers and bool(patches), "patches": patches, "blockers": blockers,
                 "validations": dict(detected.device_properties), "os_build": c.detected_os_build,
-                "payload": str(payload), "profile": profile, "hardware_verified": False}
+                "payload": str(payload), "profile": profile, "hardware_verified": False,
+                "kdk": kdk_report, "warnings": warnings}
     except Exception as exc:
         return {"ok": False, "status": "preflight_failed", "can_patch": False, "error": str(exc)}
 

@@ -362,6 +362,10 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 def cmd_wizard(args: argparse.Namespace) -> int:
     _ensure_repo_on_path()
+    if args.profile:
+        os.environ["X86_TARGET_PROFILE"] = args.profile
+    if args.efi:
+        os.environ["X86_SURFACE_EFI"] = args.efi
 
     try:
         from x86.gui.launch import launch_wizard
@@ -433,6 +437,8 @@ def build_parser() -> argparse.ArgumentParser:
     status.set_defaults(handler=cmd_status)
 
     wizard = subparsers.add_parser("wizard", help="기본 GUI 마법사 실행")
+    wizard.add_argument("--profile", choices=["surface-pro6-i5-tahoe"])
+    wizard.add_argument("--efi", help="Surface EFI 검사 경로 미리 입력 (자동 기록 없음)")
     wizard.add_argument(
         "--advanced",
         action="store_true",

@@ -54,7 +54,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 xvfb
+          sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 libnss3 libnspr4 libasound2t64 libxcomposite1 libxdamage1 libxrandr2 libgbm1 xvfb
           python -m pip install PySide6 qtpy
       - name: Exercise the Linux GUI
         if: runner.os == 'Linux'

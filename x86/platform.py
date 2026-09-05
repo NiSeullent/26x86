@@ -56,8 +56,13 @@ def qt_webengine_available() -> bool:
         "PyQt6.QtWebEngineWidgets",
         "PyQt5.QtWebEngineWidgets",
     ):
-        if importlib.util.find_spec(module) is not None:
-            return True
+        try:
+            if importlib.util.find_spec(module) is not None:
+                return True
+        except (ImportError, ValueError, AttributeError):
+            # find_spec('PyQt6.child') raises if the optional parent package
+            # is absent. A minimal Linux preparation install need not have Qt.
+            continue
     return False
 
 

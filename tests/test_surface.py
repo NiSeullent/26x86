@@ -16,6 +16,11 @@ from x86.surface import APPLE_NVRAM_GUID, PROFILE_ID, configure_surface_constant
 
 
 class SurfaceTests(unittest.TestCase):
+    def test_missing_optional_qt_parents_are_not_startup_errors(self):
+        from x86.platform import qt_webengine_available
+        with patch("importlib.util.find_spec", side_effect=ModuleNotFoundError("optional Qt")):
+            self.assertFalse(qt_webengine_available())
+
     def make_efi(self, root):
         names = ["Lilu.kext", "VirtualSMC.kext", "WhateverGreen.kext", "AppleALC.kext", "AMFIPass.kext", "HoRNDIS.kext"]
         config = {"Kernel": {"Add": [{"Enabled": True, "BundlePath": name, "PlistPath": "Contents/Info.plist", "ExecutablePath": ""} for name in names]},
@@ -84,6 +89,30 @@ class SurfaceTests(unittest.TestCase):
             result = root.apply(PROFILE_ID)
         self.assertEqual(result["status"], "patch_failed")
         self.assertFalse(result["ok"])
+
+    def test_preflight_reports_nearby_kdk_and_blocks_unrelated_patches(self):
+        from x86.patch import root
+        with tempfile.TemporaryDirectory() as tmp:
+            dmg = Path(tmp) / "Universal-Binaries.dmg"
+            dmg.write_bytes(b"fixture")
+            c = SimpleNamespace(computer=SimpleNamespace(cpu=SimpleNamespace(name="i5-8250U"),
+                gpus=[SimpleNamespace(vendor_id=0x8086, device_id=0x5917)]), detected_os=25,
+                detected_os_version="26.0", detected_os_build="25A354", payload_local_binaries_root_path_dmg=dmg)
+            detection = SimpleNamespace(patches={"Modern Audio": {}}, can_patch=True,
+                device_properties={"Settings: Kernel Debug Kit required": True})
+            kdk = SimpleNamespace(success=True, kdk_url_build="25A353", kdk_installed_path="",
+                kdk_already_installed=False, kdk_url="https://example.com/kdk.dmg", error_msg="")
+            modules = {"opencore_legacy_patcher.sys_patch.patchsets": SimpleNamespace(HardwarePatchsetDetection=lambda c: detection),
+                "opencore_legacy_patcher.support.kdk_handler": SimpleNamespace(KernelDebugKitObject=lambda *a, **kw: kdk)}
+            with patch.object(root, "is_macos", return_value=True), patch.dict(sys.modules, modules):
+                report = root.preflight(PROFILE_ID, constants=c)
+                self.assertTrue(report["can_patch"], report)
+                self.assertFalse(report["kdk"]["exact_build_match"])
+                self.assertTrue(report["warnings"])
+                detection.patches["Legacy GPU"] = {}
+                report = root.preflight(PROFILE_ID, constants=c)
+                self.assertFalse(report["can_patch"])
+                self.assertIn("Unexpected patch set", report["blockers"][0])
 
     @unittest.skipIf(sys.platform == "darwin", "Native macOS probing has platform dependencies")
     def test_preparation_does_not_import_mac_frameworks_or_wx(self):

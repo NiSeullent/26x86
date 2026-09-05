@@ -100,3 +100,17 @@ APFS patch operation was performed in the Windows development environment.
 Upstream references: [WhateverGreen Intel FAQ](https://github.com/acidanthera/WhateverGreen/blob/master/Manual/FAQ.IntelHD.en.md),
 [26x86 Modern Audio implementation](../opencore_legacy_patcher/sys_patch/patchsets/hardware/misc/modern_audio.py),
 [upstream OCLP-T2](https://github.com/albert-mueller/OpenCore-Legacy-Patcher-T2).
+## Surface bundle launch
+
+A distributor can lock the target and pre-fill a validation path without reading
+hardware from the preparation computer or writing any EFI partition:
+
+```sh
+26x86.exe --profile surface-pro6-i5-tahoe --efi D:\EFI
+python -m x86.gui.entry --profile surface-pro6-i5-tahoe --efi /Volumes/USB/EFI
+```
+
+`X86_TARGET_PROFILE=surface-pro6-i5-tahoe` and `X86_SURFACE_EFI` provide the same
+options. A locked launch cannot switch to the Mac EFI builder. BigSurface in the
+EFI and IPTSDaemon in macOS are both needed for Surface touch/pen input; neither
+GUI validation nor source inspection constitutes a physical touch test.

@@ -279,7 +279,7 @@
       <p class="lead">i5-8250U · UHD 620 · Android USB 테더링</p>
       <p>준비된 Surface 전용 EFI 폴더를 선택해 파일과 설정을 검사합니다. 검사 결과는 실제 부팅 성공을 의미하지 않습니다.</p>
       <label for="surface-efi">EFI 폴더 경로</label>
-      <input id="surface-efi" class="field" placeholder="D:\u005cEFI 또는 /Volumes/USB/EFI" />
+      <input id="surface-efi" class="field" value="${escapeHtml(state.appInfo?.surface_efi_path || "")}" placeholder="EFI 폴더의 전체 경로" />
       <button type="button" class="btn primary" id="action-validate-surface">EFI 검사</button>
       <pre id="surface-validation" class="patch-summary"></pre>`;
   }
@@ -303,6 +303,15 @@
   }
 
   function renderDetect(step) {
+    if (isSurface()) return `<h2>대상: Surface Pro 6</h2>
+      <p class="lead">사용자가 지정한 설치 대상이며, 이 준비용 컴퓨터의 사양을 사용해 EFI를 변경하지 않습니다.</p>
+      <div class="info-grid">
+        ${infoRow("CPU", "Intel Core i5-8250U")}
+        ${infoRow("GPU", "Intel UHD 620 · Kaby Lake")}
+        ${infoRow("인터넷", "Android USB 테더링 · HoRNDIS")}
+        ${infoRow("무선랜", "순정 Marvell · macOS 드라이버 미지원")}
+        ${infoRow("OS", "macOS Tahoe 26 · Darwin 25")}
+      </div><p>터치·펜 입력은 EFI의 BigSurface와 macOS IPTSDaemon 설치가 모두 필요합니다. 실제 기기에서 작동을 확인하세요.</p>`;
     const d = state.detect || {};
     const platformNote = !d.host_is_mac && d.macos_only_note
       ? `<div class="note">${escapeHtml(d.macos_only_note)}</div>`

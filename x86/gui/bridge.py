@@ -82,6 +82,9 @@ class WizardBridge:
         self._selected_target_os: Optional[int] = None
         self._build_completed = False
 
+    def _hardware_profile(self):
+        return os.environ.get("X86_TARGET_PROFILE") or self._settings.read("hardware_profile")
+
     def _constants(self):
         return bootstrap.get_constants(start_unpack=True)
 
@@ -104,13 +107,17 @@ class WizardBridge:
             "host_is_mac": is_macos(),
             "macos_only_message": None if is_macos() else MACOS_ONLY_MESSAGE,
             "status_ready": strings.STATUS_READY,
-            "hardware_profile": self._settings.read("hardware_profile"),
+            "hardware_profile": self._hardware_profile(),
+            "profile_locked": bool(os.environ.get("X86_TARGET_PROFILE")),
+            "surface_efi_path": os.environ.get("X86_SURFACE_EFI", ""),
         }
 
     def set_hardware_profile(self, profile: Optional[str] = None) -> dict[str, Any]:
         from x86.surface import PROFILE_ID, profile_info
         if profile not in (None, PROFILE_ID):
             return {"ok": False, "error": "Unknown hardware profile"}
+        if os.environ.get("X86_TARGET_PROFILE") and profile != os.environ["X86_TARGET_PROFILE"]:
+            return {"ok": False, "error": "이 실행 파일은 Surface 대상 모드로 시작되었습니다."}
         data = self._settings.load()
         data["hardware_profile"] = profile
         self._settings.save(data)
@@ -204,7 +211,7 @@ class WizardBridge:
 
     def get_patch_status(self) -> dict[str, Any]:
         from x86.surface import PROFILE_ID
-        if self._settings.read("hardware_profile") == PROFILE_ID:
+        if self._hardware_profile() == PROFILE_ID:
             from x86.patch.root import preflight
             report = preflight(PROFILE_ID)
             summary = ["Surface Pro 6 · Tahoe · AppleHDA root patch"]
@@ -315,7 +322,7 @@ class WizardBridge:
             return {"ok": False, "error": MACOS_ONLY_MESSAGE}
 
         from x86.surface import PROFILE_ID
-        surface = self._settings.read("hardware_profile") == PROFILE_ID
+        surface = self._hardware_profile() == PROFILE_ID
         if surface and action in ("build", "install", "model_change", "advanced"):
             return {"ok": False, "error": "Surface 전용 EFI를 사용하세요. Mac용 EFI 빌더로 덮어쓰지 않습니다."}
         if surface and action == "patch":

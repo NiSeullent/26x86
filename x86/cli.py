@@ -220,25 +220,17 @@ def cmd_build(args: argparse.Namespace) -> int:
 
 
 def cmd_patch(args: argparse.Namespace) -> int:
-    if not is_macos():
-        message = MACOS_ONLY_MESSAGE
-        if args.json:
-            _emit_json({"status": "unsupported_platform", "message": message, "platform": platform_label(), "auto": args.auto})
-        else:
-            logging.error(message)
-        return 2
+    from x86.patch.root import apply, preflight
+    result = (apply if args.apply else preflight)(args.profile, args.payload_dir)
+    _emit_json(result)
+    return 0 if result.get("ok") else 2
 
-    message = (
-        f"{APP_NAME} patch is not yet implemented in the x86 CLI. "
-        "Use `python -m x86 wizard` or the legacy `opencore_legacy_patcher` entry for now."
-    )
-    if args.auto:
-        message += " (--auto requested)"
-    if args.json:
-        _emit_json({"status": "not_implemented", "message": message, "auto": args.auto})
-    else:
-        logging.warning(message)
-    return 2
+
+def cmd_surface(args: argparse.Namespace) -> int:
+    from x86.surface import profile_info, validate_efi
+    result = validate_efi(args.efi) if args.efi else {"ok": True, "profile": profile_info()}
+    _emit_json(result)
+    return 0 if result.get("ok") else 2
 
 
 def _patch_status_payload() -> dict[str, Any]:
@@ -422,9 +414,19 @@ def build_parser() -> argparse.ArgumentParser:
     build.set_defaults(handler=cmd_build)
 
     patch = subparsers.add_parser("patch", help="루트 볼륨 패치 적용 (macOS 전용)")
-    patch.add_argument("--auto", action="store_true", help="자동 패치 모드")
+    patch.add_argument("--auto", action="store_true", help="호환 옵션; --apply 없이는 사전 검사만 실행")
+    mode = patch.add_mutually_exclusive_group()
+    mode.add_argument("--apply", action="store_true", help="설치된 macOS의 루트 패치 실행 (sudo 필요)")
+    mode.add_argument("--preflight", action="store_true", help="읽기 전용 사전 검사 (기본)")
+    patch.add_argument("--profile", choices=["surface-pro6-i5-tahoe"])
+    patch.add_argument("--payload-dir", help="Universal-Binaries.dmg를 포함한 payloads 디렉터리")
     patch.add_argument("--json", action="store_true", help="JSON 형식으로 결과 출력")
     patch.set_defaults(handler=cmd_patch)
+
+    surface = subparsers.add_parser("surface", help="Surface Pro 6 Tahoe EFI 읽기 전용 검사 (모든 OS)")
+    surface.add_argument("--efi", help="EFI 디렉터리 또는 이를 포함한 폴더")
+    surface.add_argument("--json", action="store_true")
+    surface.set_defaults(handler=cmd_surface)
 
     status = subparsers.add_parser("status", help="설정·패치·EFI 상태 요약")
     status.add_argument("--json", action="store_true", help="JSON 형식으로 결과 출력")

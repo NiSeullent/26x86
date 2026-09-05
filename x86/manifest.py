@@ -6,15 +6,17 @@ from __future__ import annotations
 
 from .paths import APP_NAME, BUNDLE_ID
 
-PATCHER_VERSION: str = "4.0.0.18002.1"
-PATCHER_SUPPORT_PKG_VERSION: str = "2.0.0"
+PATCHER_VERSION: str = "4.0.0.18002.4"
+PATCHER_SUPPORT_PKG_VERSION: str = "1.11.6"
 OPENCORE_VERSION: str = "2.0.3"
 COPYRIGHT: str = "Copyright © 2026 NiSeullent and 26x86 contributors"
 
 GITHUB_ORG: str = "NiSeullent"
 GITHUB_REPO: str = "26x86"
 
-URL_PATCHER_SUPPORT_PKG: str = "https://github.com/NiSeullent/26x86-PatcherSupportPkg/download/"
+# The NiSeullent source fork currently has no published releases. Pin the
+# corresponding published upstream payload; do not synthesize nonexistent URLs.
+URL_PATCHER_SUPPORT_PKG: str = "https://github.com/hackdoc/PatcherSupportPkg/releases/download/"
 URL_METALLIB_SUPPORT_PKG: str = "https://github.com/NiSeullent/26x86-MetallibSupportPkg"
 URL_OPENCORE_PKG: str = "https://github.com/NiSeullent/26x86-OpenCorePkg"
 URL_REPO: str = "https://github.com/NiSeullent/26x86/"

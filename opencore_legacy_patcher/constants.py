@@ -37,7 +37,7 @@ class Constants:
         # Wenn eine Version mit s endet, es heißt, dass sie noch nicht fertig ist.
         self.patcher_version:                 str = "4.0.0.18002.4"  # OpenCore-Legacy-Patcher-T2 # die richtige Version kennzeichen, damit nicht den Update-API mit unnötigen Anfragen zu überladen 
         self.patcher_version_label=self.patcher_version
-        self.patcher_support_pkg_version:     str = "2.0.0"  # PatcherSupportPkg
+        self.patcher_support_pkg_version:     str = "1.11.6"  # published hackdoc PatcherSupportPkg
         self.copyright_date:                  str = "Copyright © 2026 NiSeullent and 26x86 contributors"
 
         # 26x86 product identity (runtime namespace — independent from OCLP/Dortania)
@@ -59,7 +59,7 @@ class Constants:
         )
 
         # URLs
-        self.url_patcher_support_pkg:         str = "https://github.com/NiSeullent/26x86-PatcherSupportPkg/download/"
+        self.url_patcher_support_pkg:         str = "https://github.com/hackdoc/PatcherSupportPkg/releases/download/"
         self.url_metallib_support_pkg:        str = "https://github.com/NiSeullent/26x86-MetallibSupportPkg"
         self.url_opencore_pkg:                str = "https://github.com/NiSeullent/26x86-OpenCorePkg"
         self.guide_link:                      str = "https://github.com/NiSeullent/26x86/wiki"

@@ -5,14 +5,13 @@ Shared constants bootstrap for HTML wizard bridge and wx subprocess runner.
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import threading
 from pathlib import Path
 from typing import Optional
 
 from opencore_legacy_patcher import constants
-from opencore_legacy_patcher.detections import device_probe, os_probe
-from opencore_legacy_patcher.support import defaults, reroute_payloads, utilities
 from x86.platform import is_linux, is_macos, is_windows
 
 
@@ -44,6 +43,27 @@ def get_constants(*, start_unpack: bool = True) -> constants.Constants:
         c.gui_mode = True
         c.cli_mode = False
 
+        if not is_macos():
+            # Preparation hosts must never import Security/IOKit or run macOS
+            # probes and payload mounts just to render the wizard.
+            from types import SimpleNamespace
+            from x86.platform import non_mac_detect_payload
+
+            host = non_mac_detect_payload()
+            c.computer = SimpleNamespace(real_model=host["model"], build_model=host["model"])
+            c.detected_os = 25  # target Darwin; not a claim about the host OS
+            c.detected_os_minor = 0
+            c.detected_os_build = ""
+            c.detected_os_version = ""
+            c.host_is_hackintosh = True
+            c.launcher_binary = sys.executable
+            c.launcher_script = str(ensure_repo_on_path() / ("26x86.bat" if is_windows() else "26x86.sh"))
+            _constants = c
+            return c
+
+        from opencore_legacy_patcher.detections import device_probe, os_probe
+        from opencore_legacy_patcher.support import defaults, reroute_payloads, utilities
+
         os_data = os_probe.OSProbe()
         c.detected_os = os_data.detect_kernel_major()
         c.detected_os_minor = os_data.detect_kernel_minor()
@@ -63,6 +83,10 @@ def get_constants(*, start_unpack: bool = True) -> constants.Constants:
             c.computer.build_model = c.computer.real_model
 
         defaults.GenerateDefaults(c.computer.real_model, True, c)
+
+        if os.environ.get("X86_TARGET_PROFILE") == "surface-pro6-i5-tahoe":
+            from x86.surface import configure_surface_constants
+            configure_surface_constants(c)
 
         if start_unpack and is_macos():
             c.unpack_thread = threading.Thread(

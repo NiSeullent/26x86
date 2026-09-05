@@ -43,6 +43,8 @@
 
   const QT_BRIDGE_METHODS = [
     "get_app_info",
+    "set_hardware_profile",
+    "validate_surface_efi",
     "get_steps",
     "detect",
     "get_macos_choices",
@@ -268,6 +270,20 @@
     els.btnNext.disabled = state.currentStep >= total - 1 || state.busy;
   }
 
+  function isSurface() {
+    return state.appInfo?.hardware_profile === "surface-pro6-i5-tahoe";
+  }
+
+  function renderSurfacePreparation() {
+    return `<h2>Surface Pro 6 · macOS Tahoe</h2>
+      <p class="lead">i5-8250U · UHD 620 · Android USB 테더링</p>
+      <p>준비된 Surface 전용 EFI 폴더를 선택해 파일과 설정을 검사합니다. 검사 결과는 실제 부팅 성공을 의미하지 않습니다.</p>
+      <label for="surface-efi">EFI 폴더 경로</label>
+      <input id="surface-efi" class="field" placeholder="D:\u005cEFI 또는 /Volumes/USB/EFI" />
+      <button type="button" class="btn primary" id="action-validate-surface">EFI 검사</button>
+      <pre id="surface-validation" class="patch-summary"></pre>`;
+  }
+
   function renderWelcome(step) {
     return `
       <div class="welcome-hero">
@@ -278,6 +294,9 @@
       </div>
       <div class="actions">
         <button type="button" class="btn primary" id="action-start">시작하기</button>
+        <button type="button" class="btn secondary" id="action-surface">Surface Pro 6 · Tahoe</button>
+        <button type="button" class="btn ghost" id="action-mac">일반 Mac 모드</button>
+        <p>${isSurface() ? "선택: Surface Pro 6 (Mac EFI 빌더 사용 안 함)" : "선택: 일반 Mac"}</p>
         <button type="button" class="btn secondary" id="action-guide">사용 설명서</button>
       </div>
     `;
@@ -308,6 +327,7 @@
   }
 
   function renderBuild(step) {
+    if (isSurface()) return renderSurfacePreparation();
     const macos = state.macos || { choices: [], selected_kernel: null };
     const selected = macos.choices.find((c) => c.kernel === macos.selected_kernel) || macos.choices[0];
     const warn = !state.canBuild
@@ -343,6 +363,13 @@
   }
 
   function renderPatch(step) {
+    if (isSurface()) return `<h2>Surface Pro 6 루트 패치</h2>
+      <p>설치된 Tahoe에서 AppleHDA와 KDK 조건을 검사한 뒤 기존 26x86 패치 엔진을 실행합니다. 먼저 USB EFI로 macOS를 부팅하세요.</p>
+      <div class="patch-summary" id="patch-summary">${escapeHtml(state.patchSummary)}</div>
+      <div class="actions">
+        <button type="button" class="btn primary" id="action-patch"${state.appInfo?.host_is_mac ? "" : " disabled"}>macOS 루트 패치 열기</button>
+        <button type="button" class="btn secondary" id="action-unpatch"${state.appInfo?.host_is_mac ? "" : " disabled"}>macOS 루트 패치 되돌리기</button>
+      </div>`;
     const needBuild = !state.buildCompleted
       ? `<div class="note">먼저 패치(EFI)를 생성해 주세요. 생성 후 EFI 설치와 루트 패치를 진행할 수 있습니다.</div>`
       : "";
@@ -404,6 +431,14 @@
     };
 
     if (stepId === "welcome") {
+      const selectProfile = async (profile) => {
+        const result = await api("set_hardware_profile", profile);
+        if (!result.ok) return toast(result.error, "error");
+        state.appInfo.hardware_profile = profile;
+        renderStepContent();
+      };
+      bind("action-surface", () => selectProfile("surface-pro6-i5-tahoe"));
+      bind("action-mac", () => selectProfile(null));
       bind("action-start", () => goToStep(1));
       bind("action-guide", () => api("open_guide").catch(() => toast("도움말을 열 수 없습니다.", "error")));
     }
@@ -430,6 +465,16 @@
     }
 
     if (stepId === "build") {
+      bind("action-validate-surface", async () => {
+        const output = document.getElementById("surface-validation");
+        output.textContent = "검사 중…";
+        try {
+          const result = await api("validate_surface_efi", document.getElementById("surface-efi").value);
+          output.textContent = [result.ok ? "정적 EFI 검사 통과 · 실제 부팅 미확인" : "EFI 검사 실패",
+            ...(result.errors || []), ...(result.warnings || []),
+            `루트 패치 설정: ${result.root_patch_ready ? "준비됨 (macOS 사전 검사 필요)" : "미완료"}`].join("\n");
+        } catch (err) { output.textContent = String(err.message || err); }
+      });
       const select = document.getElementById("macos-select");
       if (select) {
         select.addEventListener("change", async () => {
@@ -447,7 +492,7 @@
         if (!result.ok) {
           toast(result.error || "패치 생성을 시작할 수 없습니다.", "error");
         } else {
-          state.buildCompleted = true;
+          // Opening a build window does not prove the build completed.
           toast("패치 생성 창을 열었습니다.");
         }
         setStatus("준비됨");

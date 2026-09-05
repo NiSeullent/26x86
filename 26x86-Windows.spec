@@ -10,7 +10,7 @@ try:
 except NameError:
     SPEC_DIR = Path(os.getcwd()).resolve()
 
-ENTRY = SPEC_DIR / "26x86-GUI.command"
+ENTRY = SPEC_DIR / "x86" / "gui" / "entry.py"
 WEB_DIR = SPEC_DIR / "x86" / "gui" / "web"
 BRANDING_DIR = SPEC_DIR / "resources" / "branding"
 ICON_ICO = SPEC_DIR / "payloads" / "Resources" / "AppIcons" / "26x86.ico"

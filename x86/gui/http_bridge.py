@@ -20,6 +20,8 @@ from x86.gui.bridge import WizardBridge
 API_METHODS = frozenset(
     {
         "get_app_info",
+        "set_hardware_profile",
+        "validate_surface_efi",
         "get_steps",
         "detect",
         "get_macos_choices",
@@ -49,27 +51,34 @@ class _WizardHTTPHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
         self.wfile.write(body)
 
     def do_OPTIONS(self) -> None:  # noqa: N802
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+        self._send_json(403, {"ok": False, "error": "Cross-origin bridge requests are disabled"})
+
+    def _local_request(self) -> bool:
+        host = self.headers.get("Host", "")
+        port = self.server.server_address[1]
+        if host not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+            self._send_json(403, {"ok": False, "error": "Invalid bridge host"})
+            return False
+        origin = self.headers.get("Origin")
+        if origin is not None and origin != f"http://{host}":
+            self._send_json(403, {"ok": False, "error": "Cross-origin bridge requests are disabled"})
+            return False
+        return True
 
     def do_GET(self) -> None:  # noqa: N802
+        if not self._local_request():
+            return
         parsed = urlparse(self.path)
         if parsed.path in ("/api/health", "/api/ping"):
             self._send_json(200, {"ok": True, "transport": "http"})
             return
         if parsed.path.startswith("/api/"):
             method = parsed.path[len("/api/") :].strip("/")
-            if method in API_METHODS:
+            if method in API_METHODS and method.startswith("get_"):
                 self._invoke(method, [])
                 return
             self._send_json(404, {"ok": False, "error": f"Unknown API: {method}"})
@@ -77,6 +86,18 @@ class _WizardHTTPHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802
+        if not self._local_request():
+            return
+        if self.headers.get_content_type() != "application/json":
+            self._send_json(415, {"ok": False, "error": "JSON requests required"})
+            return
+        try:
+            size = int(self.headers.get("Content-Length") or 0)
+            if size < 0 or size > 1048576:
+                raise ValueError()
+        except ValueError:
+            self._send_json(413, {"ok": False, "error": "Invalid request length"})
+            return
         parsed = urlparse(self.path)
         if parsed.path == "/api/invoke":
             length = int(self.headers.get("Content-Length") or 0)
@@ -85,6 +106,9 @@ class _WizardHTTPHandler(SimpleHTTPRequestHandler):
                 payload = json.loads(raw.decode("utf-8") or "{}")
             except json.JSONDecodeError:
                 self._send_json(400, {"ok": False, "error": "Invalid JSON"})
+                return
+            if not isinstance(payload, dict):
+                self._send_json(400, {"ok": False, "error": "Request must be an object"})
                 return
             method = str(payload.get("method") or "")
             args = payload.get("args") or []

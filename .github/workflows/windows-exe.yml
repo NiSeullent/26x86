@@ -44,6 +44,10 @@ jobs:
           if (-not (Test-Path ".\dist\26x86\26x86.exe")) {
             throw "dist/26x86/26x86.exe not found"
           }
+          $taskExe = Start-Process -FilePath '.\dist\26x86\26x86.exe' -ArgumentList '--smoke-report', 'build\frozen-smoke.json' -WindowStyle Hidden -PassThru
+          if (-not $taskExe.WaitForExit(60000)) { throw "EXE smoke test timed out" }
+          $report = Get-Content -LiteralPath 'build\frozen-smoke.json' -Raw | ConvertFrom-Json
+          if ($taskExe.ExitCode -ne 0 -or -not $report.ok) { throw "EXE backend smoke test failed" }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

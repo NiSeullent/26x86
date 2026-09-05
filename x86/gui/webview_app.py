@@ -31,6 +31,12 @@ class WebviewApi:
     def get_app_info(self) -> dict[str, Any]:
         return self._bridge.get_app_info()
 
+    def set_hardware_profile(self, profile=None) -> dict[str, Any]:
+        return self._bridge.set_hardware_profile(profile)
+
+    def validate_surface_efi(self, path: str) -> dict[str, Any]:
+        return self._bridge.validate_surface_efi(path)
+
     def get_steps(self) -> list[dict[str, str]]:
         return self._bridge.get_steps()
 
@@ -155,7 +161,7 @@ def launch_webview_wizard(*, advanced: bool = False) -> None:
     _launch_pywebview_wizard(advanced=advanced, requested=requested)
 
 
-def _launch_pywebview_wizard(*, advanced: bool, requested: str) -> None:
+def _launch_pywebview_wizard(*, advanced: bool, requested: str, smoke_report=None) -> None:
     import webview
 
     bridge = WizardBridge()
@@ -173,7 +179,7 @@ def _launch_pywebview_wizard(*, advanced: bool, requested: str) -> None:
     if not index_path.exists():
         raise FileNotFoundError(f"Wizard HTML missing: {index_path}")
 
-    httpd = start_wizard_http_server(web_root)
+    httpd, _ = start_bridge_http_server(web_root, bridge=bridge)
     port = httpd.server_address[1]
     url = f"http://127.0.0.1:{port}/index.html"
     logging.info("pywebview wizard url=%s root=%s exists=%s", url, web_root, index_path.exists())
@@ -214,7 +220,32 @@ def _launch_pywebview_wizard(*, advanced: bool, requested: str) -> None:
             except Exception:
                 pass
 
-            webview.start(debug=False, gui=backend, http_server=False)
+            def _verify_window():
+                import json
+                import time
+                report = {"ok": False, "backend": backend}
+                try:
+                    for _ in range(100):
+                        status = window.evaluate_js("document.getElementById('status-text')?.textContent")
+                        report["status"] = status
+                        if status and ("준비" in status or "Ready" in status):
+                            report["ok"] = True
+                            report["title"] = window.evaluate_js("document.title")
+                            break
+                        time.sleep(0.2)
+                except Exception as exc:
+                    report["error"] = str(exc)
+                finally:
+                    try:
+                        report["url"] = window.evaluate_js("location.href")
+                        if not report["ok"]:
+                            report["body"] = window.evaluate_js("document.body?.innerText?.slice(0, 2000)")
+                    except Exception:
+                        pass
+                    smoke_report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+                    window.destroy()
+
+            webview.start(_verify_window if smoke_report else None, debug=False, gui=backend, http_server=False)
             return
         except Exception as exc:
             last_error = exc

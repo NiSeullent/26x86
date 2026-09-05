@@ -1003,7 +1003,7 @@ class PatchSysVolume:
         return required_patches
 
 
-    def start_patch(self):
+    def start_patch(self, interactive=True):
         """
         Entry point for the patching process.
         
@@ -1047,6 +1047,8 @@ class PatchSysVolume:
             logging.info("It is recommended to install that update/upgrade and only then run the patcher once again.")
             
             # Offer the user a choice
+            if not interactive:
+                return False
             choice = input("Do you want to open Software Update now? (y/n): ").lower()
             
             if choice == 'y':
@@ -1063,13 +1065,17 @@ class PatchSysVolume:
             logging.info("Patchen des Root-Volumes")
             logging.info("Patching the root volume")
             self._patch_root_vol()
+            return bool(self.constants.root_patcher_succeeded)
         except Exception as e:
             logging.error("Es hat gescheitert, des Root-Volumes zu patchen")
             logging.error("Failed to root patch the volume")
             logging.exception("Stack Trace:")
             logging.info("Damit wir sicherstellen, dass Ihr System trotz fehlgeschlagener Root-Volumes-Patch noch überhaupt startet, wir werden alle Patches widerrufen.")
             logging.info("To ensure that your system continues to boot even after the root volume patches have failed to apply, we'll undo the patches that were applied until now.")
-            self.unpatch_root_vol()
+            self._unpatch_root_vol()
+            # A successful rollback is not a successful patch operation.
+            self.constants.root_patcher_succeeded = False
+            return False
 
 
     def start_unpatch(self) -> None:

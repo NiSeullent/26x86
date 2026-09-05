@@ -61,8 +61,8 @@ class SettingsFrame(wx.Frame):
         sizer.AddSpacer(10)
 
         tabs = list(self.settings.keys())
-        if not self.constants.Experimental_Features:
-            tabs.remove("Developer")
+        if not (self.constants.Experimental_Features or self.constants.True_Developer_Mode):
+            tabs.remove("Advanced")
         for tab in tabs:
             panel = wx.ScrolledWindow(notebook)
             panel.SetScrollRate(0, 20)
@@ -282,7 +282,7 @@ class SettingsFrame(wx.Frame):
                     "args": wx.Frame,
                 },
             },
-            "Developer": {
+            "Advanced": {
                 "Validation": {
                     "type": "title",
                 },
@@ -292,6 +292,7 @@ class SettingsFrame(wx.Frame):
                     "description": [
                         "Intentionally crash the app to test whether a report comes up" # beschreibung hinzufügen was genau macht
                     ],
+                    "condition": self.constants.True_Developer_Mode
                 },
                 "Misc": {
                     "type": "title",
@@ -700,7 +701,7 @@ Hardware Information:
 
     def on_export_constants(self, event: wx.Event) -> None:
         # Throw pop up to get save location
-        with wx.FileDialog(self.parent, "Save Constants File", wildcard="JSON files (*.txt)|*.txt", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT, defaultFile=f"constants-{self.constants.patcher_version}.txt") as fileDialog:
+        with wx.FileDialog(self.parent, "Save Constants File", wildcard="JSON files (*.txt)|*.txt|All files (*.*)|*.*", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT, defaultFile=f"constants-{self.constants.patcher_version}.txt") as fileDialog:
             if fileDialog.ShowModal() == wx.ID_CANCEL:
                 return
 

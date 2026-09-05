@@ -368,6 +368,11 @@ class MainFrame(wx.Frame):
         self.description = wx.StaticText(panel, label=f"{self.constants.patcher_name} {oclp_version} is now available - You have {self.constants.patcher_version_label}. Would you like to update?")
         self.title_text.SetFont(gui_support.font_factory(19, wx.FONTWEIGHT_BOLD))
         self.description.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_NORMAL))
+        # Ohne Wrap() ragt der Text bei langen Versions-/Produktnamen über die feste Dialogbreite hinaus
+        # und wird dadurch abgeschnitten (z.B. "Would you like to update?" -> "Would you like to").
+        # Siehe Commit 573d55e; ging beim GUI-Redesign (PR #200) in dieser Datei verloren.
+        # Duplikat dieses Dialogs in sys_patch/auto_patcher/start.py -- dort bei Änderungen mitziehen.
+        self.description.Wrap(600)
         
         self.web_view = wx.html2.WebView.New(panel, style=wx.BORDER_SUNKEN)
         html_code = f'''

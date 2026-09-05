@@ -182,6 +182,12 @@ class BuildSMBIOS:
                 logging.info("Please try again later.")
                 sys.exit(3)
         else:
+            # When serial_settings is "None", ensure we do not touch SMBIOS tables
+            # and explicitly disable SpoofVendor to prevent changing the BIOS vendor to Acidanthera
+            logging.info("- Disabling SMBIOS updates and SpoofVendor (None selected)")
+            self.config["PlatformInfo"]["UpdateSMBIOS"] = False
+            self.config.setdefault("PlatformInfo", {}).setdefault("Generic", {})["SpoofVendor"] = False
+
             # Update DataHub to resolve Lilu Race Condition
             # macOS Monterey will sometimes not present the boardIdentifier in the DeviceTree on UEFI 1.2 or older Mac,
             # Thus resulting in an infinite loop as Lilu tries to request the Board ID
@@ -207,6 +213,11 @@ class BuildSMBIOS:
                 self.config["PlatformInfo"]["Generic"]["SystemProductName"] = self.spoofed_model
                 self.config["NVRAM"]["Add"]["4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102"]["OCLP-Spoofed-SN"] = self.constants.custom_serial_number
                 self.config["NVRAM"]["Add"]["4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102"]["OCLP-Spoofed-MLB"] = self.constants.custom_board_serial_number
+
+        # On T2 Macs, always ensure SpoofVendor is False to protect SEP hardware keys
+        if self.model in model_array.T2Macs:
+            logging.info("- Detected T2 Mac, disabling SpoofVendor to preserve Apple Inc. vendor for SEP")
+            self.config.setdefault("PlatformInfo", {}).setdefault("Generic", {})["SpoofVendor"] = False
 
         # USB Map and CPUFriend Patching
         if (

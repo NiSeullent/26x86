@@ -178,11 +178,16 @@ def quit_app() -> None:
         return
     _app_quitting = True
 
-    logging.info("Quitting")
-
-    # Signal background threads before anything starts disappearing underneath them
+    # Signal background threads before anything starts disappearing underneath them.
+    # The ThreadHandlers go first: the "Quitting" record below is emitted while the
+    # windows are still alive, so it would queue an AppendText onto a wx.TextCtrl
+    # that the teardown right after this deletes, and wx dispatches that queued call
+    # anyway on the way out.
     mark_app_exiting()
+    detach_text_box_log_handlers()
     stop_all_pulses()
+
+    logging.info("Quitting")
 
     windows = list(wx.GetTopLevelWindows())
 
@@ -223,6 +228,22 @@ def mark_app_exiting() -> None:
 
 def is_app_exiting() -> bool:
     return _app_exiting
+
+
+def detach_text_box_log_handlers() -> None:
+    """
+    Unhooks every ThreadHandler from the root logger.
+
+    A ThreadHandler holds a wx.TextCtrl that belongs to a frame, so it must not
+    outlive that frame. Call sites remove their own handler when their worker
+    finishes, but a quit (or a frame handoff) can happen while a worker is still
+    running, and background threads keep logging after that.
+    """
+    logger = logging.getLogger()
+    for handler in logger.handlers[:]:
+        if isinstance(handler, ThreadHandler):
+            handler.text_box = None
+            logger.removeHandler(handler)
 
 
 _active_pulses: set = set()
@@ -556,7 +577,50 @@ class ThreadHandler(logging.Handler):
 
 
     def emit(self, record: logging.LogRecord):
-        wx.CallAfter(self.text_box.AppendText, self.format(record) + '\n')
+        if self.text_box is None or is_app_exiting():
+            return
+
+        try:
+            text = self.format(record) + '\n'
+        except Exception:
+            self.handleError(record)
+            return
+
+        wx.CallAfter(self._append_text, text)
+
+
+    def _append_text(self, text: str) -> None:
+        """
+        Appends to the text box, tolerating it having been destroyed meanwhile.
+
+        This runs on the main thread, but only whenever the event loop gets around
+        to it - and by then the frame owning the text box may be gone: Cmd+Q during
+        a build, a frame handoff, or a worker thread that is still logging after its
+        frame was torn down. The bound AppendText used to be handed straight to
+        wx.CallAfter, so the call landed on a dead widget inside wx's dispatch
+        lambda, where nothing could catch it:
+
+            RuntimeError: wrapped C/C++ object of type TextCtrl has been deleted
+        """
+        if self.text_box is None:
+            return
+
+        try:
+            if not self.text_box:  # False once the underlying C++ object is gone
+                self._detach()
+                return
+            self.text_box.AppendText(text)
+        except RuntimeError:
+            self._detach()
+
+
+    def _detach(self) -> None:
+        """
+        Drops the dead widget and unhooks the handler, so later records
+        short-circuit in emit() instead of queueing more doomed calls.
+        """
+        self.text_box = None
+        logging.getLogger().removeHandler(self)
 
 
 def wait_for_thread(thread: threading.Thread, sleep_interval=None):

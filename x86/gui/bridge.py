@@ -17,11 +17,6 @@ from typing import Any, Optional
 from opencore_legacy_patcher.datasets import smbios_data
 from opencore_legacy_patcher.datasets.os_data import os_conversion
 from opencore_legacy_patcher.datasets import os_data as os_data_module
-from opencore_legacy_patcher.sys_patch.patchsets import (
-    HardwarePatchsetDetection,
-    HardwarePatchsetValidation,
-)
-from opencore_legacy_patcher.wx_gui import gui_support
 
 from x86.cli import _patch_status_payload, _serialize_detect_payload, _sw_vers
 from x86.gui import bootstrap
@@ -87,6 +82,9 @@ class WizardBridge:
         self._selected_target_os: Optional[int] = None
         self._build_completed = False
 
+    def _hardware_profile(self):
+        return os.environ.get("X86_TARGET_PROFILE") or self._settings.read("hardware_profile")
+
     def _constants(self):
         return bootstrap.get_constants(start_unpack=True)
 
@@ -109,7 +107,25 @@ class WizardBridge:
             "host_is_mac": is_macos(),
             "macos_only_message": None if is_macos() else MACOS_ONLY_MESSAGE,
             "status_ready": strings.STATUS_READY,
+            "hardware_profile": self._hardware_profile(),
+            "profile_locked": bool(os.environ.get("X86_TARGET_PROFILE")),
+            "surface_efi_path": os.environ.get("X86_SURFACE_EFI", ""),
         }
+
+    def set_hardware_profile(self, profile: Optional[str] = None) -> dict[str, Any]:
+        from x86.surface import PROFILE_ID, profile_info
+        if profile not in (None, PROFILE_ID):
+            return {"ok": False, "error": "Unknown hardware profile"}
+        if os.environ.get("X86_TARGET_PROFILE") and profile != os.environ["X86_TARGET_PROFILE"]:
+            return {"ok": False, "error": "이 실행 파일은 Surface 대상 모드로 시작되었습니다."}
+        data = self._settings.load()
+        data["hardware_profile"] = profile
+        self._settings.save(data)
+        return {"ok": True, "profile": profile_info() if profile else None}
+
+    def validate_surface_efi(self, path: str) -> dict[str, Any]:
+        from x86.surface import validate_efi
+        return validate_efi(path)
 
     def get_steps(self) -> list[dict[str, str]]:
         return WEB_STEPS
@@ -157,7 +173,7 @@ class WizardBridge:
 
     def detect(self, refresh: bool = False) -> dict[str, Any]:
         c = self._constants()
-        if refresh:
+        if refresh and is_macos():
             from opencore_legacy_patcher.detections import device_probe
 
             c.computer = device_probe.Computer.probe()
@@ -194,6 +210,17 @@ class WizardBridge:
         return {"ok": True, "detect": payload}
 
     def get_patch_status(self) -> dict[str, Any]:
+        from x86.surface import PROFILE_ID
+        if self._hardware_profile() == PROFILE_ID:
+            from x86.patch.root import preflight
+            report = preflight(PROFILE_ID)
+            summary = ["Surface Pro 6 · Tahoe · AppleHDA root patch"]
+            summary.extend(report.get("patches", []))
+            summary.extend(report.get("blockers", []))
+            if report.get("error"):
+                summary.append(report["error"])
+            summary.append("Surface EFI는 그대로 사용합니다. UHD 620에는 레거시 GPU 루트 패치를 적용하지 않습니다.")
+            return {"ok": True, "patch": report, "summary": "\n".join(summary)}
         try:
             patch = _patch_status_payload()
             active = patch.get("patches_available") or []
@@ -269,6 +296,7 @@ class WizardBridge:
                 "message": MACOS_ONLY_MESSAGE,
             }
         c = self._constants()
+        from opencore_legacy_patcher.wx_gui import gui_support
         can_build = gui_support.CheckProperties(c).host_can_build()
         return {"ok": True, "can_build": bool(can_build), "build_completed": self._build_completed}
 
@@ -293,6 +321,16 @@ class WizardBridge:
         if not is_macos():
             return {"ok": False, "error": MACOS_ONLY_MESSAGE}
 
+        from x86.surface import PROFILE_ID
+        surface = self._hardware_profile() == PROFILE_ID
+        if surface and action in ("build", "install", "model_change", "advanced"):
+            return {"ok": False, "error": "Surface 전용 EFI를 사용하세요. Mac용 EFI 빌더로 덮어쓰지 않습니다."}
+        if surface and action == "patch":
+            from x86.patch.root import preflight
+            report = preflight(PROFILE_ID)
+            if not report.get("can_patch"):
+                return {"ok": False, "error": report.get("error") or "\n".join(report.get("blockers") or [report["status"]])}
+
         if action == "advanced" and not is_advanced_gui_enabled():
             return {"ok": False, "error": strings.ERR_ADVANCED_DISABLED}
 
@@ -307,6 +345,8 @@ class WizardBridge:
         repo = bootstrap.ensure_repo_on_path()
         env = os.environ.copy()
         env.setdefault("X86_LEGACY_GUI", "1")
+        if surface:
+            env["X86_TARGET_PROFILE"] = PROFILE_ID
         if action == "advanced":
             env["X86_ADVANCED"] = "1"
 
@@ -318,8 +358,6 @@ class WizardBridge:
                 env=env,
                 start_new_session=True,
             )
-            if action == "build":
-                self._build_completed = True
             return {"ok": True, "action": action, "spawned": True}
         except OSError as exc:
             logging.exception("wx_runner spawn failed")

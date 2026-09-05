@@ -20,6 +20,10 @@
 
 ## 실행
 
+Surface Pro 6 i5-8250U / Tahoe 준비·검사와 macOS 루트 패치 경로:
+[Surface Pro 6 안내](docs/SURFACE_PRO6.md). Windows/Linux GUI는 EFI 준비와 검사를
+지원하며 APFS 루트 패치는 설치된 macOS에서 실행합니다.
+
 `26x86.command` 또는 `python3 -m x86 wizard`
 
 기본 GUI: **Tauri** (WKWebView / WebView2, Chromium Qt 아님). 폴백: Cocoa pywebview.

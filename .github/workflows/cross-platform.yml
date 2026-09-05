@@ -1,0 +1,71 @@
+name: Cross-platform preparation and Surface profile
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preparation:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install requests packaging markdown2
+      - name: Install native macOS probe bindings
+        if: runner.os == 'macOS'
+        run: python -m pip install pyobjc-core pyobjc-framework-Cocoa py_sip_xnu
+      - name: Validate Surface profile and failure boundaries
+        run: python -m unittest discover -s tests -p test_surface.py -v
+      - name: Compile Python source
+        run: python -m compileall -q x86 opencore_legacy_patcher
+      - name: Exercise preparation GUI bridge on Windows and Linux
+        if: runner.os != 'macOS'
+        run: python -m unittest x86.gui.test_bridge_smoke -v
+      - name: Read-only Surface CLI
+        run: python -m x86 surface --json
+
+  native-gui:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install requests packaging markdown2 pywebview
+      - name: Install native macOS runtime
+        if: runner.os == 'macOS'
+        run: python -m pip install pyobjc py-applescript py_sip_xnu 'wxpython<4.2.5' macos-pkg-builder
+      - name: Install Linux Qt runtime
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 xvfb
+          python -m pip install PySide6 qtpy
+      - name: Exercise the Linux GUI
+        if: runner.os == 'Linux'
+        env:
+          QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu --no-sandbox
+        run: xvfb-run -a python -m x86.gui.entry --gui-smoke-report gui-smoke.json
+      - name: Exercise the macOS GUI
+        if: runner.os == 'macOS'
+        run: python -m x86.gui.entry --gui-smoke-report gui-smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gui-smoke-${{ matrix.os }}
+          path: gui-smoke.json

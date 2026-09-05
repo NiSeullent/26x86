@@ -340,11 +340,13 @@ class SysPatchStartFrame(wx.Frame):
         except:
             logging.error("An internal error occurred while running the Root Patcher:\n")
             logging.error(traceback.format_exc())
-            
-        # FIX: Sicheres Entfernen des spezifischen ThreadHandlers
-        for handler in logger.handlers[:]:
-            if isinstance(handler, gui_support.ThreadHandler):
-                logger.removeHandler(handler)
+        finally:
+            # Sicheres Entfernen des spezifischen ThreadHandlers. Im finally, damit
+            # der Handler auch bei KeyboardInterrupt/SystemExit nicht an einer
+            # bereits zerstoerten wx.TextCtrl haengen bleibt.
+            for handler in logger.handlers[:]:
+                if isinstance(handler, gui_support.ThreadHandler):
+                    logger.removeHandler(handler)
 
 
     def revert_root_patching(self):
@@ -370,11 +372,13 @@ class SysPatchStartFrame(wx.Frame):
         except:
             logging.error("An internal error occurred while running the Root Patcher:\n")
             logging.error(traceback.format_exc())
-            
-        # FIX: Sicheres Entfernen des spezifischen ThreadHandlers
-        for handler in logger.handlers[:]:
-            if isinstance(handler, gui_support.ThreadHandler):
-                logger.removeHandler(handler)
+        finally:
+            # Sicheres Entfernen des spezifischen ThreadHandlers. Im finally, damit
+            # der Handler auch bei KeyboardInterrupt/SystemExit nicht an einer
+            # bereits zerstoerten wx.TextCtrl haengen bleibt.
+            for handler in logger.handlers[:]:
+                if isinstance(handler, gui_support.ThreadHandler):
+                    logger.removeHandler(handler)
 
 
     def on_return_to_main_menu(self, event: wx.Event = None):

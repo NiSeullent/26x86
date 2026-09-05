@@ -35,9 +35,9 @@ class Constants:
     def __init__(self) -> None:
         # Patcher Versioning
         # Wenn eine Version mit s endet, es heißt, dass sie noch nicht fertig ist.
-        self.patcher_version:                 str = "4.0.0.18002.1"  # OpenCore-Legacy-Patcher-T2 # die richtige Version kennzeichen, damit nicht den Update-API mit unnötigen Anfragen zu überladen 
+        self.patcher_version:                 str = "4.0.0.18002.4"  # OpenCore-Legacy-Patcher-T2 # die richtige Version kennzeichen, damit nicht den Update-API mit unnötigen Anfragen zu überladen 
         self.patcher_version_label=self.patcher_version
-        self.patcher_support_pkg_version:     str = "2.0.0"  # PatcherSupportPkg
+        self.patcher_support_pkg_version:     str = "1.11.6"  # published hackdoc PatcherSupportPkg
         self.copyright_date:                  str = "Copyright © 2026 NiSeullent and 26x86 contributors"
 
         # 26x86 product identity (runtime namespace — independent from OCLP/Dortania)
@@ -59,7 +59,7 @@ class Constants:
         )
 
         # URLs
-        self.url_patcher_support_pkg:         str = "https://github.com/NiSeullent/26x86-PatcherSupportPkg/download/"
+        self.url_patcher_support_pkg:         str = "https://github.com/hackdoc/PatcherSupportPkg/releases/download/"
         self.url_metallib_support_pkg:        str = "https://github.com/NiSeullent/26x86-MetallibSupportPkg"
         self.url_opencore_pkg:                str = "https://github.com/NiSeullent/26x86-OpenCorePkg"
         self.guide_link:                      str = "https://github.com/NiSeullent/26x86/wiki"
@@ -729,8 +729,24 @@ class Constants:
             return self.oc_build_path.parent
 
     @property
+    def oc_build_folder_name(self) -> str:
+        """
+        Name of the folder the built EFI ends up in.
+
+        Carries the target model so builds for different machines can sit next
+        to each other in the same parent folder instead of overwriting one
+        another. Falls back to the plain name when no model is known yet (the
+        payload zip's own top-level folder is always the plain name, see
+        payloads/OpenCore/Update-OpenCore.command).
+        """
+        model = self.custom_model or (self.computer.real_model if self.computer else None)
+        if not model:
+            return "OpenCore-Build"
+        return f"OpenCore-Build-{str(model).replace('/', '-')}"
+
+    @property
     def opencore_release_folder(self):
-        return self.build_path / Path(f"OpenCore-Build")
+        return self.build_path / Path(self.oc_build_folder_name)
 
     @property
     def opencore_zip_copied(self):

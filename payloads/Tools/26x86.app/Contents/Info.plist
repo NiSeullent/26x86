@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>26x86</string>
+	<key>CFBundleExecutable</key>
+	<string>26x86</string>
+	<key>CFBundleIconFile</key>
+	<string>26x86.icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.niseullent.26x86</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>26x86</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.10.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 NiSeullent and 26x86 contributors</string>
+	<key>SMPrivilegedExecutables</key>
+	<dict>
+		<key>com.niseullent.26x86.privileged-helper</key>
+		<string>identifier "com.niseullent.26x86.privileged-helper" and anchor apple generic</string>
+	</dict>
+</dict>
+</plist>

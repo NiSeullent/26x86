@@ -1,0 +1,58 @@
+﻿# Python
+__pycache__/
+*.py[codz]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.installed.cfg
+
+# Virtual environments
+.env
+.envrc
+.venv
+venv/
+env/
+
+# macOS
+.DS_Store
+._*
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# Private/sensitive directories (must NEVER be in public repo)
+research/
+_isolated/
+_isolated/**
+nextcore/artifacts/
+ci_tooling/
+private/
+internal/
+reverse/
+
+# Payloads (binary/third-party)
+payloads/OpenCore/macserial
+payloads/OpenCore/ocvalidate
+payloads/Apple/
+payloads/*.zip
+payloads/*.dmg
+payloads/BuildManifest.plist
+payloads/*.sucatalog
+payloads/*.pkg
+payloads/*.pkg.zip
+
+# Temporary files
+temp_*.txt
+*.log
+
+# Build artifacts
+*.pyc
+*.spec
+MANIFEST
+MANIFEST.in
+archive/
+archive/**/*

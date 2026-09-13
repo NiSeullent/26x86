@@ -1,0 +1,396 @@
+{
+  "schema": "26x86.vmapple-gui-boot-picker/3",
+  "recorded_at": "2026-09-06",
+  "source_report": "../../work/apple-assets-27/goldengate-chain-004/launch.json",
+  "normal_probe_source": "../../work/apple-assets-27/goldengate-gui-live-025/launch.json",
+  "stage2_probe_source": "../../work/apple-assets-27/goldengate-gui-live-027-optional/launch.json",
+  "validation_level": "RECOVERY-PROTOCOL",
+  "target_major": 27,
+  "target_name": "Golden Gate",
+  "machine_type": "iBoot(AArch64)",
+  "guest_os": "macOS",
+  "display_backend": "gtk",
+  "graphics_device_enabled": false,
+  "virtual_soc_name": "Apple M1 (Virtual)",
+  "virtual_model": "VM0001",
+  "virtual_identity_mode": "metadata-only",
+  "hardware_attestation_verified": false,
+  "visible_window_requested": true,
+  "worker": "WSL Linux process with WSLg GTK",
+  "qemu_version": "QEMU emulator version 11.1.50",
+  "qemu_machine": "vmapple",
+  "acceleration": "tcg",
+  "host": "Linux/x86_64 under WSL; not a physical Apple Intel Mac",
+  "research_only": true,
+  "developer_host_bypass": true,
+  "distribution_status": "NONREDISTRIBUTABLE DEVELOPMENT ARTIFACT",
+  "cow_storage": true,
+  "installer_modified": false,
+  "boot_picker": {
+    "enabled": true,
+    "delay_seconds": 2.0,
+    "alt_key": "Alt",
+    "show_picker_on_alt": true,
+    "hotkey_action": "show-picker",
+    "entries": [
+      {
+        "id": "macos",
+        "label": "macOS 27",
+        "kind": "macOS",
+        "target_major": 27,
+        "guest_os": "macOS",
+        "supported": true
+      },
+      {
+        "id": "recovery",
+        "label": "macOS Recovery · _default.ipsw",
+        "kind": "Recovery",
+        "target_major": 27,
+        "guest_os": "macOS",
+        "supported": true,
+        "recovery_protocol": "DFU/IPSW",
+        "recovery_image_name": "_default.ipsw"
+      }
+    ],
+    "recovery_entry_enabled": true,
+    "recovery": {
+      "enabled": true,
+      "scope": "macOS-only",
+      "protocol": "DFU/IPSW",
+      "supported_protocols": [
+        "DFU",
+        "IPSW"
+      ],
+      "default_image_name": "_default.ipsw",
+      "image_name": "_default.ipsw",
+      "dfu_macos_recovery": true,
+      "ipsw_macos_recovery": true
+    },
+    "selection": "recovery",
+    "selection_source": "alt-enter",
+    "hotkey_event_observed": true,
+    "delay_enforced": true,
+    "gate_started_monotonic": 3.104,
+    "gate_released_monotonic": 5.104,
+    "gate_released": true
+  },
+  "personalization": {
+    "mode": "live-tss",
+    "build_manifest_sha256": "4137196616826e4e8eca265eedea52bc59c925113dd96bf2a59460075080a364",
+    "original_ibss_sha256": "149111b580f1e7572348551a31af0001543d4eacdb9b662f620b2710734dbc8c",
+    "original_ibec_sha256": "b872a987ebd1bf46b2a6add8c869d187268bcf1034ae52152759cd8d57726d6d",
+    "tss_status": {
+      "iBSS": "0",
+      "iBEC": "0",
+      "LocalPolicy": "0"
+    },
+    "nonce_bound": true,
+    "payload_preserved": true,
+    "installer_modified": false
+  },
+  "recovery": {
+    "protocol": "DFU/IPSW",
+    "image_name": "_default.ipsw",
+    "dfu_transfer_complete": true,
+    "dfu_image_bytes": 353017,
+    "dfu_data_blocks": 173,
+    "dfu_final_state": 8,
+    "usb_reset_acknowledged": true,
+    "post_reset_usb_identity": "05ac:1281 (iBEC recovery)",
+    "ibec_bulk_endpoint_advertised": true,
+    "ibec_bulk_endpoint": 4,
+    "transition_state": "ibec-ready",
+    "configuration_selected": true,
+    "local_policy_transfer_complete": true,
+    "ibec_transfer_complete": true,
+    "lpolrestore_acknowledged": true,
+    "go_acknowledged": true,
+    "forced_transition": false
+  },
+  "stage2": {
+    "execution_observed": true,
+    "marker": "Entering iBootStage2 recovery mode, starting command prompt",
+    "byte_offset": 1956,
+    "ibec_executed": true
+  },
+  "restore_chain": {
+    "requested": true,
+    "transport_completed": true,
+    "roles": [
+      "RestoreDeviceTree",
+      "RestoreKernelCache",
+      "RestoreLogo",
+      "RestoreRamDisk",
+      "RestoreTrustCache"
+    ],
+    "role_uploads": {
+      "RestoreDeviceTree": {
+        "transfer_complete": true,
+        "blocks_acknowledged": 1
+      },
+      "RestoreKernelCache": {
+        "transfer_complete": true,
+        "blocks_acknowledged": 707
+      },
+      "RestoreLogo": {
+        "transfer_complete": true,
+        "blocks_acknowledged": 1
+      },
+      "RestoreRamDisk": {
+        "transfer_complete": true,
+        "blocks_acknowledged": 6721
+      },
+      "RestoreTrustCache": {
+        "transfer_complete": true,
+        "blocks_acknowledged": 1
+      }
+    },
+    "commands_acknowledged": [
+      "setpicture 4",
+      "bgcolor 0 0 0",
+      "firmware",
+      "ramdisk",
+      "devicetree",
+      "setenv boot-args rd=md0 nand-enable-reformat=1 -progress -restore",
+      "bootx"
+    ],
+    "preboot_notification": {
+      "acknowledged": false,
+      "guest_stall_hex": "0200",
+      "handling": "notification result unused by restore protocol"
+    },
+    "sequence_sent": true,
+    "bootx_acknowledged": true,
+    "post_bootx_guest_panic": true,
+    "input_integrity": true,
+    "guest_acceptance_verified": false
+  },
+  "golden_gate_installation": {
+    "stage_reached": "bootx acknowledged / iBoot Panic",
+    "signature_acceptance_verified": false,
+    "ibec_executed": true,
+    "stage2_execution_observed": true,
+    "xnu_executed": false,
+    "macos_boot_verified": false,
+    "installer_ui_visible": false,
+    "installation_verified": false,
+    "blocker": "After the complete restore-role transport and bootx acknowledgement, iBoot emitted a panic before XNU or any macOS UI. Storage preflight found a zero-filled AUX/root fixture; a hardware-model-matched provisioned storage pair is required for installation.",
+    "storage_provisioning_status": "unprovisioned-zero",
+    "storage_blockers": [
+      "AUX view is zero-filled and has no hardware-model initialization",
+      "root view is zero-filled and contains no install target",
+      "no known APFS marker was found in sampled windows; provisioning remains unverified"
+    ]
+  },
+  "guest_panic": {
+    "observed": true,
+    "marker": "iBoot Panic:",
+    "byte_offset": 2292
+  },
+  "input_integrity": true,
+  "physical_mac_verified": false,
+  "termination": "time_budget",
+  "returncode": 0,
+  "note": "The chain uses live Apple TSS status 0, unchanged firmware/iBSS/iBEC/BuildManifest and read-only restore-role sources. It reaches the real Stage2 prompt, sends all five restore roles plus the expected preboot STALL handling and bootx, then the guest panics before XNU. The M1/VM0001 identity is metadata-only; no Apple hardware attestation, PV graphics, macOS Recovery UI or Golden Gate installer UI was observed. No transition was forced and no installation success is claimed.",
+  "storage_diagnostics": {
+    "schema": "26x86.vmapple-storage/1",
+    "source": {
+      "aux": "external-work/apple-assets/unprovisioned-fixture/aux-empty.raw",
+      "root": "external-work/apple-assets/unprovisioned-fixture/root-empty.raw"
+    },
+    "aux": {
+      "size_bytes": 67108864,
+      "view_offset": 0,
+      "view_bytes": 67108864,
+      "zero_scan_bytes": 67108864,
+      "zero_scan_complete": true,
+      "zero_scan_nonzero_bytes": 0,
+      "all_zero": true,
+      "markers": {},
+      "read_only": true
+    },
+    "root": {
+      "size_bytes": 134217728,
+      "view_offset": 0,
+      "view_bytes": 134217728,
+      "zero_scan_bytes": 134217728,
+      "zero_scan_complete": true,
+      "zero_scan_nonzero_bytes": 0,
+      "all_zero": true,
+      "markers": {},
+      "read_only": true
+    },
+    "markers": [],
+    "zero_roles": [
+      "aux",
+      "root"
+    ],
+    "bounded_scan_roles": [],
+    "provisioned": false,
+    "provisioning_status": "unprovisioned-zero",
+    "installer_ui_possible": false,
+    "installer_ui_verified": false,
+    "base_images_read_only": true,
+    "blockers": [
+      "AUX view is zero-filled and has no hardware-model initialization",
+      "root view is zero-filled and contains no install target",
+      "no known APFS marker was found in sampled windows; provisioning remains unverified"
+    ],
+    "note": "AUX must be initialized for the exact VM hardware model and the root image must contain an install target. Byte markers alone cannot establish either condition."
+  },
+  "soc_profile": {
+    "schema": "26x86.vmapple-apple-silicon/1",
+    "profile_id": "vmapple-m1-macos",
+    "machine_type": "iBoot(AArch64)",
+    "guest_os": "macOS",
+    "guest_os_policy": "macOS-only",
+    "target_majors": [
+      26,
+      27
+    ],
+    "virtual_identity": {
+      "soc_name": "Apple M1 (Virtual)",
+      "model": "VM0001",
+      "identity_mode": "metadata-only",
+      "hardware_attestation_verified": false
+    },
+    "interrupt_controller": {
+      "sandbox_contract": "AIC",
+      "qemu_t8030_reference": "AIC",
+      "current_vmapple_qemu": "GICv3",
+      "current_vmapple_qemu_status": "baseline-only; AIC backend work remains",
+      "gic_compatibility": false
+    },
+    "device_topology": [
+      {
+        "name": "AIC",
+        "reference": "apple.aic",
+        "native_sandbox": "aic_v1 wired model (partial)",
+        "current_vmapple_qemu": "missing; GICv3 baseline",
+        "status": "required-gap"
+      },
+      {
+        "name": "Apple ANS/NVMe",
+        "reference": "apple.ans",
+        "native_sandbox": "not implemented",
+        "current_vmapple_qemu": "VMApple BDIF AUX/root path",
+        "status": "reference-only"
+      },
+      {
+        "name": "DART/SART",
+        "reference": "apple.dart / apple.sart",
+        "native_sandbox": "not implemented",
+        "current_vmapple_qemu": "not exposed in research profile",
+        "status": "required-gap"
+      },
+      {
+        "name": "Apple NVRAM",
+        "reference": "apple-nvram namespace",
+        "native_sandbox": "not implemented",
+        "current_vmapple_qemu": "virtual config/AES path only",
+        "status": "macos-validation-required"
+      },
+      {
+        "name": "Apple UART",
+        "reference": "apple-uart",
+        "native_sandbox": "not implemented",
+        "current_vmapple_qemu": "PL011 compatibility UART",
+        "status": "compatibility-only"
+      },
+      {
+        "name": "SMC / watchdog / GPIO / SPI / I2C",
+        "reference": "Apple-specific peripheral set",
+        "native_sandbox": "not implemented",
+        "current_vmapple_qemu": "generic or absent in research profile",
+        "status": "required-gap"
+      },
+      {
+        "name": "USB OTG / Type-C recovery",
+        "reference": "apple-otg / apple-typec",
+        "native_sandbox": "not implemented",
+        "current_vmapple_qemu": "research chardev recovery transport",
+        "status": "protocol-only"
+      },
+      {
+        "name": "m1_fb / xnu_ramfb",
+        "reference": "display framebuffer helpers",
+        "native_sandbox": "not implemented",
+        "current_vmapple_qemu": "PV graphics omitted in research-headless",
+        "status": "graphics-gap"
+      }
+    ],
+    "storage": {
+      "reference_controller": "Apple ANS/NVMe-like",
+      "project_controller": "VMApple BDIF AUX/root",
+      "namespace_reference": [
+        {
+          "nsid": 1,
+          "nstype": 1,
+          "role": "NVMe data namespace",
+          "status": "reference-only"
+        },
+        {
+          "nsid": 5,
+          "nstype": 5,
+          "role": "Apple NVRAM namespace",
+          "status": "reference-only"
+        }
+      ],
+      "namespace_scope": "T8030/iOS reference command; macOS mapping requires validation",
+      "base_images_immutable": true,
+      "cow_overlay_required": true,
+      "hardware_model_provisioning_receipt_required": true
+    },
+    "cpu": {
+      "guest_isa": "AArch64",
+      "reference_cpu": "Apple A13 / T8030",
+      "target_identity": "Apple M1 (Virtual)",
+      "host_acceleration": "TCG research path",
+      "native_minimum": "x86_64 SSE4.1 + SSE4.2"
+    },
+    "graphics": {
+      "reference_devices": [
+        "m1_fb",
+        "xnu_ramfb"
+      ],
+      "current_research_status": "Apple PV graphics unavailable in TCG research-headless",
+      "verified": false
+    },
+    "reference": {
+      "name": "qemu-t8030",
+      "repository": "https://github.com/TrungNguyen1909/qemu-t8030",
+      "wiki": "https://github.com/TrungNguyen1909/qemu-t8030/wiki/Bringing-up-the-emulator",
+      "revision": "fd4b0f790903044d90b8a35fcf03758401252063",
+      "machine_type": "t8030",
+      "guest_scope": "iPhone 11 / iOS",
+      "role": "device-topology-reference-only"
+    },
+    "scope": {
+      "supported_guest_os": [
+        "macOS"
+      ],
+      "unsupported_guest_os": [
+        "iOS",
+        "iPadOS",
+        "tvOS",
+        "watchOS",
+        "visionOS"
+      ],
+      "reference_guest_os": [
+        "iOS"
+      ],
+      "ios_code_imported": false
+    },
+    "claims": {
+      "apple_hardware_attestation_verified": false,
+      "macos_boot_verified": false,
+      "installer_ui_verified": false
+    },
+    "blockers": [
+      "AIC is required by the native Sandbox contract; current VMApple QEMU research mode still exposes GICv3",
+      "Apple ANS/DART/SART/SMC device behavior is not validated for macOS",
+      "Apple PV graphics and Metal are not available in the current TCG research profile",
+      "A hardware-model-matched AUX and an install-target root image are still required"
+    ]
+  }
+}

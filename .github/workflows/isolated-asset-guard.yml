@@ -1,0 +1,29 @@
+name: Isolated-Asset Guard
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guard:
+    name: isolated-asset-guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify no _isolated path is tracked in HEAD
+        run: |
+          set -eu
+          if git ls-files | grep -E '^_isolated(/|$)'; then
+            echo "::error::_isolated/ asset is tracked in HEAD — this must be impossible"
+            exit 1
+          fi
+          echo "OK: no _isolated paths tracked."
+      - name: Execute the installed hook against independent Git-output fixtures
+        run: |
+          set -eu
+          bash Tools/git/install-hooks.sh
+          python3 Tools/git/test_isolated_guard.py --hook "$(git rev-parse --git-path hooks)/pre-commit"

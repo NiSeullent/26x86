@@ -1,0 +1,128 @@
+name: NextCore Wiki Sync
+
+# 26x86 docs 변경 시 자동으로 nextcore.crevision.kr에 동기화
+# 트리거: push to main 또는 매 30분마다 폴링
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.list.outputs.changed }}
+      files: ${{ steps.list.outputs.files }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 변경된 .md 파일 추출
+        id: list
+        run: |
+          echo "Comparing HEAD~1 vs HEAD..."
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'docs/*.md' 'docs/**/*.md' 2>/dev/null || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No .md changes detected."
+            echo "changed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "Changed files: $CHANGED"
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  convert-and-validate:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.changed == 'true'
+    strategy:
+      matrix:
+        file: ${{ fromJSON(needs.detect-changes.outputs.files) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 변환기 설치
+        run: |
+          pip install -q requests
+          curl -sL https://raw.githubusercontent.com/zukuapp/.github/main/scripts/convert_md_to_namu.py -o scripts/convert_md_to_namu.py || cp scripts/convert_md_to_namu.py scripts/convert_md_to_namu.py 2>/dev/null || true
+
+      - name: NamuMark 변환
+        run: |
+          python scripts/convert_md_to_namu.py --input "${{ matrix.file }}" --lang ko > /tmp/converted.txt
+          wc -l /tmp/converted.txt
+
+      - name: 변환 결과 확인
+        run: |
+          if [ ! -s /tmp/converted.txt ]; then
+            echo "ERROR: 변환 결과가 비어 있습니다."
+            exit 1
+          fi
+          head -20 /tmp/converted.txt
+          echo "---"
+          wc -c /tmp/converted.txt
+
+      # OpenNamu 검증은 배포 단계에서 수행
+
+  deploy-wiki:
+    needs: [detect-changes, convert-and-validate]
+    if: needs.detect-changes.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wiki API에 문서 등록
+        env:
+          WIKI_API_URL: ${{ secrets.WIKI_API_URL }}
+          WIKI_API_KEY: ${{ secrets.WIKI_API_KEY }}
+        run: |
+          for file in ${{ needs.detect-changes.outputs.files }}; do
+            title=$(basename "$file" .md)
+            echo "Deploying: $title ($file)"
+
+            # 변환
+            python scripts/convert_md_to_namu.py --input "$file" --lang ko > /tmp/content.txt
+
+            # API 등록
+            response=$(curl -s -w "\n%{http_code}" -X POST \
+              "$WIKI_API_URL/register" \
+              -H "Content-Type: application/json" \
+              -H "X-API-Key: $WIKI_API_KEY" \
+              -d "{\"title\":\"$title\",\"content\":$(cat /tmp/content.txt | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))'),\"lang\":\"ko\"}")
+
+            http_code=$(echo "$response" | tail -1)
+            if [ "$http_code" -eq 200 ]; then
+              echo "✅ $title 등록 완료"
+            else
+              echo "⚠️ $title 등록 실패 (HTTP $http_code)"
+              echo "$response" | head -5
+            fi
+          done
+
+  summary:
+    needs: [detect-changes, deploy-wiki]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo ""
+          echo "═════════════════════════════════"
+          echo "NextCore Wiki Sync 완료"
+          echo "  변경 감지: ${{ needs.detect-changes.outputs.changed }}"
+          echo "  파일 수:   ${{ needs.detect-changes.outputs.files }}"
+          echo "  Wiki:      https://nextcore.crevision.kr"
+          echo "═════════════════════════════════"

@@ -1,0 +1,1172 @@
+"""
+sys_patch.py: Framework for mounting and patching macOS root volume
+"""
+
+"""
+System based off of Apple's Kernel Debug Kit (KDK)
+- https://developer.apple.com/download/all/
+
+The system relies on mounting the APFS volume as a live read/write volume
+We perform our required edits, then create a new snapshot for the system boot
+
+The manual process is as follows:
+ 1. Find the Root Volume
+    'diskutil info / | grep "Device Node:"'
+ 2. Convert Snapshot Device Node to Root Volume Device Node
+    /dev/disk3s1s1 -> /dev/disk3s1 (strip last 's1')
+ 3. Mount the APFS volume as a read/write volume
+    'sudo mount -o nobrowse -t apfs  /dev/disk5s5 /System/Volumes/Update/mnt1'
+ 4. Perform edits to the system (ie. create new KernelCollection)
+    'sudo kmutil install --volume-root /System/Volumes/Update/mnt1/ --update-all'
+ 5. Create a new snapshot for the system boot
+    'sudo bless --folder /System/Volumes/Update/mnt1/System/Library/CoreServices --bootefi --create-snapshot'
+
+Additionally Apple's APFS snapshot system supports system rollbacks:
+  'sudo bless --mount /System/Volumes/Update/mnt1 --bootefi --last-sealed-snapshot'
+Note: root volume rollbacks are unstable in Big Sur due to quickly discarding the original snapshot
+- Generally within 2~ boots, the original snapshot is discarded
+- Monterey always preserves the original snapshot allowing for reliable rollbacks
+
+Alternative to mounting via 'mount', Apple's update system uses 'mount_apfs' directly
+  '/sbin/mount_apfs -R /dev/disk5s5 /System/Volumes/Update/mnt1'
+
+With macOS Ventura, you will also need to install the KDK onto root if you plan to use kmutil
+This is because Apple removed on-disk binaries (ref: https://github.com/dortania/OpenCore-Legacy-Patcher/issues/998)
+  'sudo ditto /Library/Developer/KDKs/<KDK Version>/System /System/Volumes/Update/mnt1/System'
+"""
+
+import logging
+import plistlib
+import subprocess
+import sys
+
+from pathlib   import Path
+from functools import cache
+
+from .mount import (
+    RootVolumeMount,
+    APFSSnapshot
+)
+from .utilities import (
+    install_new_file,
+    remove_file,
+    KernelDebugKitMerge
+)
+from x86.patch import PayloadManager
+
+from .. import constants
+
+from ..volume   import generate_copy_arguments
+
+from ..datasets import (
+    os_data
+)
+from ..support import (
+    utilities,
+    subprocess_wrapper,
+    metallib_handler
+)
+from .patchsets import (
+    HardwarePatchsetDetection,
+    HardwarePatchsetSettings,
+    PatchType,
+    DynamicPatchset
+)
+from . import (
+    sys_patch_helpers,
+    kernelcache
+)
+from .auto_patcher import InstallAutomaticPatchingServices
+
+
+# ============================
+# Module Constants
+# ============================
+
+# APFS mount locations
+MOUNT_LOCATION_BASE = "/System/Volumes/Update/mnt1"
+
+# System paths
+SYSTEM_EXTENSIONS_PATH = "/System/Library/Extensions"
+CORE_SERVICES_PATH = "/System/Library/CoreServices"
+APP_SUPPORT_PATH = "/Library/Application Support"
+SKYLIGHT_PLUGINS_PATH = f"{APP_SUPPORT_PATH}/SkyLightPlugins"
+
+# Preference paths
+CORE_DISPLAY_PREF_PATH = "/Library/Preferences/com.apple.CoreDisplay"
+
+# File names
+PATCHSET_FILENAME = "OpenCore-Legacy-Patcher.plist"
+SYSTEM_VERSION_FILENAME = "SystemVersion.plist"
+
+# Preference keys
+METAL_ENFORCEMENT_KEYS = ["useMetal", "useIOP"]
+
+
+class PatchSysVolume:
+    """
+    Main patching orchestrator for macOS root volume.
+    
+    Handles mounting, patching, and snapshotting of the root APFS volume.
+    Coordinates between multiple subsystems (kernel cache, KDK, metallib).
+    """
+    
+    def __init__(self, model: str, global_constants: constants.Constants, hardware_details: list = None) -> None:
+        self.model = model
+        self.constants: constants.Constants = global_constants
+        from x86.mellow.integration import configure_constants, execution_for
+        if not hasattr(self.constants, "execution_mode"):
+            configure_constants(self.constants)
+        execution_for(self.constants).require_native_apply()
+        self.computer = self.constants.computer
+        self.root_supports_snapshot = utilities.check_if_root_is_apfs_snapshot()
+        self.constants.root_patcher_succeeded = False  # Reset Variable each time we start
+        self.constants.needs_to_open_preferences = False
+        self.patch_set_dictionary = {}
+        self.needs_kmutil_exemptions = False  # For '/Library/Extensions' rebuilds
+        self.kdk_path = None
+        self.metallib_path = None
+        self._metallib_preflight_refresh_attempted = False
+
+        # GUI will detect hardware patches before starting PatchSysVolume()
+        # However the TUI will not, so allow for data to be passed in manually avoiding multiple calls
+        if hardware_details is None:
+            hardware_details = HardwarePatchsetDetection(self.constants).device_properties
+        self.hardware_details = hardware_details
+        self._init_pathing()
+
+        self.skip_root_kmutil_requirement = (
+            not self.hardware_details[HardwarePatchsetSettings.KERNEL_DEBUG_KIT_REQUIRED]
+            if self.constants.detected_os >= os_data.os_data.ventura
+            else False
+        )
+
+        self.requires_kdk_caching = (
+            self.hardware_details[HardwarePatchsetSettings.KERNEL_DEBUG_KIT_REQUIRED]
+            and self.constants.detected_os >= os_data.os_data.ventura
+        )
+        self.requires_metallib_caching = (
+            self.hardware_details[HardwarePatchsetSettings.METALLIB_SUPPORT_PKG_REQUIRED]
+            and self.constants.detected_os >= os_data.os_data.sequoia
+        )
+
+        self.mount_obj = RootVolumeMount(self.constants.detected_os)
+
+
+    def _init_pathing(self) -> None:
+        """Initialize mount locations for root volume patching."""
+        self.mount_location_data = ""
+        if self.root_supports_snapshot:
+            self.mount_location = MOUNT_LOCATION_BASE
+        else:
+            self.mount_location = ""
+
+        self.mount_extensions = f"{self.mount_location}{SYSTEM_EXTENSIONS_PATH}"
+        self.mount_application_support = f"{self.mount_location_data}{APP_SUPPORT_PATH}"
+        logging.debug(f"Initialized pathing - mount_location: {self.mount_location}, "
+                     f"extensions: {self.mount_extensions}")
+
+
+    def _mount_root_vol(self) -> bool:
+        """
+        Mount root volume.
+        
+        Returns:
+            bool: True if mount successful, False otherwise
+        """
+        logging.debug("Attempting to mount root volume")
+        return self.mount_obj.mount()
+
+
+    def _unmount_root_vol(self) -> None:
+        """Unmount root volume gracefully."""
+        logging.info("- Unmounting root volume")
+        self.mount_obj.unmount(ignore_errors=True)
+
+
+    def _run_sanity_checks(self) -> bool:
+        """
+        Run sanity checks before continuing patching.
+        
+        Verifies:
+        - SystemVersion.plist exists on mounted volume
+        - Build version matches expected version
+        - No system update is in progress
+        
+        Returns:
+            bool: True if all checks pass, False otherwise
+        """
+        logging.info("- Running sanity checks before patching")
+
+        mounted_system_version = Path(self.mount_location) / CORE_SERVICES_PATH / SYSTEM_VERSION_FILENAME
+
+        if not mounted_system_version.exists():
+            logging.error("- Failed to find SystemVersion.plist on mounted root volume")
+            return False
+
+        try:
+            with open(mounted_system_version, "rb") as plist_file:
+                mounted_data = plistlib.load(plist_file)
+            
+            if mounted_data.get("ProductBuildVersion") != self.constants.detected_os_build:
+                product_version = mounted_data.get("ProductVersion", "unknown")
+                product_build = mounted_data.get("ProductBuildVersion", "unknown")
+                logging.error(
+                    f"- SystemVersion.plist build version mismatch: "
+                    f"found {product_version} ({product_build}), "
+                    f"expected {self.constants.detected_os_version} ({self.constants.detected_os_build})"
+                )
+                logging.error("An update is in progress on your machine and patching cannot continue until it is cancelled or finished")
+                return False
+        except FileNotFoundError:
+            logging.error("- SystemVersion.plist file not found")
+            logging.exception("Stack Trace:")
+            return False
+        except plistlib.InvalidFileException as e:
+            logging.error(f"- Failed to parse SystemVersion.plist: {e}")
+            logging.exception("Stack Trace:")
+            return False
+        except Exception as e:
+            logging.error(f"- Unexpected error reading SystemVersion.plist: {e}")
+            logging.exception("Stack Trace:")
+            return False
+
+        logging.debug("Sanity checks passed")
+        return True
+
+
+    def _merge_kdk_with_root(self, save_hid_cs: bool = False) -> None:
+        """
+        Merge Kernel Debug Kit (KDK) with the root volume.
+        
+        If no KDK is present, will call kdk_handler to download and install it.
+
+        Parameters:
+            save_hid_cs (bool): If True, will save the HID CS file before merging KDK.
+                                Required for USB 1.1 downgrades on Ventura and newer.
+        """
+        try:
+            logging.debug(f"Merging KDK with root volume (save_hid_cs={save_hid_cs})")
+            self.kdk_path = KernelDebugKitMerge(
+                self.constants,
+                self.mount_location,
+                self.skip_root_kmutil_requirement
+            ).merge(save_hid_cs)
+            if getattr(self.constants, "mellow_deployment", "disabled") == "root-patch":
+                build = Path(self.kdk_path).stem.rsplit("_", 1)[-1] if self.kdk_path else None
+                if build != self.constants.detected_os_build:
+                    raise RuntimeError("Mellow requires the exact-build KDK to be successfully merged")
+        except Exception as e:
+            logging.error("Merging KDK with root volume failed")
+            logging.exception("Stack Trace:")
+            raise
+
+
+    def _unpatch_root_vol(self):
+        """
+        Revert APFS snapshot and clean up any changes made to the root and data volume.
+        """
+        logging.info("- Starting APFS snapshot revert")
+        
+        if not APFSSnapshot(self.constants.detected_os, self.mount_location).revert_snapshot():
+            logging.error("- Failed to revert APFS snapshot")
+            logging.exception("Stack Trace:")
+            return
+
+        self._clean_skylight_plugins()
+        self._delete_nonmetal_enforcement()
+
+        try:
+            kernelcache.KernelCacheSupport(
+                mount_location_data=self.mount_location_data,
+                detected_os=self.constants.detected_os,
+                skip_root_kmutil_requirement=self.skip_root_kmutil_requirement
+            ).clean_auxiliary_kc()
+        except Exception as e:
+            logging.error(f"- Failed to clean auxiliary kernel cache: {e}")
+            logging.exception("Stack Trace:")
+            return
+
+        from x86.mellow.transaction import restore_installed, finalize_restore
+        if restore_installed(data_root=self.mount_location_data or "/", defer_finalize=True):
+            self.needs_kmutil_exemptions = True
+            if not self._rebuild_kernel_cache():
+                raise RuntimeError("Mellow files restored, but kernel collection rebuild failed")
+            finalize_restore(data_root=self.mount_location_data or "/")
+        self.constants.root_patcher_succeeded = True
+        logging.info("- Unpatching complete")
+        logging.info("\nPlease reboot the machine for patches to take effect")
+
+
+    def _rebuild_root_volume(self) -> bool:
+        """
+        Rebuild the root volume.
+        
+        Steps:
+        - Rebuilds the Kernel Collection
+        - Updates the Preboot Kernel Cache
+        - Rebuilds the dyld Shared Cache
+        - Creates a new APFS Snapshot
+
+        Returns:
+            bool: True if successful, False if not
+        """
+        if not self._rebuild_kernel_cache():
+            return False
+
+        self._update_preboot_kernel_cache()
+        self._rebuild_dyld_shared_cache()
+
+        if not self._create_new_apfs_snapshot():
+            return False
+        try:
+            logging.info("Unmounting the root volume")
+            self._unmount_root_vol()
+        except Exception as e:
+            logging.error("Failed to unmount the root volume")
+            logging.exception("Stack Trace:")
+
+        logging.info("- Patching complete")
+        logging.info("\nPlease reboot the machine for patches to take effect")
+
+        if self.needs_kmutil_exemptions:
+            if self.constants.detected_os <= os_data.os_data.monterey:
+                logging.info("Note: Apple will require you to open System Preferences -> Security to allow the new kernel extensions to be loaded")
+            else:
+                logging.info("Note: Apple will require you to open System Settings -> Privacy & Security to allow the new kernel extensions to be loaded")
+
+        self.constants.root_patcher_succeeded = True
+        return True
+
+
+    def _rebuild_kernel_cache(self) -> bool:
+        """
+        Rebuild the kernel cache.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        logging.debug("Rebuilding kernel cache")
+        
+        try:
+            result = kernelcache.RebuildKernelCache(
+                os_version=self.constants.detected_os,
+                mount_location=self.mount_location,
+                auxiliary_cache=self.needs_kmutil_exemptions,
+                auxiliary_cache_only=self.skip_root_kmutil_requirement
+            ).rebuild()
+
+            if not result:
+                logging.error("- Kernel cache rebuild failed")
+                logging.exception("Stack Trace:")
+                return False
+
+            if not self.skip_root_kmutil_requirement:
+                sys_patch_helpers.SysPatchHelpers(self.constants).install_rsr_repair_binary()
+
+            return True
+        except Exception as e:
+            logging.error(f"- Exception during kernel cache rebuild: {e}")
+            logging.exception("Stack Trace:")
+            return False
+
+
+    def _create_new_apfs_snapshot(self) -> bool:
+        """
+        Create a new APFS snapshot of the root volume.
+        
+        Returns:
+            bool: True if snapshot was created, False if not
+        """
+        logging.debug("Creating new APFS snapshot")
+        try:
+            logging.info("Creating APFS snapshot")
+            return APFSSnapshot(self.constants.detected_os, self.mount_location).create_snapshot()
+        except Exception as e:
+            logging.error(f"- Failed to create APFS snapshot: {e}")
+            logging.exception("Stack Trace:")
+            return False
+
+
+    def _rebuild_dyld_shared_cache(self) -> None:
+        """
+        Rebuild the dyld shared cache.
+        
+        Only required on Mojave and older.
+        """
+        if self.constants.detected_os > os_data.os_data.catalina:
+            logging.info(f"You're running macOS 10.15 Catalina or newer, which is newer than macOS 10.14 Mojave, so not compatible with dyld shared cache patches.")
+            return
+        
+        logging.info("- Rebuilding dyld shared cache")
+        try:
+            subprocess_wrapper.run_as_root_and_verify(
+                ["/usr/bin/update_dyld_shared_cache", "-root", f"{self.mount_location}/"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT
+            )
+        except Exception as e:
+            logging.error(f"- Failed to rebuild dyld shared cache: {e}")
+            logging.exception("Stack Trace:")
+
+
+    def _update_preboot_kernel_cache(self) -> None:
+        """
+        Update the preboot kernel cache.
+        
+        Only required on Catalina.
+        """
+        if self.constants.detected_os != os_data.os_data.catalina:
+            logging.info("You're not running macOS 10.15 Catalina. The patch for updating the preboot kernel cache is not compatible for your system.")
+            return
+        
+        logging.info("- Rebuilding preboot kernel cache")
+        try:
+            subprocess_wrapper.run_as_root_and_verify(
+                ["/usr/sbin/kcditto"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT
+            )
+        except Exception as e:
+            logging.error(f"- Failed to update preboot kernel cache: {e}")
+            logging.exception("Stack Trace:")
+
+
+    def _clean_skylight_plugins(self) -> None:
+        """
+        Clean non-Metal's SkylightPlugins folder.
+        
+        Ensures old plugins aren't lingering from previous installs.
+        """
+        try:
+            skylight_path = Path(self.mount_application_support) / SKYLIGHT_PLUGINS_PATH.split("/")[-1]
+            
+            if skylight_path.exists():
+                logging.info("- Found SkylightPlugins folder, removing old plugins")
+                subprocess_wrapper.run_as_root_and_verify(
+                    ["/bin/rm", "-Rf", str(skylight_path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT
+                )
+                subprocess_wrapper.run_as_root_and_verify(
+                    ["/bin/mkdir", str(skylight_path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT
+                )
+            else:
+                logging.info("- Creating SkylightPlugins folder")
+                subprocess_wrapper.run_as_root_and_verify(
+                    ["/bin/mkdir", "-p", str(skylight_path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT
+                )
+        except Exception as e:
+            logging.error(f"- Failed to manage SkylightPlugins folder: {e}")
+            logging.exception("Stack Trace:")
+
+
+    def _delete_nonmetal_enforcement(self) -> None:
+        """
+        Remove defaults related to forced OpenGL rendering.
+        
+        Primarily for development purposes and cleanup.
+        """
+        for arg in METAL_ENFORCEMENT_KEYS:
+            try:
+                result = subprocess.run(
+                    ["/usr/bin/defaults", "read", CORE_DISPLAY_PREF_PATH, arg],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    timeout=10
+                ).stdout.decode("utf-8").strip()
+                
+                if result in ["0", "false", "1", "true"]:
+                    logging.info(f"- Removing non-Metal Enforcement Preference: {arg}")
+                    subprocess_wrapper.run_as_root(["/usr/bin/defaults", "delete", CORE_DISPLAY_PREF_PATH, arg])
+            except subprocess.TimeoutExpired:
+                logging.warning(f"- Timeout reading preference {arg}")
+            except Exception as e:
+                logging.debug(f"- Could not read preference {arg}: {e}")
+
+
+    def _write_patchset(self, patchset: dict) -> None:
+        """
+        Write patchset information to root volume.
+        
+        Stores metadata about applied patches for system recovery.
+
+        Parameters:
+            patchset (dict): Patchset information (generated by HardwarePatchsetDetection)
+        """
+        destination_path = f"{self.mount_location}{CORE_SERVICES_PATH}"
+        destination_path_file = f"{destination_path}/{PATCHSET_FILENAME}"
+        
+        try:
+            if sys_patch_helpers.SysPatchHelpers(self.constants).generate_patchset_plist(
+                patchset, PATCHSET_FILENAME, self.kdk_path, self.metallib_path
+            ):
+                logging.info("- Writing patchset information to Root Volume")
+                if Path(destination_path_file).exists():
+                    subprocess_wrapper.run_as_root_and_verify(
+                        ["/bin/rm", destination_path_file],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT
+                    )
+                subprocess_wrapper.run_as_root_and_verify(
+                    generate_copy_arguments(f"{self.constants.payload_path}/{PATCHSET_FILENAME}", destination_path),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT
+                )
+            else:
+                raise RuntimeError("Failed to generate root patch metadata")
+        except Exception as e:
+            logging.error(f"- Failed to write patchset: {e}")
+            logging.exception("Stack Trace:")
+            raise
+
+
+    def _patch_root_vol(self):
+        """
+        Main patching orchestrator.
+        
+        Executes patches and triggers kernel cache rebuild.
+        """
+        logging.info(f"- Running patches for {self.model}")
+        try:
+            patches = self.patch_set_dictionary if self.patch_set_dictionary else HardwarePatchsetDetection(self.constants).patches
+            self._execute_patchset(patches)
+            transaction = getattr(self, "_mellow_transaction", None)
+            if transaction is not None:
+                transaction.installed()
+    
+            if self.constants.wxpython_variant and self.constants.detected_os >= os_data.os_data.big_sur:
+                needs_daemon = self.requires_kdk_caching or self.requires_metallib_caching
+                InstallAutomaticPatchingServices(self.constants).install_auto_patcher_launch_agent(
+                    kdk_caching_needed=needs_daemon
+                )
+    
+            if not self._rebuild_root_volume():
+                raise RuntimeError("Kernel collection or APFS snapshot rebuild failed")
+        except Exception as e:
+            logging.error("We have a problem to execute patches and rebuild the Kernel Cache.")
+            logging.exception("Stack Trace:")
+            raise
+
+
+    def _get_destination_path(self, method_type: PatchType, patch_directory: str) -> str:
+        """
+        Resolve destination path based on patch method type.
+        
+        Parameters:
+            method_type: Type of patch installation method
+            patch_directory: Target directory within the volume
+            
+        Returns:
+            str: Full destination path
+        """
+        try:
+            if method_type in [PatchType.OVERWRITE_SYSTEM_VOLUME, PatchType.MERGE_SYSTEM_VOLUME, PatchType.REMOVE_SYSTEM_VOLUME]:
+                return str(self.mount_location) + patch_directory
+            else:
+                return str(self.mount_location_data) + patch_directory
+        except Exception as e:
+            logging.error("We couldn't get the destination path.")
+            logging.exception("Stack Trace:")
+
+
+    def _handle_patch_removal(self, required_patches: dict, patch: str, kc_support_obj) -> None:
+        """
+        Handle removal of files as specified in the patchset.
+        
+        Parameters:
+            required_patches: Full patchset dictionary
+            patch: Current patch name being processed
+            kc_support_obj: Kernel cache support object
+        """
+        for method_remove in [PatchType.REMOVE_SYSTEM_VOLUME, PatchType.REMOVE_DATA_VOLUME]:
+            try:
+                if method_remove not in required_patches[patch]:
+                    continue
+            except Exception as e:
+                 logging.error("We have issues to handle patch removal, so we couldn't remove the patch.")
+                 logging.exception("Stack Trace:")
+                 return
+                
+            for remove_patch_directory in required_patches[patch][method_remove]:
+                logging.info("- Remove Files at: " + remove_patch_directory)
+                destination_folder_path = self._get_destination_path(method_remove, remove_patch_directory)
+                
+                for remove_patch_file in required_patches[patch][method_remove][remove_patch_directory]:
+                    logging.debug(f"Removing file: {remove_patch_file} from {destination_folder_path}")
+                    remove_file(destination_folder_path, remove_patch_file)
+
+
+    def _handle_patch_installation(self, required_patches: dict, patch: str, source_files_path: str, kc_support_obj) -> None:
+        """
+        Handle installation of files as specified in the patchset.
+        
+        Parameters:
+            required_patches: Full patchset dictionary
+            patch: Current patch name being processed
+            source_files_path: Path to source binary files
+            kc_support_obj: Kernel cache support object
+        """
+        for method_install in [
+            PatchType.OVERWRITE_SYSTEM_VOLUME,
+            PatchType.OVERWRITE_DATA_VOLUME,
+            PatchType.MERGE_SYSTEM_VOLUME,
+            PatchType.MERGE_DATA_VOLUME
+        ]:
+            if method_install not in required_patches[patch]:
+                continue
+
+            for install_patch_directory in list(required_patches[patch][method_install]):
+                logging.info(f"- Handling Installs in: {install_patch_directory}")
+                
+                for install_file in list(required_patches[patch][method_install][install_patch_directory]):
+                    source_folder_path = required_patches[patch][method_install][install_patch_directory][install_file] + install_patch_directory
+                    
+                    # Check whether to source from root
+                    if not required_patches[patch][method_install][install_patch_directory][install_file].startswith("/"):
+                        source_folder_path = source_files_path + "/" + source_folder_path
+
+                    destination_folder_path = self._get_destination_path(method_install, install_patch_directory)
+                    
+                    # Handle special cases for data volume extensions
+                    if method_install in [PatchType.OVERWRITE_DATA_VOLUME, PatchType.MERGE_DATA_VOLUME]:
+                        if install_patch_directory == "/Library/Extensions":
+                            self.needs_kmutil_exemptions = True
+                            if kc_support_obj.check_kexts_needs_authentication(install_file):
+                                self.constants.needs_to_open_preferences = True
+
+                    # Add auxiliary kernel cache support if needed
+                    updated_destination_folder_path = kc_support_obj.add_auxkc_support(
+                        install_file,
+                        source_folder_path,
+                        install_patch_directory,
+                        destination_folder_path
+                    )
+                    
+                    if updated_destination_folder_path != destination_folder_path:
+                        if kc_support_obj.check_kexts_needs_authentication(install_file):
+                            self.constants.needs_to_open_preferences = True
+                        
+                        # Update required_patches to reflect the new destination folder path
+                        if updated_destination_folder_path not in required_patches[patch][method_install]:
+                            required_patches[patch][method_install].update({updated_destination_folder_path: {}})
+                        required_patches[patch][method_install][updated_destination_folder_path].update({
+                            install_file: required_patches[patch][method_install][install_patch_directory][install_file]
+                        })
+                        required_patches[patch][method_install][install_patch_directory].pop(install_file)
+                        
+                        destination_folder_path = updated_destination_folder_path
+
+                    logging.debug(f"Installing file: {install_file} to {destination_folder_path}")
+                    install_new_file(source_folder_path, destination_folder_path, install_file, method_install)
+
+
+    def _execute_patchset(self, required_patches: dict):
+        """
+        Execute provided patchset.
+        Orchestrates file removal, installation, and post-install scripts.
+        Parameters:
+            required_patches (dict): Patchset to execute (generated by HardwarePatchsetDetection)
+        """
+        kc_support_obj = kernelcache.KernelCacheSupport(
+            mount_location_data=self.mount_location_data,
+            detected_os=self.constants.detected_os,
+            skip_root_kmutil_requirement=self.skip_root_kmutil_requirement
+        )
+
+        source_files_path = str(self.constants.payload_local_binaries_root_path)
+        required_patches = self._preflight_checks(required_patches, source_files_path)
+        
+        for patch in required_patches:
+            logging.info("- Installing Patchset: " + patch)
+            
+            # Handle file removals
+            self._handle_patch_removal(required_patches, patch, kc_support_obj)
+            
+            # Handle file installations
+            self._handle_patch_installation(required_patches, patch, source_files_path, kc_support_obj)
+
+            # Handle post-install scripts
+            if PatchType.EXECUTE in required_patches[patch]:
+                for process in required_patches[patch][PatchType.EXECUTE]:
+                    # Some processes need sudo, however we cannot directly call sudo in some scenarios
+                    # Instead, call elevated function if string's boolean is True
+                    if required_patches[patch][PatchType.EXECUTE][process]:
+                        logging.info(f"- Running Process as Root:\n{process}")
+                        try:
+                            subprocess_wrapper.run_as_root_and_verify(
+                                process.split(" "),
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT
+                            )
+                        except Exception as e:
+                            logging.error(f"- Failed to execute root process: {e}")
+                            logging.error("Stack Trace:")
+                    else:
+                        logging.info(f"- Running Process:\n{process}")
+                        try:
+                            subprocess_wrapper.run_and_verify(
+                                process,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                shell=True
+                            )
+                        except Exception as e:
+                            logging.error(f"- Failed to execute process: {e}")
+                            logging.exception("Stack Trace:")
+
+        # Handle GPU-specific patches
+        from x86.graphics.yellow_screen import (
+            should_disable_window_server_caching,
+            yellow_screen_mitigations,
+        )
+
+        if should_disable_window_server_caching(required_patches, self.model):
+            try:
+                logging.info(
+                    "yellow_screen_mitigations: %s",
+                    yellow_screen_mitigations(
+                        self.model,
+                        xnu_major=self.constants.detected_os,
+                        assume_tahoe=self.constants.detected_os >= 25,
+                    ),
+                )
+                helpers = sys_patch_helpers.SysPatchHelpers(self.constants)
+                helpers.disable_window_server_caching()
+                helpers.apply_colorsync_srgb_fallback()
+            except Exception as e:
+                logging.error(f"- Failed to apply yellow-screen compositor mitigations: {e}")
+                logging.exception("Stack Trace:")
+        
+        if "Metal 3802 Common Extended" in required_patches:
+            try:
+                sys_patch_helpers.SysPatchHelpers(self.constants).patch_gpu_compiler_libraries(mount_point=self.mount_location)
+            except Exception as e:
+                logging.error(f"- Failed to patch GPU compiler libraries: {e}")
+                logging.exception("Stack Trace:")
+
+        self._write_patchset(required_patches)
+
+
+    def _resolve_metallib_support_pkg(self, _post_install_retry: bool = False, force_refresh: bool = False) -> str:
+        """
+        Resolve MetalLibSupportPkg.
+        
+        Downloads and installs if necessary.
+        
+        Returns:
+            str: Path to resolved metallib support package
+            
+        Raises:
+            Exception: If resolution fails
+        """
+        metallib_obj = metallib_handler.MetalLibraryObject(
+            self.constants,
+            self.constants.detected_os_build,
+            self.constants.detected_os_version,
+            ignore_installed=force_refresh
+        )
+        
+        if not metallib_obj.success:
+            logging.error(f"Failed to find MetalLibSupportPkg: {metallib_obj.error_msg}")
+            logging.exception("Stack Trace:")
+            raise Exception(f"Failed to find MetalLibSupportPkg: {metallib_obj.error_msg}")
+
+        metallib_download_obj = metallib_obj.retrieve_download()
+        if not metallib_download_obj:
+            # Already downloaded, return path
+            logging.info(f"Using MetalLibSupportPkg: {metallib_obj.metallib_installed_path}")
+            self.metallib_path = metallib_obj.metallib_installed_path
+            return str(metallib_obj.metallib_installed_path)
+
+        if _post_install_retry:
+            # We already downloaded and installed MetalLibSupportPkg once during this
+            # resolution attempt, but it's still not detected on disk afterwards.
+            # Recursing again here would silently re-download and re-install the
+            # ~100MB package forever (this is what caused the "metallib download
+            # gets stuck in an endless loop" reports), so bail out with a clear
+            # error instead of looping.
+            logging.error("MetalLibSupportPkg was installed but could not be verified on disk afterwards")
+            logging.exception("Stack Trace:")
+            raise Exception(
+                "MetalLibSupportPkg installer reported success, but the package still isn't "
+                "detected on disk afterwards. This points to a permissions or installer issue "
+                "rather than a network problem - please check Console.app for installer errors "
+                "and file a bug report."
+            )
+
+        metallib_download_obj.download(spawn_thread=False)
+        if not metallib_download_obj.download_complete:
+            logging.error(f"Could not download MetalLibSupportPkg: {metallib_download_obj.error_msg}")
+            logging.exception("Stack Trace:")
+            raise Exception(f"Could not download MetalLibSupportPkg: {metallib_download_obj.error_msg}")
+
+        if not metallib_obj.install_metallib():
+            logging.error("Failed to install MetalLibSupportPkg")
+            logging.exception("Stack Trace:")
+            raise Exception("Failed to install MetalLibSupportPkg")
+
+        # After install, verify it's now present - but only retry once, otherwise a
+        # persistent detection mismatch turns into an infinite re-download loop.
+        return self._resolve_metallib_support_pkg(_post_install_retry=True)
+
+
+    @cache
+    def _resolve_dynamic_patchset(self, variant: DynamicPatchset) -> str:
+        """
+        Resolve dynamic patchset to a path.
+        
+        Caches results to avoid repeated downloads/installations.
+
+        Parameters:
+            variant: Dynamic patchset variant to resolve
+            
+        Returns:
+            str: Path to resolved patchset
+            
+        Raises:
+            Exception: If variant is unknown
+        """
+        logging.debug(f"Resolving dynamic patchset: {variant}")
+        # behebt eine Sicherheitslücke, die erlaubt Angreifern, das App zum Absturz bringen beim unerwartetes Fehler oder davon auszunutzen, belibiges Code auszuführen
+        try:
+            logging.info("Resolving dynamic patchset")
+            if variant == DynamicPatchset.MetallibSupportPkg:
+                return self._resolve_metallib_support_pkg()
+                logging.info("Successfully resolved the dynamic patchset")
+            else:
+                logging.error(f"Unknown Dynamic Patchset: {variant}")
+                logging.exception("Stack Trace:")
+                raise Exception(f"Unknown Dynamic Patchset: {variant}")
+        except Exception as e:
+            logging.error("Couldn't resolve patchset due to unexpected error:")
+            logging.exception("Stack Trace:")
+            logging.info("Please try again later.")
+            sys.exit(3)
+
+
+    def _preflight_checks(self, required_patches: dict, source_files_path: Path) -> dict:
+        """
+        Run preflight checks before patching.
+        
+        Validates:
+        - All required files exist
+        - Dynamic patchsets are resolved
+        - Legacy plugin cleanup
+        - Kernel cache cleanup
+        - Hardware-specific setup (SNB, KDK)
+
+        Parameters:
+            required_patches (dict): Patchset dictionary (from HardwarePatchsetDetection)
+            source_files_path (Path): Path to the source files (PatcherSupportPkg)
+
+        Returns:
+            dict: Updated patchset dictionary
+            
+        Raises:
+            Exception: If critical preflight check fails
+        """
+        logging.info("- Running Preflight Checks before patching")
+
+        try:
+            from x86.graphics.detect import detect_pre_avx_mac_pro
+
+            report = detect_pre_avx_mac_pro(
+                self.constants.computer.real_model,
+                xnu_major=self.constants.detected_os,
+            )
+            if (
+                self.constants.detected_os >= os_data.os_data.tahoe.value
+                and report.is_mac_pro
+                and report.notes
+            ):
+                logging.warning("- Tahoe Pre-AVX Mac Pro graphics policy:")
+                for note in report.notes:
+                    logging.warning("  %s", note)
+        except Exception as error:
+            logging.debug("Graphics policy preflight skipped: %s", error)
+
+        # Validate all required files exist
+        for patch in required_patches:
+            for method_type in [
+                PatchType.OVERWRITE_SYSTEM_VOLUME,
+                PatchType.OVERWRITE_DATA_VOLUME,
+                PatchType.MERGE_SYSTEM_VOLUME,
+                PatchType.MERGE_DATA_VOLUME
+            ]:
+                if method_type not in required_patches[patch]:
+                    continue
+                    
+                for install_patch_directory in list(required_patches[patch][method_type]):
+                    for install_file in list(required_patches[patch][method_type][install_patch_directory]):
+                        is_dynamic_patchset = False
+                        try:
+                            # Resolve dynamic patchsets
+                            if required_patches[patch][method_type][install_patch_directory][install_file] in DynamicPatchset:
+                                is_dynamic_patchset = True
+                                required_patches[patch][method_type][install_patch_directory][install_file] = self._resolve_dynamic_patchset(
+                                    required_patches[patch][method_type][install_patch_directory][install_file]
+                                )
+                        except TypeError:
+                            pass
+                        # behebt auch eine Sicherheitslücke, die erlaubt Angreifern, falls dies nicht ein erwartetes Fehler ist, beliebiges Code auszuführen
+                        except Exception as e:
+                            logging.error("We couldn't resolve the dynamic patchset and install Metallibs due to the following error:")
+                            logging.exception("Stack Trace:")
+                            logging.info("Please try again later.")
+                            logging.info("Try reporting this issue to the 26x86 repository and check for updates.")
+                            sys.exit(3)
+
+                        source_file = (
+                            required_patches[patch][method_type][install_patch_directory][install_file]
+                            + install_patch_directory
+                            + "/"
+                            + install_file
+                        )
+
+                        # Check whether to source from root
+                        if not required_patches[patch][method_type][install_patch_directory][install_file].startswith("/"):
+                            source_file = source_files_path + "/" + source_file
+
+                        if not Path(source_file).exists():
+                            # _local_metallib_installed() only matches an already-installed
+                            # MetallibSupportPkg folder by macOS build name, never by verifying
+                            # every file inside it is actually present. If an earlier run left
+                            # behind a package that's missing files this patchset needs (e.g.
+                            # upstream shipped an incomplete release for this build and later
+                            # fixed it), every future preflight attempt would keep failing on the
+                            # same stale "already installed" cache forever. Force one fresh
+                            # re-download/install before giving up.
+                            if (
+                                self.metallib_path
+                                and source_file.startswith(str(self.metallib_path))
+                                and not self._metallib_preflight_refresh_attempted
+                            ):
+                                self._metallib_preflight_refresh_attempted = True
+                                logging.warning(f"- {source_file} missing from cached MetallibSupportPkg, forcing a fresh download")
+                                try:
+                                    refreshed_path = self._resolve_metallib_support_pkg(force_refresh=True)
+                                    self._resolve_dynamic_patchset.cache_clear()
+                                    required_patches[patch][method_type][install_patch_directory][install_file] = refreshed_path
+                                    source_file = refreshed_path + install_patch_directory + "/" + install_file
+                                # behebt eine Sicherheitslücke, indem das Fehler ausgedrückt wurde, aber das Prozess nicht richtig beendete und dass das Fehler nicht besonders verständlich war. Angreifern können davon ausnutzen ohne der Ahnung des Nutzers auszuführen, ohne überhaupt das zu loggen, um schädliches Code ungemerkt zu ausführen. Und auch, Angreifern können davon ausnutzen, um ClickFix-Angriffe zu starten.
+                                except Exception as e:
+                                    logging.error(f"- Failed to force-refresh MetallibSupportPkg: {e}")
+                                    logging.exception("Stack Trace:")
+                                    logging.info("Try reporting this issue to the 26x86 repository and check for updates.")
+                                    sys.exit(3)
+
+                            if not Path(source_file).exists():
+                                if is_dynamic_patchset:
+                                    # Even after a fresh MetallibSupportPkg pull, this specific file is
+                                    # still missing. MetallibSupportPkg packages are generated per exact
+                                    # macOS build by a third-party service and aren't guaranteed to
+                                    # contain every single metallib for every build/Mac combination (see
+                                    # reports of e.g. missing VisionKitInternal.framework/.../default.metallib
+                                    # on multiple different builds, even after updating macOS). Treat a
+                                    # missing file sourced from it as non-fatal: skip installing just this
+                                    # one file instead of aborting root patching entirely, since these are
+                                    # supplemental shader libraries, not files every patch set depends on
+                                    # to function.
+                                    logging.warning(f"- MetallibSupportPkg is missing {install_patch_directory}/{install_file} for this build, skipping")
+                                    del required_patches[patch][method_type][install_patch_directory][install_file]
+                                    continue
+                                else:
+                                    logging.error(f"Failed to find {source_file}")
+                                    logging.exception("Stack Trace:")
+                                    raise Exception(f"Failed to find {source_file}")
+
+                        logging.debug(f"Verified file exists: {source_file}")
+
+        # Make sure old SkyLight plugins aren't being used
+        self._clean_skylight_plugins()
+
+        # Make sure non-Metal Enforcement preferences are not present
+        self._delete_nonmetal_enforcement()
+
+        # Make sure we clean old kexts in /L*/E* that are not in the patchset
+        try:
+            kernelcache.KernelCacheSupport(
+                mount_location_data=self.mount_location_data,
+                detected_os=self.constants.detected_os,
+                skip_root_kmutil_requirement=self.skip_root_kmutil_requirement
+            ).clean_auxiliary_kc()
+        except Exception as e:
+            logging.error(f"- Failed to clean auxiliary kernel cache during preflight: {e}")
+            logging.exception("Stack Trace:")
+            raise
+
+        # Make sure SNB kexts are compatible with the host
+        if "Intel Sandy Bridge" in required_patches:
+            try:
+                sys_patch_helpers.SysPatchHelpers(self.constants).snb_board_id_patch(source_files_path)
+            except Exception as e:
+                logging.error(f"- Failed to patch Sandy Bridge board ID: {e}")
+                logging.exception("Stack Trace:")
+                raise
+
+        # Ensure KDK is properly installed
+        try:
+            self._merge_kdk_with_root(
+                save_hid_cs="Legacy USB 1.1" in required_patches
+            )
+        except Exception as e:
+            logging.error(f"- Failed to merge KDK with root: {e}")
+            logging.exception("Stack Trace:")
+            raise
+
+        logging.info("- Finished Preflight, starting patching")
+
+        return required_patches
+
+
+    def start_patch(self, interactive=True):
+        """
+        Entry point for the patching process.
+        
+        Main orchestrator that:
+        1. Determines required patches
+        2. Validates patch feasibility
+        3. Mounts root volume
+        4. Runs sanity checks
+        5. Executes patching
+        """
+        logging.info("- Starting Patch Process")
+        # All callers, including advanced wx and direct legacy entry points,
+        # share the abstraction gate before payload or writable root mounts.
+        # A validated manifest is still not an executable adapter; the gate
+        # deliberately fails closed until a registered native implementation
+        # exists for the exact installed build.
+        from x86.patch.abstraction import deployment_gate
+        abstraction = deployment_gate(self.constants)
+        if not abstraction["ok"]:
+            self.constants.root_patcher_succeeded = False
+            for error in abstraction["errors"]:
+                logging.error("- 26x86 abstraction: %s", error)
+            return False
+        # Mellow validation is deliberately after the shared abstraction gate:
+        # a future Darwin build must stop before any payload, KDK, or journal
+        # inspection, even when this direct legacy entry point is invoked.
+        from x86.mellow.integration import validate_live, selected_payload
+        validate_live(self.constants)
+        from x86.mellow.integration import require_journal_privileges
+        require_journal_privileges(self.mount_location_data or "/")
+        mellow_payload = selected_payload(self.constants)
+        self._mellow_transaction = None
+        if mellow_payload is not None:
+            import os
+            if os.geteuid() != 0:
+                raise PermissionError("Mellow root patch requires the complete worker to run through sudo")
+        logging.info(f"- Determining Required Patch set for Darwin {self.constants.detected_os}")
+        
+        patchset_obj = HardwarePatchsetDetection(self.constants)
+        self.patch_set_dictionary = patchset_obj.patches
+        if not self.patch_set_dictionary:
+            logging.info("- No Root Patches required for your machine!")
+            return
+
+        logging.info("- Verifying whether Root Patching possible")
+        if not patchset_obj.can_patch:
+            logging.error("- Cannot continue with patching!!!")
+            logging.exception("Stack Trace:")
+            patchset_obj.detailed_errors()
+            return
+
+        logging.info("- Patcher is capable of patching")
+        if set(self.patch_set_dictionary) != {"Mellow"} and not PayloadManager(self.constants).mount():
+            logging.error("- Critical resources missing, cannot continue with patching!!!")
+            logging.exception("Stack Trace:")
+            return
+
+        if not self._mount_root_vol():
+            logging.error("- Failed to mount root volume, cannot continue with patching!!!")
+            logging.exception("Stack Trace:")
+            return
+
+        if not self._run_sanity_checks():
+            self._unmount_root_vol()
+            logging.error("- Failed sanity checks: Pending updates/upgrades detected.")
+            logging.info("It is recommended to install that update/upgrade and only then run the patcher once again.")
+            
+            # Offer the user a choice
+            if not interactive:
+                return False
+            choice = input("Do you want to open Software Update now? (y/n): ").lower()
+            
+            if choice == 'y':
+                logging.info("Launching Software Update...")
+                # Open the specific Software Update pane
+                subprocess.run(["open", "x-apple.systempreferences:com.apple.preferences.softwareupdate"])
+                # Exit cleanly as the system is now out of your hands
+                logging.info("Exiting the Install drivers and patches menu.")
+                sys.exit(0)
+            else:
+                logging.info("User declined update. Exiting the Install drivers and patches menu.")
+                sys.exit(1)
+        # Journal preparation failure must not revert a previous installation.
+        if mellow_payload is not None:
+            from x86.mellow.transaction import MellowTransaction
+            transaction = MellowTransaction(mellow_payload, data_root=self.mount_location_data or "/")
+            try:
+                transaction.prepare()
+            except Exception:
+                self._unmount_root_vol()
+                raise
+            self._mellow_transaction = transaction
+        try:
+            logging.info("Patchen des Root-Volumes")
+            logging.info("Patching the root volume")
+            self._patch_root_vol()
+            return bool(self.constants.root_patcher_succeeded)
+        except Exception as e:
+            logging.error("Es hat gescheitert, des Root-Volumes zu patchen")
+            logging.error("Failed to root patch the volume")
+            logging.exception("Stack Trace:")
+            logging.info("Damit wir sicherstellen, dass Ihr System trotz fehlgeschlagener Root-Volumes-Patch noch überhaupt startet, wir werden alle Patches widerrufen.")
+            logging.info("To ensure that your system continues to boot even after the root volume patches have failed to apply, we'll undo the patches that were applied until now.")
+            try:
+                self._unpatch_root_vol()
+            finally:
+                # Snapshot revert does not restore Data-volume driver files.
+                # Even when APFS revert fails, restore the owned Mellow files.
+                try:
+                    if self._mellow_transaction is not None:
+                        from x86.mellow.transaction import restore_installed
+                        restore_installed(data_root=self.mount_location_data or "/", defer_finalize=True)
+                finally:
+                    self.constants.root_patcher_succeeded = False
+            return False
+
+
+    def start_unpatch(self) -> None:
+        """
+        Entry point for unpatching the root volume.
+        
+        Reverts APFS snapshot to undo patches.
+        """
+        logging.info("- Starting Unpatch Process")
+        from x86.mellow.integration import execution_for
+        execution_for(self.constants).require_native_apply()
+        from x86.mellow.integration import require_journal_privileges
+        if require_journal_privileges(self.mount_location_data or "/"):
+            from x86.mellow.integration import validate_kdk
+            validate_kdk(self.constants)
+            self.skip_root_kmutil_requirement = False
+        patchset_obj = HardwarePatchsetDetection(self.constants)
+        
+        if not patchset_obj.can_unpatch:
+            logging.error("- Cannot continue with unpatching!!!")
+            logging.exception("Stack Trace:")
+            patchset_obj.detailed_errors()
+            return
+
+        if not self._mount_root_vol():
+            logging.error("- Failed to mount root volume, cannot continue with unpatching!!!")
+            logging.exception("Stack Trace:")
+            return
+
+        self._unpatch_root_vol()

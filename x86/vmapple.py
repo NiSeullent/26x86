@@ -1,0 +1,3341 @@
+"""Original-preserving VMApple GUI runner and DFU transition probe.
+
+This module is a 26x86 research control plane, not a macOS image patcher.
+Apple firmware and storage inputs are supplied by the caller, verified before
+use, and never modified.  The current VMApple backend is expected to run in a
+POSIX/WSL environment because its recovery socket is a Unix socket.
+
+The runner deliberately stops when iBSS does not advertise the next recovery
+endpoint.  It never fabricates a descriptor, changes an IMG4 signature, or
+forces an iBSS-to-iBEC transition.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+import base64
+import binascii
+from copy import deepcopy
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import platform
+import plistlib
+import re
+import shutil
+import socket
+import struct
+import subprocess
+import tempfile
+import threading
+import time
+import zlib
+
+from .iboot_personality import (
+    DEFAULT_RECOVERY_IMAGE,
+    IBOOT_MACHINE_TYPE,
+    MACOS_GUEST_OS,
+    default_scope,
+    validate_iboot_scope,
+)
+from .boot_picker import (
+    BOOT_DELAY_SECONDS,
+    DEFAULT_ALT_KEY,
+    MACOS_ENTRY_ID,
+    RECOVERY_ENTRY_ID,
+    validate_boot_picker_config,
+)
+
+
+# The macOS 27 j274 iBoot IM4P expands to about 1.4 MiB after BVX2/LZFSE
+# decoding.  Keep the input bounded, but do not reject that signed, opaque
+# Stage2 payload before it reaches the QEMU firmware window.
+MAX_FIRMWARE_BYTES = 2 * 1024 * 1024
+MAX_DFU_BYTES = 64 * 1024 * 1024
+MAX_RECOVERY_BYTES = 512 * 1024 * 1024
+MAX_FRAME_BYTES = MAX_RECOVERY_BYTES + 6
+DFU_BLOCK_BYTES = 2048
+DFU_SUFFIX = bytes.fromhex("ffffffffac05000155464410")
+MAX_TRANSITION_ATTEMPTS = 240
+MAX_LOG_BYTES = 16 * 1024 * 1024
+MAX_VM_JSON_BYTES = 1 * 1024 * 1024
+MAX_VM_PLIST_DEPTH = 32
+# QEMU's VMApple machine consumes the AUX payload after the 0x4000-byte
+# Virtualization.framework metadata prefix.  ``macosvm.json`` points at the
+# original, untrimmed ``aux.img``; keeping this offset in the bundle contract
+# prevents a normal direct launch from silently presenting the wrong pflash
+# view to AVPBooter.
+MACOSVM_AUX_METADATA_BYTES = 0x4000
+MACOSVM_DEFAULT_DISK_SIZE = "32g"
+MACOSVM_MAX_DISK_BYTES = 4 * 1024**4
+MACOSVM_MAX_PROVISION_TIMEOUT = 172800.0
+MACOSVM_DEFAULT_RUN_TIMEOUT = 600.0
+MACOSVM_MAX_RUN_TIMEOUT = 86400.0
+QEMU_VMAPPLE_MAX_MACOS_GUEST_MAJOR = 12
+DEFAULT_AVPBOOTER_PATH = Path(
+    "/System/Library/Frameworks/Virtualization.framework/Resources/AVPBooter.vmapple2.bin"
+)
+# ``auto`` is the safe default for a mixed Windows/WSL/Linux/macOS control
+# plane.  The actual QEMU backend may expose only ``none``/``dbus`` on a
+# headless research build, while a native macOS build normally exposes
+# ``cocoa``.  GTK/SDL remain explicit opt-in values for builds that actually
+# provide them; selecting a GUI name must never make the runner guess that a
+# display server exists.
+DISPLAY_BACKENDS = ("auto", "gtk", "sdl", "cocoa", "none", "dbus")
+STAGE1_PROMPT = b"Entering iBootStage1 recovery mode, starting command prompt"
+STAGE2_PROMPT = b"Entering iBootStage2 recovery mode, starting command prompt"
+STAGE2_SERIAL_START = b"======== Start of iBootStage2 serial output. ========"
+IBOOT_PANIC_MARKER = b"iBoot Panic:"
+# Direct macOS boot is a separate path from the DFU/IPSW recovery transport.
+# These markers are deliberately conservative: a Darwin banner proves that
+# XNU reached the UART, while a userspace marker is required before this
+# runner reports a completed macOS boot.  A QEMU exit, a display window, or an
+# iBoot acknowledgement alone is never promoted to a macOS claim.
+DIRECT_XNU_MARKERS = (b"Darwin Kernel Version", b"Darwin Kernel")
+DIRECT_USERSPACE_MARKERS = (b"launchd:", b"launchd ", b"loginwindow", b"WindowServer")
+DIRECT_INSTALLER_MARKERS = (b"macOS Utilities", b"Install macOS", b"RecoveryOS")
+_DARWIN_KERNEL_VERSION_RE = re.compile(rb"Darwin Kernel Version\s+([0-9]+)(?:\.[0-9]+)*")
+# These values are the guest-facing VMApple metadata written by the QEMU
+# config device.  They are deliberately labelled virtual in every report:
+# metadata can make iBoot take the M1 personality path, but it cannot create
+# an Apple hardware attestation or prove that the guest is running on an M1.
+VIRTUAL_SOC_NAME = "Apple M1 (Virtual)"
+VIRTUAL_MODEL = "VM0001"
+
+# qemu-t8030 is used as a device-topology reference only.  It emulates an
+# iPhone 11/T8030 and therefore its iOS firmware, device tree and restore
+# assumptions must never be presented as a macOS guest implementation.  Keep
+# the reference revision explicit so a report can be reproduced without
+# silently following a moving branch.
+QEMU_T8030_REFERENCE = {
+    "name": "qemu-t8030",
+    "repository": "https://github.com/TrungNguyen1909/qemu-t8030",
+    "wiki": "https://github.com/TrungNguyen1909/qemu-t8030/wiki/Bringing-up-the-emulator",
+    "revision": "fd4b0f790903044d90b8a35fcf03758401252063",
+    "machine_type": "t8030",
+    "guest_scope": "iPhone 11 / iOS",
+    "role": "device-topology-reference-only",
+}
+
+_APPLE_SILICON_PROFILE = {
+    "schema": "26x86.vmapple-apple-silicon/1",
+    "profile_id": "vmapple-m1-macos",
+    "machine_type": IBOOT_MACHINE_TYPE,
+    "guest_os": MACOS_GUEST_OS,
+    "guest_os_policy": "macOS-only",
+    "target_majors": [26, 27],
+    "virtual_identity": {
+        "soc_name": VIRTUAL_SOC_NAME,
+        "model": VIRTUAL_MODEL,
+        "identity_mode": "metadata-only",
+        "hardware_attestation_verified": False,
+    },
+    "interrupt_controller": {
+        "sandbox_contract": "AIC",
+        "qemu_t8030_reference": "AIC",
+        "current_vmapple_qemu": "GICv3",
+        "current_vmapple_qemu_status": "baseline-only; AIC backend work remains",
+        "gic_compatibility": False,
+    },
+    # The entries describe the boundary between the reference model and the
+    # current project.  They are capability facts, not claims that a missing
+    # device is emulated by the current binary.
+    "device_topology": [
+        {
+            "name": "AIC",
+            "reference": "apple.aic",
+            "native_sandbox": "aic_v1 wired model (partial)",
+            "current_vmapple_qemu": "missing; GICv3 baseline",
+            "status": "required-gap",
+        },
+        {
+            "name": "Apple ANS/NVMe",
+            "reference": "apple.ans",
+            "native_sandbox": "not implemented",
+            "current_vmapple_qemu": "VMApple BDIF AUX/root path",
+            "status": "reference-only",
+        },
+        {
+            "name": "DART/SART",
+            "reference": "apple.dart / apple.sart",
+            "native_sandbox": "not implemented",
+            "current_vmapple_qemu": "not exposed in research profile",
+            "status": "required-gap",
+        },
+        {
+            "name": "Apple NVRAM",
+            "reference": "apple-nvram namespace",
+            "native_sandbox": "not implemented",
+            "current_vmapple_qemu": "virtual config/AES path only",
+            "status": "macos-validation-required",
+        },
+        {
+            "name": "Apple UART",
+            "reference": "apple-uart",
+            "native_sandbox": "not implemented",
+            "current_vmapple_qemu": "PL011 compatibility UART",
+            "status": "compatibility-only",
+        },
+        {
+            "name": "SMC / watchdog / GPIO / SPI / I2C",
+            "reference": "Apple-specific peripheral set",
+            "native_sandbox": "not implemented",
+            "current_vmapple_qemu": "generic or absent in research profile",
+            "status": "required-gap",
+        },
+        {
+            "name": "USB OTG / Type-C recovery",
+            "reference": "apple-otg / apple-typec",
+            "native_sandbox": "not implemented",
+            "current_vmapple_qemu": "research chardev recovery transport",
+            "status": "protocol-only",
+        },
+        {
+            "name": "m1_fb / xnu_ramfb",
+            "reference": "display framebuffer helpers",
+            "native_sandbox": "not implemented",
+            "current_vmapple_qemu": "PV graphics omitted in research-headless",
+            "status": "graphics-gap",
+        },
+    ],
+    "storage": {
+        "reference_controller": "Apple ANS/NVMe-like",
+        "project_controller": "VMApple BDIF AUX/root",
+        "namespace_reference": [
+            {"nsid": 1, "nstype": 1, "role": "NVMe data namespace", "status": "reference-only"},
+            {"nsid": 5, "nstype": 5, "role": "Apple NVRAM namespace", "status": "reference-only"},
+        ],
+        "namespace_scope": "T8030/iOS reference command; macOS mapping requires validation",
+        "base_images_immutable": True,
+        "cow_overlay_required": True,
+        "hardware_model_provisioning_receipt_required": True,
+    },
+    "cpu": {
+        "guest_isa": "AArch64",
+        "reference_cpu": "Apple A13 / T8030",
+        "target_identity": VIRTUAL_SOC_NAME,
+        "host_acceleration": "TCG research path",
+        "native_minimum": "x86_64 SSE4.1 + SSE4.2",
+    },
+    "graphics": {
+        "reference_devices": ["m1_fb", "xnu_ramfb"],
+        "current_research_status": "Apple PV graphics unavailable in TCG research-headless",
+        "verified": False,
+    },
+    "direct_boot_engines": {
+        "native_macosvm": "required for macOS 26/27 Golden Gate/Tahoe",
+        "qemu_vmapple_max_documented_guest_major": QEMU_VMAPPLE_MAX_MACOS_GUEST_MAJOR,
+        "qemu_vmapple_modern_guest_policy": "fail-closed; recovery/protocol research only",
+    },
+    "reference": QEMU_T8030_REFERENCE,
+    "scope": {
+        "supported_guest_os": [MACOS_GUEST_OS],
+        "unsupported_guest_os": ["iOS", "iPadOS", "tvOS", "watchOS", "visionOS"],
+        "reference_guest_os": ["iOS"],
+        "ios_code_imported": False,
+    },
+    "claims": {
+        "apple_hardware_attestation_verified": False,
+        "macos_boot_verified": False,
+        "installer_ui_verified": False,
+    },
+    "blockers": [
+        "AIC is required by the native Sandbox contract; current VMApple QEMU research mode still exposes GICv3",
+        "Apple ANS/DART/SART/SMC device behavior is not validated for macOS",
+        "Apple PV graphics and Metal are not available in the current TCG research profile",
+        "A hardware-model-matched AUX and an install-target root image are still required",
+    ],
+}
+
+
+def apple_silicon_profile() -> dict[str, object]:
+    """Return an isolated qemu-t8030-derived Apple Silicon capability profile.
+
+    The deep copy prevents GUI/report callers from mutating the process-wide
+    policy.  The profile deliberately records the current GICv3 QEMU gap while
+    keeping the EFI Sandbox contract AIC-only.
+    """
+    return deepcopy(_APPLE_SILICON_PROFILE)
+
+# Storage inspection is deliberately bounded.  It is a read-only diagnostic
+# for the VMApple boot boundary; it is not an APFS parser and it never marks a
+# file as provisioned merely because it contains non-zero bytes.
+STORAGE_SAMPLE_BYTES = 1024 * 1024
+STORAGE_ZERO_SCAN_BYTES = 256 * 1024 * 1024
+STORAGE_MARKERS = (b"NXSB", b"APSB", b"APFS")
+
+
+class VMappleError(RuntimeError):
+    """A bounded launch or recovery-protocol failure."""
+
+
+class RecoveryProtocolError(VMappleError):
+    """The guest returned a malformed or unsupported recovery response."""
+
+
+@dataclass(frozen=True)
+class Executable:
+    """An executable and the way the current host invokes it."""
+
+    program: str
+    wrapper: str | None = None
+
+    @property
+    def is_wsl(self) -> bool:
+        return self.wrapper is not None
+
+    def command(self, *arguments: str) -> list[str]:
+        if self.wrapper is None:
+            return [self.program, *arguments]
+        return [self.wrapper, "--", self.program, *arguments]
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _regular(value: str | Path, label: str, *, limit: int | None = None) -> Path:
+    path = Path(value).expanduser().resolve(strict=True)
+    if not path.is_file():
+        raise ValueError(f"{label} must be a regular file: {path}")
+    size = path.stat().st_size
+    if limit is not None and size > limit:
+        raise ValueError(f"{label} exceeds the {limit} byte limit")
+    return path
+
+
+def _decode_vm_plist(value: object, label: str) -> tuple[object, bytes]:
+    """Decode one macosvm base64 binary plist without invoking host tools."""
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"macosvm.json {label} must be a non-empty base64 string")
+    try:
+        raw = base64.b64decode(value.encode("ascii"), validate=True)
+    except (UnicodeEncodeError, ValueError, binascii.Error) as error:
+        raise ValueError(f"macosvm.json {label} is not valid base64") from error
+    if not raw or len(raw) > MAX_VM_JSON_BYTES:
+        raise ValueError(f"macosvm.json {label} payload is empty or too large")
+    try:
+        document = plistlib.loads(raw)
+    except (plistlib.InvalidFileException, ValueError, TypeError) as error:
+        raise ValueError(f"macosvm.json {label} is not a binary plist") from error
+    return document, raw
+
+
+def _find_ecid(value: object, depth: int = 0) -> int | None:
+    """Find the VM ECID in the decoded machineIdentifier plist."""
+    if depth > MAX_VM_PLIST_DEPTH:
+        return None
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "ECID":
+                if isinstance(child, bool):
+                    return None
+                if isinstance(child, int):
+                    return child if 0 <= child < 2**64 else None
+                if isinstance(child, bytes) and 0 < len(child) <= 8:
+                    return int.from_bytes(child, "little")
+                if isinstance(child, str):
+                    try:
+                        parsed = int(child, 0)
+                    except ValueError:
+                        try:
+                            parsed = int(child, 10)
+                        except ValueError:
+                            return None
+                    return parsed if 0 <= parsed < 2**64 else None
+            found = _find_ecid(child, depth + 1)
+            if found is not None:
+                return found
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            found = _find_ecid(child, depth + 1)
+            if found is not None:
+                return found
+    return None
+
+
+@dataclass(frozen=True)
+class MacOSVMConfiguration:
+    """Validated, read-only inputs from a Virtualization.framework VM JSON."""
+
+    path: Path
+    uuid: int
+    aux: Path
+    root: Path
+    aux_offset: int
+    hardware_model_sha256: str
+    machine_id_sha256: str
+    json_sha256: str
+
+    def report(self) -> dict[str, object]:
+        return {
+            "path": str(self.path),
+            "uuid": self.uuid,
+            "aux": str(self.aux),
+            "root": str(self.root),
+            "aux_offset": self.aux_offset,
+            "aux_view": "original aux.img with Virtualization.framework metadata prefix skipped",
+            "hardware_model_sha256": self.hardware_model_sha256,
+            "machine_id_sha256": self.machine_id_sha256,
+            "json_sha256": self.json_sha256,
+            "inputs_read_only": True,
+            "source": "macosvm.json storage/machineId/hardwareModel",
+        }
+
+
+def load_macosvm_configuration(value: str | Path) -> MacOSVMConfiguration:
+    """Load and validate the macosvm JSON contract used by VMApple.
+
+    The function never writes the JSON or its referenced images.  It resolves
+    exactly one AUX and one root disk, decodes the ECID from the binary plist
+    machine identifier, and requires the hardware model blob to be present.
+    """
+    path = _regular(value, "macosvm.json", limit=MAX_VM_JSON_BYTES)
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"macosvm.json cannot be parsed: {path}") from error
+    if not isinstance(document, dict):
+        raise ValueError("macosvm.json root must be an object")
+    machine_id, machine_id_raw = _decode_vm_plist(document.get("machineId"), "machineId")
+    hardware_model, hardware_model_raw = _decode_vm_plist(
+        document.get("hardwareModel"), "hardwareModel"
+    )
+    uuid = _find_ecid(machine_id)
+    if uuid is None:
+        raise ValueError("macosvm.json machineId does not contain a valid ECID")
+    if not isinstance(hardware_model, (dict, list, tuple)):
+        raise ValueError("macosvm.json hardwareModel plist has an unexpected shape")
+    storage = document.get("storage")
+    if not isinstance(storage, list):
+        raise ValueError("macosvm.json storage must be an array")
+    aux_paths: list[Path] = []
+    root_paths: list[Path] = []
+    for entry in storage:
+        if not isinstance(entry, dict) or not isinstance(entry.get("type"), str):
+            raise ValueError("macosvm.json storage entries must contain a type")
+        file_name = entry.get("file")
+        if not isinstance(file_name, str) or not file_name.strip():
+            raise ValueError("macosvm.json storage entries must contain a file")
+        image = (path.parent / file_name).resolve(strict=True)
+        if not image.is_file():
+            raise ValueError(f"macosvm.json storage path is not a regular file: {image}")
+        if entry["type"] == "aux":
+            aux_paths.append(image)
+        elif entry["type"] == "disk":
+            root_paths.append(image)
+    if len(aux_paths) != 1 or len(root_paths) != 1:
+        raise ValueError(
+            "macosvm.json must contain exactly one aux and one disk storage entry"
+        )
+    return MacOSVMConfiguration(
+        path=path,
+        uuid=uuid,
+        aux=aux_paths[0],
+        root=root_paths[0],
+        aux_offset=MACOSVM_AUX_METADATA_BYTES,
+        hardware_model_sha256=hashlib.sha256(hardware_model_raw).hexdigest(),
+        machine_id_sha256=hashlib.sha256(machine_id_raw).hexdigest(),
+        json_sha256=_sha256(path),
+    )
+
+
+def _to_wsl_path(path: Path) -> str:
+    """Convert a Windows path to a path visible from WSL."""
+    text = str(path)
+    if os.name != "nt":
+        return text
+    if len(text) >= 2 and text[1] == ":":
+        tail = text[2:].replace("\\", "/")
+        return f"/mnt/{text[0].lower()}{tail}"
+    return text.replace("\\", "/")
+
+
+def _resolve_executable(value: str | Path | None, default: str, label: str) -> Executable:
+    raw = str(value or os.environ.get(default) or "").strip()
+    if not raw:
+        raw = shutil.which(label) or ""
+    if not raw:
+        raise ValueError(f"{label} was not found; set {default}")
+
+    # VMApple's private backend is a Linux binary.  A Windows GUI may pass its
+    # WSL path to the bridge, which launches the full runner inside WSL.
+    if os.name == "nt" and raw.startswith("/"):
+        wrapper = shutil.which("wsl.exe")
+        if wrapper is None:
+            raise ValueError("A WSL VMApple executable was supplied but wsl.exe is unavailable")
+        probe = subprocess.run([wrapper, "--", raw, "--version"], capture_output=True,
+                               text=True, timeout=10, check=False)
+        if probe.returncode != 0:
+            raise ValueError(f"{label} cannot be executed through WSL: {probe.stderr.strip()}")
+        return Executable(raw, wrapper)
+
+    candidate = Path(raw).expanduser()
+    if candidate.parent == Path("."):
+        located = shutil.which(raw)
+        if located is None:
+            raise ValueError(f"{label} was not found on PATH: {raw}")
+        candidate = Path(located)
+    candidate = candidate.resolve(strict=True)
+    if not candidate.is_file():
+        raise ValueError(f"{label} must be a regular file: {candidate}")
+    return Executable(str(candidate))
+
+
+def _guest_path(path: Path, executable: Executable) -> str:
+    return _to_wsl_path(path) if executable.is_wsl else str(path)
+
+
+def _direct_macos_hvf_host() -> bool:
+    """Return whether the host can use QEMU's native VMApple HVF path."""
+    return platform.system() == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}
+
+
+def direct_macos_host_report() -> dict[str, object]:
+    """Describe the host-side requirements for the real macOS entry.
+
+    The normal VMApple path is an Apple-Silicon/macOS + HVF path.  Linux/x86
+    TCG remains useful for the separately-scoped recovery protocol, but it is
+    not a substitute for the ARM-only Golden Gate entry and is never promoted
+    to a direct-boot claim.
+    """
+    system = platform.system()
+    machine = platform.machine().lower()
+    native_hvf = _direct_macos_hvf_host()
+    blockers: list[str] = []
+    if not native_hvf:
+        blockers.append(
+            "Direct macOS requires an Apple-Silicon macOS host with QEMU HVF; "
+            "the current host is recovery/TCG-only."
+        )
+    firmware = DEFAULT_AVPBOOTER_PATH if native_hvf else None
+    if firmware is not None and not firmware.is_file():
+        blockers.append(f"Virtualization.framework AVPBooter is missing: {firmware}")
+    return {
+        "system": system,
+        "architecture": machine,
+        "apple_silicon_macos": native_hvf,
+        "hvf_required": True,
+        "native_hvf_selected": native_hvf,
+        "default_avpbooter": str(firmware) if firmware is not None else None,
+        "default_avpbooter_present": bool(firmware and firmware.is_file()),
+        "blockers": blockers,
+        "direct_macos_ready": not blockers,
+    }
+
+
+def _available_display_backends(executable: Executable) -> list[str]:
+    """Return display backends advertised by this exact QEMU binary.
+
+    QEMU's ``-display help`` is a capability listing, not runtime evidence.
+    A failed help probe therefore yields an empty list and is recorded by the
+    caller; it does not make a firmware boot claim or silently select GTK.
+    """
+    try:
+        result = subprocess.run(
+            executable.command("-display", "help"),
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if result.returncode:
+        return []
+    backends: list[str] = []
+    for line in result.stdout.splitlines():
+        value = line.strip().split(None, 1)[0] if line.strip() else ""
+        if value and value not in backends and value in DISPLAY_BACKENDS[1:]:
+            backends.append(value)
+    return backends
+
+
+def _effective_display_backend(
+    requested: str,
+    *,
+    direct_macos: bool,
+    available: list[str] | tuple[str, ...] | None = None,
+) -> str:
+    """Resolve the portable ``auto`` display request without probing a guest.
+
+    Native Apple-Silicon macOS prefers Cocoa.  Every non-native/research
+    launch prefers headless output because it is valid on WSL and on QEMU
+    builds with no GTK/SDL support.  If capability output is available, pick a
+    backend actually advertised by this binary; otherwise keep the platform
+    default and let QEMU produce an explicit error for an invalid build.
+    """
+    if requested != "auto":
+        return requested
+    candidates = ("cocoa", "none") if direct_macos and _direct_macos_hvf_host() else ("none", "dbus")
+    advertised = set(available or ())
+    if advertised:
+        for candidate in candidates:
+            if candidate in advertised:
+                return candidate
+    return candidates[0]
+
+
+def probe_backend(executable: Executable, *, direct_macos: bool = False) -> dict[str, object]:
+    """Require VMApple without treating capability help as boot evidence.
+
+    Recovery remains pinned to the bounded TCG research backend.  A direct
+    macOS selection on an Apple-Silicon macOS host is allowed to use HVF and
+    the backend's normal PV graphics path; every other host stays on the
+    explicit research-headless TCG path.
+    """
+    version = subprocess.run(executable.command("--version"), capture_output=True,
+                             text=True, timeout=15, check=False)
+    machines = subprocess.run(executable.command("-machine", "help"), capture_output=True,
+                              text=True, timeout=15, check=False)
+    accelerators = subprocess.run(executable.command("-accel", "help"), capture_output=True,
+                                  text=True, timeout=15, check=False)
+    if version.returncode or machines.returncode or accelerators.returncode:
+        raise ValueError("QEMU capability probe failed")
+    machine_names = {line.split()[0] for line in machines.stdout.splitlines() if line.strip()}
+    if "vmapple" not in machine_names:
+        raise ValueError("QEMU must expose vmapple")
+    accelerator_names = set(accelerators.stdout.split())
+    if not direct_macos and "tcg" not in accelerator_names:
+        raise ValueError("QEMU recovery backend must expose TCG")
+    if direct_macos and _direct_macos_hvf_host() and "hvf" not in accelerator_names:
+        raise ValueError("Direct macOS boot on Apple Silicon requires QEMU HVF")
+    research = subprocess.run(executable.command("-machine", "vmapple,help"),
+                              capture_output=True, text=True, timeout=15, check=False)
+    if research.returncode:
+        raise ValueError("QEMU VMApple backend capability probe failed")
+    if not direct_macos and "research-headless" not in research.stdout:
+        raise ValueError("QEMU VMApple recovery backend does not advertise research-headless")
+    research_headless = "research-headless" in research.stdout
+    research_graphics = "research-graphics" in research.stdout
+    bdif = subprocess.run(executable.command("-device", "vmapple-bdif,help"),
+                          capture_output=True, text=True, timeout=15, check=False)
+    bdif_block_writes = bool(
+        bdif.returncode == 0 and "allow-block-writes" in (bdif.stdout + bdif.stderr)
+    )
+    display_backends = _available_display_backends(executable)
+    first_line = (version.stdout or version.stderr).splitlines()
+    return {
+        "executable": executable.program,
+        "version": first_line[0] if first_line else "",
+        "vmapple": True,
+        "tcg": "tcg" in accelerator_names,
+        "hvf": "hvf" in accelerator_names,
+        "direct_macos": direct_macos,
+        "native_hvf_selected": bool(direct_macos and _direct_macos_hvf_host()),
+        "direct_host": direct_macos_host_report() if direct_macos else None,
+        "research_headless": research_headless,
+        "research_graphics": research_graphics,
+        "bdif_block_writes": bdif_block_writes,
+        "display_backends": display_backends,
+        "display_backend_requested": "auto",
+        "display_backend_effective": _effective_display_backend(
+            "auto", direct_macos=direct_macos, available=display_backends
+        ),
+        "virtual_soc_name": VIRTUAL_SOC_NAME,
+        "virtual_model": VIRTUAL_MODEL,
+        "virtual_identity_mode": "metadata-only",
+        "hardware_attestation_verified": False,
+        "macos_boot_verified": False,
+        "soc_profile": apple_silicon_profile(),
+    }
+
+
+def _qcow_size(path: Path) -> int:
+    with path.open("rb") as source:
+        header = source.read(104)
+    if len(header) != 104 or header[:4] != b"QFI\xfb":
+        raise ValueError(f"Invalid qcow2 overlay header: {path}")
+    version, backing_offset, backing_size = struct.unpack_from(">IQI", header, 4)
+    virtual_size, crypt = struct.unpack_from(">QI", header, 24)
+    incompatible = struct.unpack_from(">Q", header, 72)[0]
+    if (version != 3 or backing_offset or backing_size or crypt or incompatible & ~1
+            or virtual_size <= 0 or virtual_size % 512):
+        raise ValueError("Overlay must be qcow2 v3, unencrypted, and have no external backing path")
+    return virtual_size
+
+
+def _is_qcow2(path: Path) -> bool:
+    """Identify a qcow2 seed without invoking a host image utility."""
+    with path.open("rb") as source:
+        return source.read(4) == b"QFI\xfb"
+
+
+def _storage_window(stream, offset: int, length: int) -> bytes:
+    stream.seek(offset)
+    data = stream.read(length)
+    if len(data) != length:
+        raise ValueError("Storage input ended while reading a diagnostic window")
+    return data
+
+
+def _inspect_storage_file(value: str | Path, label: str, *, offset: int = 0) -> dict[str, object]:
+    """Inspect a raw AUX/root view without writing or trusting its contents.
+
+    A zero-filled fixture is a useful protocol test, but it cannot provide the
+    hardware-model-bound AUX metadata or an APFS install target that iBoot
+    expects.  The marker scan below is only a hint; an APFS marker does not
+    establish Apple provenance, a matching VM hardware model, or bootability.
+    """
+    path = _regular(value, label)
+    if type(offset) is not int or offset < 0 or offset % 512:
+        raise ValueError("Storage view offset must be a nonnegative 512-byte multiple")
+    before = path.stat()
+    view_size = before.st_size - offset
+    if view_size <= 0 or view_size % 512:
+        raise ValueError(f"{label} must expose a nonempty 512-byte view")
+
+    sample_size = min(view_size, STORAGE_SAMPLE_BYTES)
+    suffix_offset = offset + max(0, view_size - sample_size)
+    zero_scan_size = min(view_size, STORAGE_ZERO_SCAN_BYTES)
+    zero_scanned = 0
+    zero_nonzero_bytes = 0
+    prefix = b""
+    suffix = b""
+    with path.open("rb") as stream:
+        prefix = _storage_window(stream, offset, sample_size)
+        if suffix_offset != offset:
+            suffix = _storage_window(stream, suffix_offset, sample_size)
+        stream.seek(offset)
+        while zero_scanned < zero_scan_size:
+            chunk = stream.read(min(1024 * 1024, zero_scan_size - zero_scanned))
+            if not chunk:
+                raise ValueError(f"{label} ended during the zero-content scan")
+            zero_scanned += len(chunk)
+            # ``bytes.count`` runs in the C implementation and keeps the
+            # bounded preflight cheap even for the largest scan window.
+            zero_nonzero_bytes += len(chunk) - chunk.count(0)
+    after = path.stat()
+    if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+        after.st_size, after.st_mtime_ns, after.st_ctime_ns
+    ):
+        raise ValueError(f"{label} changed during read-only inspection")
+
+    marker_offsets: dict[str, list[int]] = {}
+    windows = ((offset, prefix), (suffix_offset, suffix))
+    for marker in STORAGE_MARKERS:
+        locations: list[int] = []
+        for base, window in windows:
+            start = 0
+            while len(locations) < 8:
+                found = window.find(marker, start)
+                if found < 0:
+                    break
+                absolute = base + found
+                if absolute not in locations:
+                    locations.append(absolute)
+                start = found + 1
+        if locations:
+            marker_offsets[marker.decode("ascii")] = sorted(locations)
+
+    scan_complete = zero_scanned == view_size
+    all_zero: bool | None = None
+    if scan_complete:
+        all_zero = zero_nonzero_bytes == 0
+    return {
+        "path": str(path),
+        "size_bytes": before.st_size,
+        "view_offset": offset,
+        "view_bytes": view_size,
+        "sample_bytes": sample_size,
+        "sample_prefix_nonzero_bytes": len(prefix) - prefix.count(0),
+        "sample_suffix_nonzero_bytes": len(suffix) - suffix.count(0),
+        "zero_scan_bytes": zero_scanned,
+        "zero_scan_complete": scan_complete,
+        "zero_scan_nonzero_bytes": zero_nonzero_bytes,
+        "all_zero": all_zero,
+        "markers": marker_offsets,
+        "read_only": True,
+    }
+
+
+def inspect_storage(*, aux: str | Path, root: str | Path, aux_offset: int = 0) -> dict[str, object]:
+    """Return a bounded, read-only readiness report for AUX and root images.
+
+    ``provisioned`` is never inferred from a byte signature.  It is false for
+    a definite zero fixture and otherwise remains ``None`` until a
+    hardware-model-matched provisioning receipt is supplied by a supported
+    Apple virtualization host.  This keeps the report useful without turning
+    a heuristic into an installer or boot claim.
+    """
+    aux_report = _inspect_storage_file(aux, "AUX base image", offset=aux_offset)
+    root_report = _inspect_storage_file(root, "root base image")
+    reports = (aux_report, root_report)
+    zero_roles = [
+        role for role, report in (("aux", aux_report), ("root", root_report))
+        if report.get("all_zero") is True
+    ]
+    incomplete_roles = [
+        role for role, report in (("aux", aux_report), ("root", root_report))
+        if report.get("all_zero") is None
+    ]
+    markers = sorted({marker for report in reports for marker in report["markers"]})
+    blockers: list[str] = []
+    if "aux" in zero_roles:
+        blockers.append("AUX view is zero-filled and has no hardware-model initialization")
+    if "root" in zero_roles:
+        blockers.append("root view is zero-filled and contains no install target")
+    if incomplete_roles:
+        blockers.append("zero scan is bounded for: " + ", ".join(incomplete_roles))
+    if not markers:
+        blockers.append("no known APFS marker was found in sampled windows; provisioning remains unverified")
+    if len(zero_roles) == 2:
+        provisioning_status = "unprovisioned-zero"
+        provisioned: bool | None = False
+        installer_possible: bool | None = False
+    elif zero_roles:
+        provisioning_status = "partially-unprovisioned"
+        provisioned: bool | None = False
+        installer_possible: bool | None = False
+    elif incomplete_roles:
+        provisioning_status = "unverified-bounded-scan"
+        provisioned = None
+        installer_possible = None
+    else:
+        provisioning_status = "unverified"
+        provisioned = None
+        installer_possible = None
+    return {
+        "schema": "26x86.vmapple-storage/1",
+        "aux": aux_report,
+        "root": root_report,
+        "markers": markers,
+        "zero_roles": zero_roles,
+        "bounded_scan_roles": incomplete_roles,
+        "provisioned": provisioned,
+        "provisioning_status": provisioning_status,
+        "installer_ui_possible": installer_possible,
+        "installer_ui_verified": False,
+        "base_images_read_only": True,
+        "blockers": blockers,
+        "note": (
+            "AUX must be initialized for the exact VM hardware model and the root image must contain "
+            "an install target. Byte markers alone cannot establish either condition."
+        ),
+    }
+
+
+def inspect_macosvm_storage(value: str | Path) -> dict[str, object]:
+    """Inspect the exact read-only storage view described by ``macosvm.json``.
+
+    ``macosvm.json`` references the original AUX file, so this helper applies
+    QEMU's documented metadata trim as a view offset without creating a
+    trimmed copy or modifying either input image.
+    """
+    bundle = load_macosvm_configuration(value)
+    report = inspect_storage(
+        aux=bundle.aux,
+        root=bundle.root,
+        aux_offset=bundle.aux_offset,
+    )
+    report["vm_bundle"] = bundle.report()
+    report["aux_offset_source"] = "macosvm.json documented metadata trim"
+    return report
+
+
+def _macosvm_disk_size_bytes(value: str) -> int:
+    """Validate macosvm's sparse disk-size syntax and bound allocation."""
+    if not isinstance(value, str) or not re.fullmatch(r"[1-9][0-9]{0,8}[kKmMgGtT]", value.strip()):
+        raise ValueError("macosvm disk size must be a positive number with k, m, g, or t suffix")
+    match = re.fullmatch(r"([1-9][0-9]{0,8})([kKmMgGtT])", value.strip())
+    assert match is not None
+    multipliers = {"k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
+    size = int(match.group(1)) * multipliers[match.group(2).lower()]
+    if size > MACOSVM_MAX_DISK_BYTES:
+        raise ValueError("macosvm disk size exceeds the 4 TiB provisioning limit")
+    return size
+
+
+def macosvm_provision_command(
+    executable: Executable,
+    *,
+    ipsw: Path,
+    output: Path,
+    disk_size: str = MACOSVM_DEFAULT_DISK_SIZE,
+) -> list[str]:
+    """Build the argv-only macosvm restore command for a new VM directory."""
+    _macosvm_disk_size_bytes(disk_size)
+    if not ipsw.is_file():
+        raise ValueError(f"macOS IPSW must be a regular file: {ipsw}")
+    if output.is_symlink() or not output.is_dir():
+        raise ValueError(f"macosvm provisioning output must be an existing directory: {output}")
+    json_path = output / "macosvm.json"
+    aux_path = output / "aux.img"
+    disk_path = output / "disk.img"
+    return executable.command(
+        "--disk", f"{disk_path},size={disk_size.strip()}",
+        "--aux", str(aux_path),
+        "--restore", str(ipsw),
+        str(json_path),
+    )
+
+
+def provision_macosvm(
+    *,
+    macosvm: str | Path | None,
+    ipsw: str | Path,
+    output: str | Path | None,
+    disk_size: str = MACOSVM_DEFAULT_DISK_SIZE,
+    timeout: float = 86400.0,
+) -> dict[str, object]:
+    """Provision a Virtualization.framework VM bundle on a native Apple host.
+
+    The operation is intentionally host-gated and creates a new directory. It
+    never edits an existing VM, IPSW, ESP, or caller-supplied storage image.
+    ``macosvm`` performs Apple's restore/provisioning work; the resulting JSON
+    is immediately re-read through the same immutable bundle validator used by
+    direct VMApple boot.
+    """
+    host = direct_macos_host_report()
+    if host.get("apple_silicon_macos") is not True:
+        raise ValueError(
+            "macosvm provisioning requires an Apple-Silicon macOS host; "
+            "the current host is recovery/TCG-only"
+        )
+    if host.get("default_avpbooter_present") is not True:
+        raise ValueError("Virtualization.framework AVPBooter is not present on this host")
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or not math.isfinite(float(timeout))
+        or not 0 < float(timeout) <= MACOSVM_MAX_PROVISION_TIMEOUT
+    ):
+        raise ValueError("macosvm provisioning timeout must be between 0 and 172800 seconds")
+    _macosvm_disk_size_bytes(disk_size)
+    ipsw_path = _regular(ipsw, "macOS IPSW")
+    ipsw_before = {
+        "path": str(ipsw_path),
+        "bytes": ipsw_path.stat().st_size,
+        "sha256": _sha256(ipsw_path),
+    }
+    executable = _resolve_executable(macosvm, "X86_MACOSVM", "macosvm")
+    if executable.is_wsl:
+        raise ValueError("macosvm provisioning must run natively on Apple-Silicon macOS")
+    destination = _new_directory(output)
+    command = macosvm_provision_command(
+        executable,
+        ipsw=ipsw_path,
+        output=destination,
+        disk_size=disk_size,
+    )
+    stdout_path = destination / "macosvm.stdout.log"
+    stderr_path = destination / "macosvm.stderr.log"
+    try:
+        with stdout_path.open("xb") as stdout, stderr_path.open("xb") as stderr:
+            completed = subprocess.run(
+                command,
+                cwd=str(destination),
+                stdin=subprocess.DEVNULL,
+                stdout=stdout,
+                stderr=stderr,
+                timeout=float(timeout),
+                check=False,
+            )
+    except subprocess.TimeoutExpired as error:
+        try:
+            unchanged = (
+                ipsw_path.stat().st_size == ipsw_before["bytes"]
+                and _sha256(ipsw_path) == ipsw_before["sha256"]
+            )
+        except OSError:
+            unchanged = False
+        if not unchanged:
+            raise ValueError(
+                f"macOS IPSW changed during provisioning; output preserved at {destination}"
+            ) from error
+        raise TimeoutError(
+            f"macosvm provisioning timed out; output preserved at {destination}"
+        ) from error
+    try:
+        ipsw_unchanged = (
+            ipsw_path.stat().st_size == ipsw_before["bytes"]
+            and _sha256(ipsw_path) == ipsw_before["sha256"]
+        )
+    except OSError:
+        ipsw_unchanged = False
+    if not ipsw_unchanged:
+        raise ValueError(
+            f"macOS IPSW changed during provisioning; output preserved at {destination}"
+        )
+    if completed.returncode:
+        tail = stderr_path.read_text(encoding="utf-8", errors="replace")[-4096:]
+        raise ValueError(
+            f"macosvm provisioning failed with status {completed.returncode}; "
+            f"output preserved at {destination}: {tail.strip()}"
+        )
+    bundle = load_macosvm_configuration(destination / "macosvm.json")
+    report = {
+        "schema": "26x86.macosvm-provision/1",
+        "provisioning_completed": True,
+        "host": host,
+        "output": str(destination),
+        "command": command,
+        "ipsw": {**ipsw_before, "unchanged": True},
+        "vm_bundle": bundle.report(),
+        "logs": {"stdout": str(stdout_path), "stderr": str(stderr_path)},
+    }
+    (destination / "provision-report.json").write_text(
+        json.dumps(report, indent=2) + "\n", encoding="utf-8"
+    )
+    return report
+
+
+def native_macosvm_host_report() -> dict[str, object]:
+    """Describe the host gate for the Virtualization.framework runner.
+
+    This is intentionally separate from :func:`direct_macos_host_report`.
+    The latter describes QEMU's private VMApple/AVPBooter path and therefore
+    requires the AVPBooter binary to be discoverable.  ``macosvm`` asks
+    Virtualization.framework to construct the virtual Mac itself and does not
+    require the caller to pass that private firmware path.
+    """
+    system = platform.system()
+    machine = platform.machine().lower()
+    macos_version = platform.mac_ver()[0] if system == "Darwin" else None
+    macos_major: int | None = None
+    if isinstance(macos_version, str) and macos_version:
+        try:
+            macos_major = int(macos_version.split(".", 1)[0])
+        except (TypeError, ValueError):
+            macos_major = None
+    native = _direct_macos_hvf_host()
+    blockers: list[str] = []
+    if not native:
+        blockers.append(
+            "native macosvm requires an Apple-Silicon macOS host; "
+            "the current host cannot provide Virtualization.framework"
+        )
+    return {
+        "system": system,
+        "architecture": machine,
+        "macos_version": macos_version,
+        "macos_major": macos_major,
+        "apple_silicon_macos": native,
+        "virtualization_framework_required": True,
+        "native_virtualization_selected": native,
+        "blockers": blockers,
+        "native_macosvm_ready": not blockers,
+    }
+
+
+def macosvm_run_command(
+    executable: Executable,
+    *,
+    vm_json: Path,
+    pid_file: Path,
+    gui: bool = False,
+    ephemeral: bool = True,
+) -> list[str]:
+    """Build an argv-only native ``macosvm`` launch command.
+
+    The base bundle is always launched with ``--ephemeral`` by the runner so
+    Virtualization.framework uses temporary APFS clones instead of writing
+    the caller's provisioned AUX/root images.  PTY mode is deliberately not
+    selected here: the upstream tool waits for an interactive newline before
+    attaching a PTY, which is unsuitable for a bounded, auditable worker.
+    """
+    if not isinstance(vm_json, Path) or not vm_json.is_file() or vm_json.is_symlink():
+        raise ValueError(f"macosvm configuration must be a regular file: {vm_json}")
+    if not isinstance(pid_file, Path) or pid_file.is_symlink():
+        raise ValueError(f"macosvm pid file must not be a symlink: {pid_file}")
+    if not isinstance(gui, bool) or not isinstance(ephemeral, bool):
+        raise ValueError("macosvm gui and ephemeral flags must be booleans")
+    arguments: list[str] = []
+    if ephemeral:
+        arguments.append("--ephemeral")
+    if gui:
+        arguments.append("--gui")
+    arguments.extend(["--pid-file", str(pid_file), str(vm_json)])
+    return executable.command(*arguments)
+
+
+def _native_macosvm_input_manifest(bundle: MacOSVMConfiguration) -> dict[str, dict[str, object]]:
+    """Snapshot every file that the native runner is allowed to read."""
+    result: dict[str, dict[str, object]] = {}
+    for name, path in (
+        ("macosvm_json", bundle.path),
+        ("aux", bundle.aux),
+        ("root", bundle.root),
+    ):
+        result[name] = {
+            "path": str(path),
+            "bytes": path.stat().st_size,
+            "sha256": _sha256(path),
+        }
+    return result
+
+
+def run_macosvm_native(
+    *,
+    macosvm: str | Path | None,
+    vm_json: str | Path,
+    output: str | Path | None,
+    target_major: int = 27,
+    duration: float | None = None,
+    observation_timeout: float = MACOSVM_DEFAULT_RUN_TIMEOUT,
+    gui: bool = False,
+    research_only: bool = False,
+) -> dict[str, object]:
+    """Run an existing ``macosvm.json`` bundle through Virtualization.framework.
+
+    This is the native Apple-Silicon path for modern macOS guests.  It owns
+    process/log orchestration only; it does not patch IPSW contents, rewrite
+    the bundle, or infer a successful boot from process startup.  The result
+    is a structured evidence report and ``macos_boot_verified`` becomes true
+    only when both the Darwin/XNU and userspace marker sets are observed.
+    """
+    if target_major not in (26, 27):
+        raise ValueError("native macosvm target must be macOS 26 or 27")
+    if research_only is not True:
+        raise ValueError("native macosvm launch requires the explicit --research-only flag")
+    host = native_macosvm_host_report()
+    if host.get("apple_silicon_macos") is not True:
+        raise ValueError(
+            "native macosvm requires an Apple-Silicon macOS host; "
+            "the current host cannot provide Virtualization.framework"
+        )
+    host_major = host.get("macos_major")
+    if isinstance(host_major, bool):
+        host_major = None
+    if isinstance(host_major, int) and host_major < target_major:
+        raise ValueError(
+            f"native macosvm requires a host macOS major >= {target_major}; "
+            f"detected {host_major}"
+        )
+    if type(gui) is not bool:
+        raise ValueError("native macosvm gui must be a boolean")
+    if (
+        isinstance(observation_timeout, bool)
+        or not isinstance(observation_timeout, (int, float))
+        or not math.isfinite(float(observation_timeout))
+        or not 0 < float(observation_timeout) <= MACOSVM_MAX_RUN_TIMEOUT
+    ):
+        raise ValueError("native macosvm observation timeout must be between 0 and 86400 seconds")
+    if (
+        duration is not None
+        and (
+            isinstance(duration, bool)
+            or not isinstance(duration, (int, float))
+            or not math.isfinite(float(duration))
+            or not 0 < float(duration) <= MACOSVM_MAX_RUN_TIMEOUT
+        )
+    ):
+        raise ValueError("native macosvm duration must be between 0 and 86400 seconds")
+
+    bundle = load_macosvm_configuration(vm_json)
+    executable = _resolve_executable(macosvm, "X86_MACOSVM", "macosvm")
+    if executable.is_wsl:
+        raise ValueError("native macosvm launch must run natively on Apple-Silicon macOS")
+    destination = _new_directory(output)
+    pid_file = destination / "macosvm.pid"
+    log_path = destination / "macosvm.log"
+    command = macosvm_run_command(
+        executable,
+        vm_json=bundle.path,
+        pid_file=pid_file,
+        gui=gui,
+        ephemeral=True,
+    )
+    inputs = _native_macosvm_input_manifest(bundle)
+    run_timeout = float(duration if duration is not None else observation_timeout)
+    started = time.monotonic()
+    report: dict[str, object] = {
+        "schema": "26x86.macosvm-native/1",
+        "engine": "macosvm",
+        "validation_level": "NATIVE-VIRTUALIZATION-FRAMEWORK",
+        "target_major": target_major,
+        "target_name": "Tahoe" if target_major == 26 else "Golden Gate",
+        "host": host,
+        "vm_bundle": bundle.report(),
+        "command": command,
+        "gui_requested": gui,
+        "ephemeral_storage": True,
+        "storage_isolation": "macosvm --ephemeral APFS clones; base inputs remain read-only",
+        "inputs": inputs,
+        "output": str(destination),
+        "log": str(log_path),
+        "pid_file": str(pid_file),
+        "pid_file_observed": False,
+        "native_runtime_started": False,
+        "xnu_executed": False,
+        "macos_userspace_reached": False,
+        "guest_kernel_major": None,
+        "guest_target_match": False,
+        "macos_boot_verified": False,
+        "full_iboot_xnu_userspace_chain_verified": False,
+        "installer_ui_visible": False,
+        "installation_verified": False,
+        "hardware_attestation_verified": False,
+        "physical_mac_verified": False,
+        "termination": None,
+        "returncode": None,
+        "duration_seconds": None,
+        "input_integrity": False,
+        "error": None,
+    }
+    process: subprocess.Popen[bytes] | None = None
+
+    def write_report() -> None:
+        _write_report(destination, report)
+
+    write_report()
+    try:
+        with log_path.open("xb") as log:
+            process = subprocess.Popen(
+                command,
+                cwd=str(bundle.path.parent),
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+            )
+        report["pid"] = process.pid
+        report["native_runtime_started"] = True
+        write_report()
+
+        startup_deadline = time.monotonic() + min(30.0, run_timeout)
+        while time.monotonic() < startup_deadline:
+            if pid_file.is_file():
+                try:
+                    pid_value = pid_file.read_text(encoding="ascii").strip()
+                    report["macosvm_pid"] = int(pid_value)
+                    report["pid_file_observed"] = True
+                except (OSError, UnicodeDecodeError, ValueError):
+                    report["pid_file_error"] = "macosvm pid file was not an ASCII integer"
+                break
+            if process.poll() is not None:
+                break
+            time.sleep(0.05)
+
+        remaining = max(0.1, min(float(observation_timeout), run_timeout - (time.monotonic() - started)))
+        observation = _observe_direct_macos_boot(
+            log_path,
+            remaining,
+            process,
+            expected_kernel_major=target_major,
+        )
+        report.update({
+            "direct_boot": {
+                "requested": True,
+                "selection": MACOS_ENTRY_ID,
+                "engine": "macosvm",
+                "dfu_entered": False,
+                "recovery_transport_used": False,
+                "observation": observation,
+            },
+            "xnu_executed": bool(observation["xnu_executed"]),
+            "macos_userspace_reached": bool(observation["macos_userspace_reached"]),
+            "guest_kernel_major": observation["guest_kernel_major"],
+            "guest_target_match": bool(observation["guest_target_match"]),
+            "macos_boot_verified": bool(observation["macos_boot_verified"]),
+            "installer_ui_visible": bool(observation["installer_ui_visible"]),
+            "installation_verified": False,
+            "observed_markers": observation["observed_markers"],
+        })
+        write_report()
+
+        deadline = started + run_timeout
+        if process.poll() is None:
+            if not observation["macos_boot_verified"]:
+                report["termination"] = "native-boot-evidence-timeout"
+                process.terminate()
+            else:
+                while process.poll() is None:
+                    if time.monotonic() >= deadline:
+                        report["termination"] = "time_budget"
+                        process.terminate()
+                        break
+                    if (destination / "stop").exists():
+                        report["termination"] = "stop_file"
+                        process.terminate()
+                        break
+                    time.sleep(0.1)
+        if process.poll() is None:
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                report["termination"] = "forced_kill"
+                process.kill()
+                process.wait(timeout=5)
+        report["returncode"] = process.returncode
+        if report.get("termination") is None:
+            report["termination"] = "guest_exit"
+        report["duration_seconds"] = round(time.monotonic() - started, 3)
+        report["input_integrity"] = _inputs_intact(report["inputs"])
+        _apply_iboot_xnu_handoff_gate(report)
+        if not report["input_integrity"]:
+            report["error"] = "One or more macosvm bundle inputs changed during the run"
+        elif not report["macos_boot_verified"]:
+            blockers = report.get("handoff_blockers")
+            report["error"] = (
+                "; ".join(str(item) for item in blockers if item)
+                if isinstance(blockers, list) and blockers
+                else observation["direct_boot_blocker"]
+            )
+        write_report()
+        return report
+    except BaseException as error:
+        if process is not None and process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+        report["duration_seconds"] = round(time.monotonic() - started, 3)
+        report["returncode"] = process.returncode if process is not None else None
+        report["input_integrity"] = _inputs_intact(report["inputs"])
+        report["error"] = f"{type(error).__name__}: {error}"
+        write_report()
+        raise
+
+
+@dataclass(frozen=True)
+class StorageSession:
+    directory: Path
+    aux_base: Path
+    root_base: Path
+    aux_overlay: Path
+    root_overlay: Path
+    aux_offset: int
+    # A seed is a caller-supplied, materialized raw view of a previous
+    # recovery session.  It is used only as a read-only backing layer; the
+    # newly-created qcow2 overlays remain the only writable files.
+    aux_seed: Path | None = None
+    root_seed: Path | None = None
+
+    def arguments(self, executable: Executable, *, allow_bdif_writes: bool = True) -> list[str]:
+        """Build an explicit immutable-base + qcow2-writable graph.
+
+        The optional BDIF property exists only in the project write-enabled
+        QEMU patch.  The upstream VMApple device is read-only at the BDIF
+        command layer, so omitting the property is still a valid read/boot
+        experiment and, crucially, avoids passing an unknown ``-global`` to an
+        otherwise usable upstream binary.
+        """
+        if type(allow_bdif_writes) is not bool:
+            raise ValueError("allow_bdif_writes must be an explicit boolean")
+        aux_size = self.aux_base.stat().st_size - self.aux_offset
+        root_size = self.root_base.stat().st_size
+        if aux_size <= 0 or root_size <= 0 or aux_size % 512 or root_size % 512:
+            raise ValueError("AUX view and root base must be nonempty 512-byte multiples")
+        if _qcow_size(self.aux_overlay) != aux_size or _qcow_size(self.root_overlay) != root_size:
+            raise ValueError("COW overlay size does not match its immutable base view")
+
+        result: list[str] = []
+        if allow_bdif_writes:
+            result.extend(["-global", "vmapple-bdif.allow-block-writes=on"])
+        for index, (role, base, overlay, size, seed) in enumerate((
+            ("aux", self.aux_base, self.aux_overlay, aux_size, self.aux_seed),
+            ("root", self.root_base, self.root_overlay, root_size, self.root_seed),
+        )):
+            # Block node names follow QEMU's identifier grammar (alphanumeric,
+            # dot, and hyphen; underscores are rejected before graph parsing).
+            # QEMU additionally requires the first character to be alphabetic.
+            node_name = "x86" + role
+            original_offset = self.aux_offset if role == "aux" else 0
+            if seed is not None:
+                seed_size = _qcow_size(seed) if _is_qcow2(seed) else seed.stat().st_size
+                if seed_size != size:
+                    raise ValueError(
+                        f"{role.upper()} seed view size does not match its guest backing"
+                    )
+            base_backing = {
+                "driver": "raw",
+                "read-only": True,
+                "offset": original_offset,
+                "file": {"driver": "file", "filename": _guest_path(base, executable),
+                         "read-only": True},
+            }
+            if seed is None:
+                backing: object = base_backing
+            elif _is_qcow2(seed):
+                # A previous session overlay has only the changed clusters;
+                # its unallocated clusters must still fall through to the
+                # original raw base.  Keep it as a read-only qcow2 backing
+                # node instead of incorrectly treating its header as raw.
+                seed_node = node_name + "seed"
+                seed_file = {
+                    "driver": "file",
+                    "node-name": seed_node + "file",
+                    "filename": _guest_path(seed, executable),
+                    "read-only": True,
+                }
+                result.extend(["-blockdev", json.dumps({
+                    "driver": "qcow2",
+                    "node-name": seed_node,
+                    "read-only": True,
+                    "file": seed_file,
+                    "backing": base_backing,
+                }, separators=(",", ":"))])
+                backing = seed_node
+            else:
+                # A raw seed is assumed to be a complete, materialized guest
+                # view and therefore starts at byte zero.
+                backing = {
+                    "driver": "raw",
+                    "read-only": True,
+                    "offset": 0,
+                    "file": {"driver": "file", "filename": _guest_path(seed, executable),
+                             "read-only": True},
+                }
+            node = {
+                "driver": "qcow2",
+                "node-name": node_name,
+                "read-only": False,
+                "file": {"driver": "file", "filename": _guest_path(overlay, executable)},
+                "backing": backing,
+            }
+            result.extend(["-blockdev", json.dumps(node, separators=(",", ":"))])
+            view = "json:" + json.dumps({"driver": "raw", "file": node_name},
+                                         separators=(",", ":"))
+            # QemuOpts uses doubled commas inside a value.
+            result.extend([
+                "-drive", f"if=pflash,index={index},readonly=off,file={view.replace(',', ',,')}",
+                "-drive", f"if=none,id={role}disk,werror=report,rerror=report,"
+                           f"cache=writeback,file={view.replace(',', ',,')}",
+                "-device", f"vmapple-virtio-blk-pci,variant={role},drive={role}disk,share-rw=on",
+            ])
+        return result
+
+
+def _new_directory(value: str | Path | None) -> Path:
+    if value:
+        destination = Path(value).expanduser().absolute()
+        if destination.exists() or destination.is_symlink():
+            raise ValueError(f"Output directory must be new: {destination}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.mkdir()
+        return destination
+    parent = Path(os.environ.get("X86_VMAPLE_OUTPUT_ROOT", tempfile.gettempdir())).expanduser()
+    parent.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="26x86-vmapple-", dir=parent))
+
+
+def create_storage(*, aux: Path, root: Path, directory: Path,
+                   qemu_img: Executable, aux_offset: int,
+                   aux_seed: Path | None = None,
+                   root_seed: Path | None = None) -> StorageSession:
+    if type(aux_offset) is not int or aux_offset < 0 or aux_offset % 512:
+        raise ValueError("AUX offset must be a nonnegative multiple of 512")
+    aux_size = aux.stat().st_size - aux_offset
+    root_size = root.stat().st_size
+    if aux_size <= 0 or root_size <= 0 or aux_size % 512 or root_size % 512:
+        raise ValueError("AUX/root inputs must expose nonempty 512-byte views")
+
+    seeds: dict[str, tuple[Path | None, int]] = {
+        "aux": (aux_seed, aux_size),
+        "root": (root_seed, root_size),
+    }
+    validated_seeds: dict[str, Path | None] = {}
+    for role, (value, expected_size) in seeds.items():
+        if value is None:
+            validated_seeds[role] = None
+            continue
+        seed = _regular(value, f"{role.upper()} seed view")
+        if _is_qcow2(seed):
+            seed_size = _qcow_size(seed)
+        else:
+            seed_size = seed.stat().st_size
+        if seed_size != expected_size:
+            raise ValueError(
+                f"{role.upper()} seed view must expose exactly {expected_size} bytes "
+                f"(got {seed_size})"
+            )
+        validated_seeds[role] = seed
+    storage = directory / "storage"
+    storage.mkdir()
+    overlays = (storage / "aux.qcow2", storage / "root.qcow2")
+    for overlay, size in zip(overlays, (aux_size, root_size)):
+        completed = subprocess.run(
+            qemu_img.command("create", "-f", "qcow2", "-o", "compat=1.1,lazy_refcounts=off",
+                             _guest_path(overlay, qemu_img), str(size)),
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+        if completed.returncode:
+            raise ValueError(f"qemu-img failed to create {overlay.name}: {completed.stderr.strip()}")
+        if _qcow_size(overlay) != size:
+            raise ValueError(f"qemu-img created an unexpected {overlay.name} size")
+    metadata = {
+        "schema": 1,
+        "base_images_read_only": True,
+        "writes": "separate qcow2 overlays",
+        "aux_offset": aux_offset,
+        "bases": {
+            "aux": {"path": str(aux), "bytes": aux.stat().st_size, "sha256": _sha256(aux)},
+            "root": {"path": str(root), "bytes": root.stat().st_size, "sha256": _sha256(root)},
+        },
+        "seed_views": {
+            role: (
+                {"path": str(seed), "bytes": seed.stat().st_size, "format": "qcow2" if _is_qcow2(seed) else "raw",
+                 "sha256": _sha256(seed)}
+                if seed is not None else None
+            )
+            for role, seed in validated_seeds.items()
+        },
+        "macos_boot_verified": False,
+    }
+    (storage / "session.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    return StorageSession(
+        directory, aux, root, overlays[0], overlays[1], aux_offset,
+        validated_seeds["aux"], validated_seeds["root"],
+    )
+
+
+class RecoveryTransport:
+    """Small host transport for the observed VMApple USB chardev framing."""
+
+    def __init__(self, socket_path: str, timeout: float = 5.0):
+        if not hasattr(socket, "AF_UNIX"):
+            raise ValueError("VMApple recovery requires Unix sockets; run it inside WSL/Linux")
+        if not 0 < timeout <= 60:
+            raise ValueError("Recovery socket timeout must be between 0 and 60 seconds")
+        self.path = socket_path
+        self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket.settimeout(timeout)
+        self.timeout = timeout
+        self.deadline = time.monotonic() + timeout
+        try:
+            self.socket.connect(socket_path)
+        except BaseException:
+            self.socket.close()
+            raise
+
+    def __enter__(self) -> "RecoveryTransport":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        """Close the recovery socket and stop any post-boot drain worker."""
+        stop = getattr(self, "_drain_stop", None)
+        thread = getattr(self, "_drain_thread", None)
+        if stop is not None:
+            stop.set()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        self.socket.close()
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=1.0)
+        self._drain_stop = None
+        self._drain_thread = None
+
+    def start_passive_drain(self) -> None:
+        """Keep post-boot USB framing alive without inventing guest replies.
+
+        iBoot can continue to post USB IN/OUT descriptors after the host sends
+        ``bootx``.  The restore protocol does not define a host-side success
+        response for those later frames, so the worker only drains bytes that
+        QEMU emits.  It never writes to the socket and therefore cannot turn
+        transport liveness into guest acceptance evidence.
+        """
+        if getattr(self, "_drain_thread", None) is not None:
+            return
+        stop = threading.Event()
+        self._drain_stop = stop
+
+        def drain() -> None:
+            self.socket.settimeout(0.25)
+            while not stop.is_set():
+                try:
+                    if not self.socket.recv(64 * 1024):
+                        return
+                except socket.timeout:
+                    continue
+                except OSError:
+                    return
+
+        thread = threading.Thread(
+            target=drain,
+            name="vmapple-recovery-passive-drain",
+            daemon=True,
+        )
+        self._drain_thread = thread
+        thread.start()
+
+    def _read_exact(self, count: int) -> bytes:
+        data = bytearray()
+        while len(data) < count:
+            remaining = self.deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Recovery socket deadline exceeded")
+            self.socket.settimeout(remaining)
+            chunk = self.socket.recv(count - len(data))
+            if not chunk:
+                raise RecoveryProtocolError("Recovery socket closed mid-frame")
+            data.extend(chunk)
+        return bytes(data)
+
+    def _receive(self, expected_type: int, endpoint: int = 0) -> bytes:
+        size = struct.unpack("<I", self._read_exact(4))[0]
+        if not 2 <= size <= MAX_FRAME_BYTES:
+            raise RecoveryProtocolError("Invalid recovery frame length")
+        response = self._read_exact(size)
+        if response == bytes((2, endpoint)):
+            raise RecoveryProtocolError(f"Guest USB endpoint stalled: {response.hex()}")
+        if len(response) < 2 or response[0] != expected_type or response[1] != endpoint:
+            raise RecoveryProtocolError("Guest reported an unexpected transfer type or endpoint")
+        return response[2:]
+
+    def _send(self, transfer_type: int, data: bytes, endpoint: int = 0) -> None:
+        packet = struct.pack("<iBB", len(data), endpoint, transfer_type) + data
+        if len(packet) > MAX_FRAME_BYTES:
+            raise ValueError("Recovery packet exceeds the transport bound")
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Recovery socket deadline exceeded")
+        self.socket.settimeout(remaining)
+        self.socket.sendall(struct.pack("<I", len(packet)) + packet)
+
+    def control(self, request_type: int, request: int, value: int = 0, index: int = 0,
+                *, length: int = 0, data: bytes = b"", deadline: float | None = None) -> bytes:
+        fields = (request_type, request, value, index, length)
+        if not all(type(item) is int for item in fields):
+            raise ValueError("USB setup fields must be integers")
+        if not (0 <= request_type <= 255 and 0 <= request <= 255
+                and 0 <= value <= 65535 and 0 <= index <= 65535
+                and 0 <= length <= 65535):
+            raise ValueError("USB setup field out of range")
+        incoming = bool(request_type & 0x80)
+        if (incoming and data) or (not incoming and length != len(data)):
+            raise ValueError("USB direction and data phase disagree")
+        setup = struct.pack("<BBHHH", request_type, request, value, index, length)
+        self.deadline = time.monotonic() + self.timeout
+        if deadline is not None:
+            if isinstance(deadline, bool) or not isinstance(deadline, (int, float)):
+                raise ValueError("USB transfer deadline must be a monotonic timestamp")
+            self.deadline = min(self.deadline, float(deadline))
+        self._send(1, setup + data)
+        payload = self._receive(1)
+        if incoming and len(payload) > length:
+            raise RecoveryProtocolError("Guest returned more USB data than requested")
+        if not incoming and payload:
+            raise RecoveryProtocolError("Unexpected payload on USB OUT completion")
+        return payload
+
+    def descriptor(self, kind: int, index: int = 0, length: int = 255,
+                   language: int | None = None, *, deadline: float | None = None) -> bytes:
+        language_id = (0x409 if kind == 3 else 0) if language is None else language
+        return self.control(0x80, 6, kind << 8 | index, language_id,
+                            length=length, deadline=deadline)
+
+    def dfu_state(self, *, deadline: float | None = None) -> int:
+        data = self.control(0xA1, 5, length=1, deadline=deadline)
+        if len(data) != 1 or data[0] > 10:
+            raise RecoveryProtocolError("DFU GETSTATE did not return one valid byte")
+        return data[0]
+
+    def dfu_status(self, *, deadline: float | None = None) -> dict[str, int | str]:
+        data = self.control(0xA1, 3, length=6, deadline=deadline)
+        if len(data) != 6 or data[0] > 15 or data[4] > 10:
+            raise RecoveryProtocolError("DFU GETSTATUS did not return six valid bytes")
+        return {"raw": data.hex(), "status": data[0],
+                "poll_timeout_ms": int.from_bytes(data[1:4], "little"),
+                "state": data[4], "string_index": data[5]}
+
+    def _wait_state(self, target: int, transient: set[int], deadline: float,
+                    records: list[dict[str, int | str]]) -> None:
+        while True:
+            if time.monotonic() >= deadline:
+                raise TimeoutError("DFU state deadline exceeded")
+            status = self.dfu_status()
+            records.append(status)
+            if status["status"]:
+                raise RecoveryProtocolError(f"Guest DFU error {status['status']}")
+            if status["state"] == target:
+                return
+            if status["state"] not in transient:
+                raise RecoveryProtocolError(f"Unexpected DFU state {status['state']}; expected {target}")
+            time.sleep(min(max(float(status["poll_timeout_ms"]) / 1000, 0.001), 0.25))
+
+    def usb_reset(self, *, deadline: float | None = None) -> None:
+        self.deadline = time.monotonic() + self.timeout
+        if deadline is not None:
+            self.deadline = min(self.deadline, deadline)
+        self._send(2, b"")
+        if self._receive(4):
+            raise RecoveryProtocolError("USB reset acknowledgement contained a payload")
+
+    def bulk_out(self, data: bytes, endpoint: int = 4, *, deadline: float | None = None) -> None:
+        self.deadline = time.monotonic() + self.timeout
+        if deadline is not None:
+            self.deadline = min(self.deadline, deadline)
+        self._send(1, data, endpoint)
+        if self._receive(1, endpoint):
+            raise RecoveryProtocolError("Bulk OUT acknowledgement contained a payload")
+
+    def bulk_in(self, endpoint: int = 0x81, *, deadline: float | None = None) -> bytes:
+        """Request one queued USB IN transfer without fabricating a response."""
+        if type(endpoint) is not int or not 0x81 <= endpoint <= 0x8F:
+            raise ValueError("USB bulk IN endpoint must be in the 0x81..0x8f range")
+        self.deadline = time.monotonic() + self.timeout
+        if deadline is not None:
+            self.deadline = min(self.deadline, deadline)
+        self._send(1, b"", endpoint)
+        return self._receive(1, endpoint)
+
+    def send_command(self, command: str, *, request: int = 0,
+                     deadline: float | None = None) -> bytes:
+        """Send an iBoot command; the ACK is transport evidence only."""
+        if not isinstance(command, str) or not 0 < len(command) < 256:
+            raise ValueError("iBoot command must contain 1..255 bytes")
+        encoded = command.encode("ascii")
+        if any(value < 32 or value > 126 for value in encoded):
+            raise ValueError("iBoot command must be printable ASCII")
+        return self.control(0x40, request, length=len(encoded) + 1,
+                            data=encoded + b"\0", deadline=deadline)
+
+    def configure_recovery(self, *, deadline: float | None = None) -> dict[str, object]:
+        """Select a genuine Apple recovery configuration and endpoint 4."""
+        device = self.descriptor(1, length=18, deadline=deadline)
+        if (len(device) != 18 or device[:2] != b"\x12\x01"
+                or device[8:10] != b"\xac\x05"
+                or not 0x1280 <= int.from_bytes(device[10:12], "little") <= 0x1283):
+            raise RecoveryProtocolError("Expected an actual Apple iBEC recovery device")
+        header = self.descriptor(2, length=9, deadline=deadline)
+        if len(header) != 9 or header[:2] != b"\x09\x02":
+            raise RecoveryProtocolError("Missing recovery configuration header")
+        length = int.from_bytes(header[2:4], "little")
+        if not 9 <= length <= 4096:
+            raise RecoveryProtocolError("Recovery configuration length is out of bounds")
+        configuration = self.descriptor(2, length=length, deadline=deadline)
+        if len(configuration) != length or configuration[:9] != header:
+            raise RecoveryProtocolError("Recovery configuration descriptor is inconsistent")
+        endpoint: int | None = None
+        offset = 0
+        while offset < length:
+            size = configuration[offset]
+            if size < 2 or offset + size > length:
+                raise RecoveryProtocolError("Invalid recovery USB descriptor structure")
+            item = configuration[offset:offset + size]
+            if item[1] == 5 and size >= 7 and item[2] == 4 and item[3] & 3 == 2:
+                endpoint = item[2]
+            offset += size
+        if endpoint != 4:
+            raise RecoveryProtocolError("Recovery bulk OUT endpoint 4 was not advertised")
+        self.control(0x00, 9, value=configuration[5], deadline=deadline)
+        return {"device_descriptor_hex": device.hex(),
+                "configuration_hex": configuration.hex(),
+                "configuration_value": configuration[5],
+                "bulk_out_endpoint": endpoint}
+
+    def send_dfu_file(self, path: Path, *, expected_sha256: str | None = None,
+                      total_timeout: float = 300, reset: bool = True) -> dict[str, object]:
+        image = path.read_bytes()
+        if not 0 < len(image) <= MAX_DFU_BYTES:
+            raise ValueError("iBSS input must be between 1 byte and 64 MiB")
+        digest = hashlib.sha256(image).hexdigest()
+        if expected_sha256 and digest != expected_sha256.lower():
+            raise ValueError("iBSS SHA-256 does not match the requested artifact")
+        suffix = DFU_SUFFIX + struct.pack("<I", zlib.crc32(image + DFU_SUFFIX) ^ 0xFFFFFFFF)
+        wire = image + suffix
+        deadline = time.monotonic() + total_timeout
+        report: dict[str, object] = {
+            "schema": 1, "image_path": str(path), "image_size": len(image),
+            "image_sha256": digest, "dfu_suffix_hex": suffix.hex(), "bytes_sent": 0,
+            "image_bytes_sent": 0, "blocks": [], "manifest_statuses": [],
+            "transfer_complete": False, "usb_reset_acknowledged": False,
+            "guest_responses_preserved": True, "signature_acceptance_verified": False,
+            "macos_boot_verified": False, "input_integrity": False, "error": None,
+        }
+        try:
+            initial = self.dfu_state()
+            report["initial_state"] = initial
+            if initial != 2:
+                raise RecoveryProtocolError(f"DFU upload requires IDLE state 2; got {initial}")
+            for number, offset in enumerate(range(0, len(wire), DFU_BLOCK_BYTES)):
+                block = wire[offset:offset + DFU_BLOCK_BYTES]
+                self.control(0x21, 1, value=number, length=len(block), data=block)
+                report["bytes_sent"] = int(report["bytes_sent"]) + len(block)
+                report["image_bytes_sent"] = min(int(report["bytes_sent"]), len(image))
+                entry: dict[str, object] = {"number": number, "size": len(block), "statuses": []}
+                cast_blocks = report["blocks"]
+                assert isinstance(cast_blocks, list)
+                cast_blocks.append(entry)
+                self._wait_state(5, {3, 4}, deadline, entry["statuses"])  # type: ignore[arg-type]
+            self.control(0x21, 1, value=len(report["blocks"]))  # type: ignore[arg-type]
+            self._wait_state(8, {6, 7}, deadline, report["manifest_statuses"])  # type: ignore[arg-type]
+            report["final_state"] = self.dfu_state()
+            if report["final_state"] != 8:
+                raise RecoveryProtocolError("DFU state changed before USB reset")
+            report["transfer_complete"] = True
+            if reset:
+                self.usb_reset()
+                report["usb_reset_acknowledged"] = True
+        except BaseException as error:
+            report["error"] = f"{type(error).__name__}: {error}"
+            raise
+        finally:
+            report["input_integrity"] = _sha256(path) == digest
+            if not report["input_integrity"]:
+                report["error"] = "iBSS source changed during upload"
+        return report
+
+    def probe(self) -> dict[str, object]:
+        device = self.descriptor(1, length=18)
+        if len(device) != 18 or device[:2] != b"\x12\x01":
+            raise RecoveryProtocolError("Missing complete USB device descriptor")
+        vendor, product = struct.unpack_from("<HH", device, 8)
+        header = self.descriptor(2, length=9)
+        if len(header) != 9 or header[:2] != b"\x09\x02":
+            raise RecoveryProtocolError("Missing USB configuration header")
+        length = int.from_bytes(header[2:4], "little")
+        if not 9 <= length <= 4096:
+            raise RecoveryProtocolError("USB configuration length is out of bounds")
+        configuration = self.descriptor(2, length=length)
+        if len(configuration) != length or configuration[:9] != header:
+            raise RecoveryProtocolError("USB configuration descriptor is inconsistent")
+        endpoint: int | None = None
+        offset = 0
+        while offset < length:
+            size = configuration[offset]
+            if size < 2 or offset + size > length:
+                raise RecoveryProtocolError("Invalid USB descriptor structure")
+            item = configuration[offset:offset + size]
+            if item[1] == 5 and size >= 7 and item[2] == 4 and item[3] & 3 == 2:
+                endpoint = item[2]
+            offset += size
+        dfu_state_value: int | None = None
+        dfu_status_value: dict[str, int | str] | None = None
+        dfu_control_error: str | None = None
+        try:
+            dfu_state_value = self.dfu_state()
+            dfu_status_value = self.dfu_status()
+        except (RecoveryProtocolError, OSError, TimeoutError) as error:
+            # iBEC is a recovery interface, not necessarily a DFU class
+            # interface. Keep the descriptor evidence and make this optional
+            # control failure explicit instead of hiding a bulk endpoint.
+            dfu_control_error = f"{type(error).__name__}: {error}"
+        result = {
+            "usb_vendor": f"{vendor:04x}", "usb_product": f"{product:04x}",
+            "device_descriptor_hex": device.hex(),
+            "configuration_hex": configuration.hex(),
+            "configuration_value": configuration[5],
+            "bulk_out_endpoint": endpoint,
+            "dfu_state": dfu_state_value,
+            "dfu_status": dfu_status_value,
+        }
+        if dfu_control_error:
+            result["dfu_control_error"] = dfu_control_error
+        return result
+
+    def send_recovery_file(self, path: Path, *, total_timeout: float = 300,
+                           expected_sha256: str | None = None) -> dict[str, object]:
+        image = path.read_bytes()
+        if not 0 < len(image) <= MAX_RECOVERY_BYTES:
+            raise ValueError("iBEC input must be between 1 byte and 512 MiB")
+        digest = hashlib.sha256(image).hexdigest()
+        if expected_sha256 is not None and digest != expected_sha256.lower():
+            raise ValueError("Recovery image SHA-256 does not match the expected generated artifact")
+        deadline = time.monotonic() + total_timeout
+        report: dict[str, object] = {
+            "schema": 1, "image_path": str(path), "image_size": len(image),
+            "image_sha256": digest, "bytes_sent": 0, "blocks": [],
+            "transfer_complete": False, "signature_acceptance_verified": False,
+            "macos_boot_verified": False, "input_integrity": False, "error": None,
+        }
+        try:
+            self.control(0x41, 0)
+            for offset in range(0, len(image), 0x8000):
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("iBEC upload deadline exceeded")
+                block = image[offset:offset + 0x8000]
+                self.bulk_out(block)
+                report["bytes_sent"] = int(report["bytes_sent"]) + len(block)
+                report["blocks"].append({"offset": offset, "size": len(block), "acknowledged": True})
+            if len(image) % 512 == 0:
+                self.bulk_out(b"")
+                report["zero_length_packet"] = True
+            report["transfer_complete"] = True
+        except BaseException as error:
+            report["error"] = f"{type(error).__name__}: {error}"
+            raise
+        finally:
+            report["input_integrity"] = _sha256(path) == digest
+            if not report["input_integrity"]:
+                report["error"] = "iBEC source changed during upload"
+        return report
+
+
+def _wait_for_socket(socket_path: str, process: subprocess.Popen[bytes], timeout: float) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise VMappleError(f"QEMU exited before the recovery socket appeared: {process.returncode}")
+        if Path(socket_path).exists():
+            return
+        time.sleep(0.05)
+    raise TimeoutError(f"Recovery socket did not appear: {socket_path}")
+
+
+def _terminate_process(process: subprocess.Popen[bytes] | None, *, wait_timeout: float = 5.0) -> dict[str, object]:
+    """Terminate a QEMU child without allowing cleanup to become unbounded.
+
+    Recovery evidence is useful only while the child is still observable.  A
+    guest panic or a missing UART marker must therefore take the same bounded
+    terminate -> wait -> kill path as an explicit stop request.  The returned
+    record is intentionally serializable so callers can preserve whether the
+    child actually exited during cleanup.
+    """
+    cleanup: dict[str, object] = {
+        "requested": process is not None,
+        "forced": False,
+        "complete": False,
+    }
+    if process is None:
+        cleanup["reason"] = "no-process"
+        return cleanup
+
+    try:
+        initial_returncode = process.poll()
+    except OSError as error:
+        cleanup["error"] = f"{type(error).__name__}: {error}"
+        cleanup["reason"] = "poll-failed"
+        return cleanup
+    if initial_returncode is not None:
+        cleanup.update({
+            "already_exited": True,
+            "complete": True,
+            "returncode": initial_returncode,
+        })
+        return cleanup
+
+    bounded_timeout = max(0.1, min(float(wait_timeout), 30.0))
+    try:
+        process.terminate()
+        cleanup["terminate_requested"] = True
+    except OSError as error:
+        cleanup["terminate_error"] = f"{type(error).__name__}: {error}"
+    try:
+        process.wait(timeout=bounded_timeout)
+    except subprocess.TimeoutExpired:
+        cleanup["forced"] = True
+        try:
+            process.kill()
+            cleanup["kill_requested"] = True
+        except OSError as error:
+            cleanup["kill_error"] = f"{type(error).__name__}: {error}"
+        try:
+            process.wait(timeout=bounded_timeout)
+        except subprocess.TimeoutExpired:
+            cleanup["wait_error"] = "process did not exit after kill"
+        except OSError as error:
+            cleanup["wait_error"] = f"{type(error).__name__}: {error}"
+    except OSError as error:
+        cleanup["wait_error"] = f"{type(error).__name__}: {error}"
+
+    try:
+        final_returncode = process.poll()
+    except OSError as error:
+        cleanup["poll_error"] = f"{type(error).__name__}: {error}"
+        final_returncode = None
+    cleanup["complete"] = final_returncode is not None
+    cleanup["returncode"] = final_returncode
+    return cleanup
+
+
+def _inputs_intact(inputs: object) -> bool:
+    """Re-hash caller inputs without ever opening them for writing."""
+    if not isinstance(inputs, dict) or not inputs:
+        return False
+    for item in inputs.values():
+        if not isinstance(item, dict):
+            return False
+        path_value = item.get("path")
+        expected = item.get("sha256")
+        if not isinstance(path_value, str) or not isinstance(expected, str):
+            return False
+        try:
+            path = Path(path_value)
+            if not path.is_file() or _sha256(path) != expected.lower():
+                return False
+        except (OSError, ValueError):
+            return False
+    return True
+
+
+def _write_report(output: Path, report: dict[str, object]) -> None:
+    """Persist a UTF-8 report atomically enough for GUI readers."""
+    temporary = output / "launch.json.tmp"
+    temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(output / "launch.json")
+
+
+def _probe_transition(socket_path: str, timeout: float) -> dict[str, object]:
+    """Poll real descriptors after reset; never synthesize a next-stage device."""
+    deadline = time.monotonic() + timeout
+    attempts: list[dict[str, object]] = []
+    last: dict[str, object] | None = None
+    # The old 240-attempt cap made a nominal five-minute timeout end after
+    # roughly 24 seconds.  Keep the historical minimum for fast tests, but
+    # let a caller-supplied deadline actually bound the observation window.
+    attempt_limit = max(MAX_TRANSITION_ATTEMPTS, int(timeout / 0.1) + 1)
+    while time.monotonic() < deadline and len(attempts) < attempt_limit:
+        try:
+            with RecoveryTransport(socket_path, timeout=min(2.0, max(deadline - time.monotonic(), 0.1))) as transport:
+                last = transport.probe()
+                if last.get("bulk_out_endpoint") == 4:
+                    value = last.get("configuration_value")
+                    if not isinstance(value, int) or not 0 <= value <= 255:
+                        raise RecoveryProtocolError("Recovery configuration value is missing")
+                    # iBEC exposes a bulk recovery interface rather than a
+                    # DFU class interface; select its real configuration
+                    # before any endpoint transfer.
+                    transport.control(0x00, 9, value=value)
+                    last["configuration_selected"] = True
+            attempts.append(last)
+            if last.get("bulk_out_endpoint") == 4:
+                return {"state": "ibec-ready", "attempts": attempts, "last": last,
+                        "forced_transition": False}
+        except (OSError, TimeoutError, RecoveryProtocolError) as error:
+            attempts.append({"error": f"{type(error).__name__}: {error}"})
+        time.sleep(0.1)
+    return {
+        "state": "transition-blocked",
+        "attempts": attempts[-MAX_TRANSITION_ATTEMPTS:],
+        "last": last,
+        "forced_transition": False,
+        "reason": "iBSS remained in DFU or the recovery endpoint was not advertised",
+    }
+
+
+def _read_log_tail(path: Path) -> tuple[int, bytes]:
+    """Read a bounded UART tail and return its absolute file offset."""
+    size = path.stat().st_size
+    start = max(0, size - MAX_LOG_BYTES)
+    with path.open("rb") as stream:
+        stream.seek(start)
+        return start, stream.read(MAX_LOG_BYTES)
+
+
+def _wait_serial_marker(path: Path, marker: bytes, timeout: float,
+                        process: subprocess.Popen[bytes] | None = None) -> dict[str, object]:
+    """Observe a UART marker and stop early on a terminal iBoot panic."""
+    if not 0 < timeout <= 3600:
+        raise ValueError("UART marker timeout must be between 0 and 3600 seconds")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            # UART logs can grow without bound while a guest is alive.  The
+            # marker is emitted near the transition, so retaining only the
+            # bounded tail gives the same evidence without repeatedly loading
+            # an unbounded file into the runner.
+            start, data = _read_log_tail(path)
+        except OSError:
+            start = 0
+            data = b""
+        position = data.find(marker)
+        stage2_start_position = data.find(STAGE2_SERIAL_START)
+        panic_position = data.find(IBOOT_PANIC_MARKER)
+        if position >= 0 and (panic_position < 0 or position <= panic_position):
+            result: dict[str, object] = {
+                "observed": True, "marker": marker.decode("ascii"),
+                "byte_offset": start + position, "panic_observed": False,
+            }
+            if stage2_start_position >= 0 and stage2_start_position <= position:
+                result["stage2_serial_started"] = True
+                result["stage2_serial_start_marker"] = STAGE2_SERIAL_START.decode("ascii")
+                result["stage2_serial_start_byte_offset"] = start + stage2_start_position
+            return result
+        if panic_position >= 0:
+            result = {
+                "observed": False,
+                "marker": marker.decode("ascii"),
+                "panic_observed": True,
+                "panic_marker": IBOOT_PANIC_MARKER.decode("ascii"),
+                "panic_byte_offset": start + panic_position,
+                "reason": "iBoot panic marker was observed before the requested UART marker",
+            }
+            if stage2_start_position >= 0 and stage2_start_position <= panic_position:
+                result["stage2_serial_started"] = True
+                result["stage2_serial_start_marker"] = STAGE2_SERIAL_START.decode("ascii")
+                result["stage2_serial_start_byte_offset"] = start + stage2_start_position
+            return result
+        if process is not None and process.poll() is not None:
+            break
+        time.sleep(min(0.1, max(0.0, deadline - time.monotonic())))
+    result = {"observed": False, "marker": marker.decode("ascii"),
+              "panic_observed": False,
+              "reason": "UART marker was not observed before the guest exited or deadline"}
+    try:
+        start, data = _read_log_tail(path)
+    except OSError:
+        start, data = 0, b""
+    stage2_start_position = data.find(STAGE2_SERIAL_START)
+    if stage2_start_position >= 0:
+        result["stage2_serial_started"] = True
+        result["stage2_serial_start_marker"] = STAGE2_SERIAL_START.decode("ascii")
+        result["stage2_serial_start_byte_offset"] = start + stage2_start_position
+    return result
+
+
+def _observe_direct_macos_boot(
+    path: Path,
+    timeout: float,
+    process: subprocess.Popen[bytes] | None = None,
+    expected_kernel_major: int | None = None,
+) -> dict[str, object]:
+    """Observe the direct AVPBooter -> XNU -> macOS userspace boundary.
+
+    This is intentionally a UART observer rather than a synthetic boot
+    success hook.  The current VMApple QEMU research backend may expose only a
+    serial channel, and macOS may not print every marker on every build.  The
+    report therefore keeps each observed marker and byte offset, and only
+    raises ``macos_boot_verified`` after both an XNU and a userspace marker are
+    present in the same run.
+    """
+    if not 0 < timeout <= MACOSVM_MAX_RUN_TIMEOUT:
+        raise ValueError(
+            "Direct macOS observation timeout must be between 0 and "
+            f"{int(MACOSVM_MAX_RUN_TIMEOUT)} seconds"
+        )
+    if (
+        expected_kernel_major is not None
+        and (
+            isinstance(expected_kernel_major, bool)
+            or not isinstance(expected_kernel_major, int)
+            or not 1 <= expected_kernel_major <= 99
+        )
+    ):
+        raise ValueError("expected Darwin kernel major must be between 1 and 99")
+    categories = (
+        ("xnu", DIRECT_XNU_MARKERS),
+        ("userspace", DIRECT_USERSPACE_MARKERS),
+        ("installer", DIRECT_INSTALLER_MARKERS),
+    )
+    observed: dict[str, list[dict[str, object]]] = {name: [] for name, _ in categories}
+    seen_offsets: set[tuple[str, int]] = set()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            start, data = _read_log_tail(path)
+        except OSError:
+            start, data = 0, b""
+        for category, markers in categories:
+            for marker in markers:
+                position = data.find(marker)
+                if position < 0:
+                    continue
+                absolute = start + position
+                key = (category, absolute)
+                if key in seen_offsets:
+                    continue
+                seen_offsets.add(key)
+                evidence: dict[str, object] = {
+                    "marker": marker.decode("ascii"),
+                    "byte_offset": absolute,
+                }
+                if category == "xnu":
+                    version = _DARWIN_KERNEL_VERSION_RE.search(data[position:position + 256])
+                    if version is not None:
+                        evidence["kernel_major"] = int(version.group(1))
+                observed[category].append(evidence)
+        if observed["xnu"] and observed["userspace"]:
+            break
+        if process is not None and process.poll() is not None:
+            break
+        time.sleep(min(0.1, max(0.0, deadline - time.monotonic())))
+
+    kernel_majors = sorted({
+        int(item["kernel_major"])
+        for item in observed["xnu"]
+        if isinstance(item, dict) and isinstance(item.get("kernel_major"), int)
+    })
+    guest_kernel_major = kernel_majors[0] if len(kernel_majors) == 1 else None
+    if expected_kernel_major is None:
+        guest_target_match = True
+    else:
+        guest_target_match = expected_kernel_major in kernel_majors
+    xnu_executed = bool(observed["xnu"])
+    userspace_reached = bool(observed["userspace"])
+    macos_boot_verified = xnu_executed and userspace_reached and guest_target_match
+    if macos_boot_verified:
+        blocker = None
+    elif not xnu_executed:
+        blocker = "Direct macOS path did not emit a Darwin/XNU UART marker"
+    elif not userspace_reached:
+        blocker = "XNU UART evidence was observed, but macOS userspace did not reach launchd/loginwindow/WindowServer"
+    elif expected_kernel_major is not None and not kernel_majors:
+        blocker = "Darwin/XNU UART evidence lacked a version matching the requested macOS target"
+    elif expected_kernel_major is not None:
+        blocker = (
+            "Darwin/XNU kernel major does not match the requested macOS target "
+            f"(observed={kernel_majors}, expected={expected_kernel_major})"
+        )
+    else:  # defensive branch for future marker policy changes
+        blocker = "Direct macOS boot evidence was incomplete"
+    # Preserve a separate iBoot-stage verdict.  The existing XNU/userspace
+    # gate remains intentionally compatible with direct boots that do not
+    # print an iBoot banner, while callers that require the complete
+    # iBoot->XNU chain can require ``boot_chain_evidence`` below.  Offsets are
+    # rebased from the bounded UART tail to the absolute file position.
+    try:
+        from .boot_evidence import parse_uart_evidence
+
+        evidence_start, evidence_data = _read_log_tail(path)
+        boot_chain_evidence = parse_uart_evidence(
+            evidence_data, expected_kernel_major=expected_kernel_major
+        )
+        for entries in boot_chain_evidence.get("observed_markers", {}).values():
+            if isinstance(entries, list):
+                for entry in entries:
+                    if isinstance(entry, dict) and isinstance(entry.get("byte_offset"), int):
+                        entry["byte_offset"] += evidence_start
+        boot_chain_evidence["log_tail_start"] = evidence_start
+    except (OSError, TypeError, ValueError) as error:
+        # A missing/rotating UART file is evidence-unavailable, not a reason
+        # to alter the conservative XNU/userspace result above.
+        boot_chain_evidence = {
+            "iboot_executed": False,
+            "iboot_stage1_verified": False,
+            "iboot_stage2_verified": False,
+            "iboot_to_xnu_handoff_verified": False,
+            "evidence_unavailable": f"{type(error).__name__}: {error}",
+        }
+    return {
+        "xnu_executed": xnu_executed,
+        "macos_userspace_reached": userspace_reached,
+        "expected_kernel_major": expected_kernel_major,
+        "guest_kernel_major": guest_kernel_major,
+        "guest_kernel_majors": kernel_majors,
+        "guest_target_match": guest_target_match,
+        "macos_boot_verified": macos_boot_verified,
+        "installer_ui_visible": bool(observed["installer"]),
+        # Reaching userspace is not proof that a Golden Gate installation was
+        # performed; an installation receipt or an explicit installer UI
+        # observation is required for that separate claim.
+        "installation_verified": False,
+        "observed_markers": observed,
+        "boot_chain_evidence": boot_chain_evidence,
+        "direct_boot_blocker": blocker,
+        "observation_timeout_seconds": timeout,
+    }
+
+
+def _apply_iboot_xnu_handoff_gate(report: dict[str, object]) -> dict[str, object]:
+    """Apply the causal iBoot -> XNU -> userspace gate to one run report.
+
+    This is the final guest-visible boot boundary for both native macosvm and
+    the QEMU control-plane runner.  The UART observer may find useful markers,
+    but the public ``macos_boot_verified`` bit is not allowed to remain true
+    unless the independent handoff contract also accepts the unchanged-input
+    report.  A malformed positive claim is converted into a blocked report;
+    it is never treated as success.
+    """
+    from .iboot_handoff import HandoffContractError, verify_handoff_report
+
+    target = report.get("target_major")
+    expected = target if isinstance(target, int) and not isinstance(target, bool) else None
+    try:
+        handoff = verify_handoff_report(report, expected_target_major=expected)
+    except HandoffContractError as error:
+        handoff = {
+            "schema": "26x86.iboot-xnu-handoff/1",
+            "valid": False,
+            "error": f"{type(error).__name__}: {error}",
+            "claims": {
+                "signature_acceptance_verified": False,
+                "xnu_executed": False,
+                "macos_userspace_reached": False,
+                "macos_boot_verified": False,
+            },
+        }
+    report["iboot_xnu_handoff"] = handoff
+    claims = handoff.get("claims") if isinstance(handoff, dict) else None
+    report["macos_boot_verified"] = bool(
+        isinstance(handoff, dict)
+        and handoff.get("valid") is True
+        and isinstance(claims, dict)
+        and claims.get("macos_boot_verified") is True
+        and report.get("input_integrity") is True
+    )
+    direct = report.get("direct_boot")
+    observation = direct.get("observation") if isinstance(direct, dict) else None
+    chain = observation.get("boot_chain_evidence") if isinstance(observation, dict) else None
+    report["full_iboot_xnu_userspace_chain_verified"] = bool(
+        isinstance(chain, dict)
+        and chain.get("iboot_to_xnu_handoff_verified") is True
+        and chain.get("xnu_to_userspace_handoff_verified") is True
+        and chain.get("xnu_executed") is True
+        and chain.get("macos_userspace_reached") is True
+        and chain.get("guest_target_match") is True
+    )
+    if not report["macos_boot_verified"] and isinstance(handoff, dict):
+        report.setdefault("handoff_blockers", handoff.get("blockers", []))
+    return handoff
+
+
+def _command_for(config: "VMappleConfig", executable: Executable, storage: StorageSession,
+                 socket_path: str, output: Path, *,
+                 bdif_block_writes: bool = True,
+                 display_backend: str | None = None) -> list[str]:
+    guest_firmware = _guest_path(config.firmware, executable)
+    guest_serial = _guest_path(output / "serial.log", executable)
+    guest_trace = _guest_path(output / "transport.log", executable)
+    use_hvf = config.boot_selection == MACOS_ENTRY_ID and _direct_macos_hvf_host()
+    machine = f"vmapple,uuid={config.uuid}"
+    accelerator = "hvf" if use_hvf else "tcg,thread=single"
+    cpu = "host" if use_hvf else "max,pauth=on,pauth-qarma5=on,cntfrq=24000000"
+    if not use_hvf:
+        machine = f"vmapple,research-headless=on,uuid={config.uuid}"
+        if config.research_graphics:
+            machine = f"vmapple,research-headless=on,research-graphics=on,uuid={config.uuid}"
+        if config.research_stage2:
+            machine = machine.replace(
+                "research-headless=on",
+                "research-headless=on,research-stage2=on",
+                1,
+            )
+    direct_macos = config.boot_selection == MACOS_ENTRY_ID
+    effective_display = display_backend or _effective_display_backend(
+        config.display, direct_macos=direct_macos
+    )
+    args: list[str] = [
+        "-M", machine,
+        "-accel", accelerator,
+        "-cpu", cpu,
+        "-m", f"{config.memory_mib}M", "-smp", str(config.smp),
+        "-bios", guest_firmware,
+        # Pin the guest-facing M1 identity explicitly instead of relying only
+        # on QEMU's defaults.  This is a metadata selection for iBoot probing,
+        # not a claim that the host is Apple silicon.
+        "-global", f"vmapple-cfg.soc_name={VIRTUAL_SOC_NAME}",
+        "-global", f"vmapple-cfg.model={VIRTUAL_MODEL}",
+    ]
+    try:
+        storage_arguments = storage.arguments(
+            executable, allow_bdif_writes=bdif_block_writes
+        )
+    except TypeError as error:
+        # Keep small third-party/test storage adapters source-compatible
+        # with the pre-capability API.  The project StorageSession above
+        # always accepts the keyword, so a genuine storage failure is not
+        # hidden here.
+        if "allow_bdif_writes" not in str(error):
+            raise
+        storage_arguments = storage.arguments(executable)
+    args.extend(storage_arguments)
+    args.extend([
+        "-display", effective_display, "-monitor", "none",
+        "-serial", f"file:{guest_serial}", "-nic", "none", "-no-reboot",
+        "-d", "guest_errors,unimp",
+    ])
+    if not direct_macos:
+        # Recovery alone owns the USB chardev.  Direct AVPBooter entry must
+        # expose the same device graph as the documented normal VMApple
+        # launch; attaching a DFU socket here can change the BDIF config that
+        # iBoot sees before it ever reads the installed guest disk.
+        args.extend([
+            "-chardev", f"socket,id=vusb,path={socket_path},server=on,wait=off",
+            "-global", "vmapple-bdif.usbdev=vusb",
+            # This switch is an explicit negative-capability experiment.  It
+            # is deliberately absent from the normal path because the
+            # original iBSS faults when the optional region is advertised as
+            # unavailable.
+            "-trace", f"enable=bdif_*,file={guest_trace}",
+        ])
+    if config.optional_rpc_unavailable and not direct_macos:
+        args.extend([
+            "-global", "vmapple-cfg.optional-rpc-unavailable=on",
+            # QEMU's trace parser treats commas as option separators, so the
+            # optional pattern must use its own -trace option.
+            "-trace", f"enable=vmapple_optional_rpc_*,file={guest_trace}",
+        ])
+    extra_trace = os.environ.get("VENFIRE_EXTRA_TRACE", "")
+    if extra_trace and not direct_macos:
+        args.extend(["-trace", f"enable={extra_trace},file={guest_trace}"])
+    return executable.command(*args)
+
+
+@dataclass(frozen=True)
+class VMappleConfig:
+    target_major: int
+    qemu: str | None
+    firmware: str
+    ibss: str
+    aux: str
+    root: str
+    output: str | None = None
+    vm_json: str | None = None
+    ibec: str | None = None
+    qemu_img: str | None = None
+    # Optional materialized raw views from an earlier recovery session.  They
+    # are read-only backing inputs and never replace the caller-owned bases.
+    aux_seed: str | None = None
+    root_seed: str | None = None
+    display: str = "auto"
+    research_graphics: bool = False
+    research_stage2: bool = False
+    uuid: int = 0
+    aux_offset: int = 0
+    memory_mib: int = 4096
+    smp: int = 2
+    transition_timeout: float = 300.0
+    duration: float | None = None
+    research_only: bool = False
+    build_manifest: str | None = None
+    tss_helper: str | None = None
+    original_ibss: str | None = None
+    original_ibec: str | None = None
+    live_personalize: bool = False
+    optional_rpc_unavailable: bool = False
+    restore_chain: bool = False
+    restore_role_dir: str | None = None
+    restore_extra_commands: tuple[str, ...] = ()
+    restore_timeout: float = 900.0
+    machine_type: str = IBOOT_MACHINE_TYPE
+    guest_os: str = MACOS_GUEST_OS
+    recovery_protocol: str = "DFU/IPSW"
+    recovery_image_name: str = DEFAULT_RECOVERY_IMAGE
+    boot_picker_enabled: bool = True
+    boot_delay_seconds: float = BOOT_DELAY_SECONDS
+    boot_selection: str = RECOVERY_ENTRY_ID
+    boot_picker_trigger: str = "runner-default-recovery"
+
+    def resolve_vm_configuration(self) -> tuple["VMappleConfig", dict[str, object] | None]:
+        """Resolve one macosvm.json atomically before QEMU capability probing."""
+        if not self.vm_json:
+            return self, None
+        bundle = load_macosvm_configuration(self.vm_json)
+
+        # The JSON contract identifies the original aux.img, not the trimmed
+        # pflash view used by QEMU.  A non-zero caller value is accepted only
+        # when it agrees with the documented metadata prefix; silently using a
+        # different offset would bind the ECID to the wrong guest storage.
+        if self.aux_offset not in (0, bundle.aux_offset):
+            raise ValueError(
+                "AUX offset conflicts with macosvm.json; expected "
+                f"0x{bundle.aux_offset:x} for the untrimmed aux.img"
+            )
+
+        def compatible_path(label: str, explicit: str, bundled: Path) -> str:
+            if explicit:
+                try:
+                    candidate = Path(explicit).expanduser().resolve(strict=True)
+                except OSError as error:
+                    raise ValueError(f"{label} path cannot be resolved") from error
+                if candidate != bundled:
+                    raise ValueError(
+                        f"{label} conflicts with macosvm.json; refusing to mix VM inputs"
+                    )
+            return str(bundled)
+
+        if self.uuid and self.uuid != bundle.uuid:
+            raise ValueError(
+                f"uuid conflicts with macosvm.json ECID ({self.uuid} != {bundle.uuid})"
+            )
+        resolved = replace(
+            self,
+            uuid=bundle.uuid,
+            aux=compatible_path("AUX", self.aux, bundle.aux),
+            root=compatible_path("root", self.root, bundle.root),
+            aux_offset=bundle.aux_offset,
+            vm_json=None,
+        )
+        return resolved, bundle.report()
+
+    def validate(self) -> tuple[Executable, Executable, dict[str, Path]]:
+        if self.vm_json:
+            resolved, _ = self.resolve_vm_configuration()
+            return resolved.validate()
+        # Scope is checked before resolving executables or opening any caller
+        # supplied firmware/storage input.  An iOS/iPadOS request therefore
+        # cannot reach the DFU uploader even when all paths are valid.
+        validate_iboot_scope(
+            self.machine_type,
+            self.guest_os,
+            recovery_protocol=self.recovery_protocol,
+            recovery_image_name=self.recovery_image_name,
+            recovery_enabled=True,
+            target_major=self.target_major,
+        )
+        picker = validate_boot_picker_config(
+            enabled=self.boot_picker_enabled,
+            delay_seconds=self.boot_delay_seconds,
+            alt_key=DEFAULT_ALT_KEY,
+            show_picker_on_alt=True,
+            target_major=self.target_major,
+            recovery_enabled=True,
+            recovery_protocol=self.recovery_protocol,
+            recovery_image_name=self.recovery_image_name,
+        )
+        if type(self.boot_picker_enabled) is not bool:
+            raise ValueError("VMApple boot_picker_enabled must be a boolean")
+        if self.boot_selection not in (MACOS_ENTRY_ID, RECOVERY_ENTRY_ID):
+            raise ValueError("VMApple boot selection must be macos or recovery")
+        if not isinstance(self.boot_picker_trigger, str) or not self.boot_picker_trigger.strip():
+            raise ValueError("VMApple boot picker trigger must be a nonempty string")
+        if self.boot_picker_enabled and self.boot_selection == RECOVERY_ENTRY_ID and not picker.get("recovery_entry_enabled"):
+            raise ValueError("VMApple Recovery entry is disabled")
+        if self.target_major not in (26, 27):
+            raise ValueError("VMApple target must be macOS 26 or 27")
+        if not self.research_only:
+            raise ValueError("VMApple launch requires the explicit --research-only flag")
+        if self.display not in DISPLAY_BACKENDS:
+            raise ValueError("VMApple display must be auto, GTK, SDL, Cocoa, none, or dbus")
+        if type(self.research_graphics) is not bool:
+            raise ValueError("VMApple research_graphics must be a boolean")
+        if type(self.research_stage2) is not bool:
+            raise ValueError("VMApple research_stage2 must be a boolean")
+        if type(self.uuid) is not int or not 0 <= self.uuid < 2**64:
+            raise ValueError("VMApple uuid must fit an unsigned 64-bit integer")
+        if type(self.aux_offset) is not int or self.aux_offset < 0 or self.aux_offset % 512:
+            raise ValueError("AUX offset must be a nonnegative 512-byte multiple")
+        if type(self.memory_mib) is not int or not 512 <= self.memory_mib <= 1024 * 1024:
+            raise ValueError("VMApple memory must be between 512 MiB and 1 TiB")
+        if type(self.smp) is not int or not 1 <= self.smp <= 32:
+            raise ValueError("VMApple SMP must be between 1 and 32 CPUs")
+        if (
+            isinstance(self.transition_timeout, bool)
+            or not isinstance(self.transition_timeout, (int, float))
+            or not math.isfinite(float(self.transition_timeout))
+            or not 0 < self.transition_timeout <= 3600
+        ):
+            raise ValueError("Transition timeout must be between 0 and 3600 seconds")
+        if (
+            self.duration is not None
+            and (
+                isinstance(self.duration, bool)
+                or not isinstance(self.duration, (int, float))
+                or not math.isfinite(float(self.duration))
+                or not 0 < self.duration <= 86400
+            )
+        ):
+            raise ValueError("Duration must be between 0 and 86400 seconds")
+        if type(self.live_personalize) is not bool:
+            raise ValueError("VMApple live_personalize must be a boolean")
+        if type(self.optional_rpc_unavailable) is not bool:
+            raise ValueError("VMApple optional_rpc_unavailable must be a boolean")
+        if (not isinstance(self.restore_extra_commands, (tuple, list))
+                or any(not isinstance(item, str) for item in self.restore_extra_commands)):
+            raise ValueError("VMApple restore_extra_commands must be a tuple/list of strings")
+        if type(self.restore_chain) is not bool:
+            raise ValueError("VMApple restore_chain must be a boolean")
+        if self.boot_selection == MACOS_ENTRY_ID and self.live_personalize:
+            raise ValueError("Live TSS personalization is a recovery-only operation; direct macOS boot uses the provisioned guest inputs")
+        if self.boot_selection == MACOS_ENTRY_ID and self.restore_chain:
+            raise ValueError("The restore-role chain is recovery-only; select macOS direct boot without --restore-chain")
+        if self.boot_selection == MACOS_ENTRY_ID and self.target_major > QEMU_VMAPPLE_MAX_MACOS_GUEST_MAJOR:
+            raise ValueError(
+                "QEMU VMApple direct macOS boot is not supported for macOS 26/27; "
+                "use `vmapple run-native` with the provisioned macosvm.json bundle"
+            )
+        if (
+            isinstance(self.restore_timeout, bool)
+            or not isinstance(self.restore_timeout, (int, float))
+            or not math.isfinite(float(self.restore_timeout))
+            or not 0 < self.restore_timeout <= 3600
+        ):
+            raise ValueError("Restore timeout must be between 0 and 3600 seconds")
+        qemu = _resolve_executable(self.qemu, "X86_VMAPLE_QEMU", "qemu-system-aarch64")
+        qemu_img = _resolve_executable(self.qemu_img, "X86_VMAPLE_QEMU_IMG", "qemu-img")
+        firmware_value = self.firmware
+        if not firmware_value and self.boot_selection == MACOS_ENTRY_ID:
+            discovered = direct_macos_host_report().get("default_avpbooter")
+            if isinstance(discovered, str) and discovered:
+                firmware_value = discovered
+        if not firmware_value:
+            raise ValueError(
+                "AVPBooter firmware path is required; native Apple-Silicon macOS "
+                "can omit it only when the system Virtualization.framework path is present"
+            )
+        paths = {
+            "firmware": _regular(firmware_value, "AVPBooter firmware", limit=MAX_FIRMWARE_BYTES),
+            "aux": _regular(self.aux, "AUX base image"),
+            "root": _regular(self.root, "root base image"),
+        }
+        if self.aux_seed:
+            paths["aux_seed"] = _regular(self.aux_seed, "AUX seed view")
+        if self.root_seed:
+            paths["root_seed"] = _regular(self.root_seed, "root seed view")
+        # Direct macOS boot starts AVPBooter against the provisioned AUX/root
+        # pair and does not enter the DFU uploader.  iBSS/iBEC are therefore
+        # required only for the recovery selection (or for live recovery
+        # personalization, which supplies the original images separately).
+        needs_recovery_inputs = self.boot_selection == RECOVERY_ENTRY_ID
+        if not self.live_personalize and needs_recovery_inputs:
+            paths["ibss"] = _regular(self.ibss, "personalized iBSS", limit=MAX_DFU_BYTES)
+            if self.ibec:
+                paths["ibec"] = _regular(self.ibec, "personalized iBEC", limit=MAX_RECOVERY_BYTES)
+        elif not self.live_personalize and self.ibss:
+            # An optional legacy path is accepted for diagnostics, but the
+            # direct path never uploads it.  Keep it in the input receipt only
+            # when the caller explicitly supplies it.
+            paths["legacy_ibss"] = _regular(self.ibss, "legacy iBSS", limit=MAX_DFU_BYTES)
+        if self.ibec and self.live_personalize:
+            paths["legacy_ibec"] = _regular(self.ibec, "legacy iBEC", limit=MAX_RECOVERY_BYTES)
+        if self.live_personalize:
+            if not self.build_manifest or not self.tss_helper:
+                raise ValueError("Live personalization requires BuildManifest and TSS request helper")
+            if not self.original_ibss:
+                raise ValueError("Live personalization requires the unchanged original iBSS IM4P")
+            if not self.original_ibec:
+                raise ValueError("Live personalization requires the unchanged original iBEC IM4P")
+            paths["build_manifest"] = _regular(self.build_manifest, "BuildManifest", limit=32 * 1024 * 1024)
+            paths["tss_helper"] = _regular(self.tss_helper, "TSS request helper", limit=16 * 1024 * 1024)
+            paths["original_ibss"] = _regular(self.original_ibss, "original iBSS", limit=MAX_DFU_BYTES)
+            paths["original_ibec"] = _regular(self.original_ibec, "original iBEC", limit=MAX_RECOVERY_BYTES)
+        if self.restore_chain:
+            if not self.live_personalize:
+                raise ValueError("Restore chain requires --live-personalize so the accepted iBEC ticket is available")
+            if not self.restore_role_dir:
+                raise ValueError("Restore chain requires a restore role directory")
+            role_dir = Path(self.restore_role_dir).expanduser().resolve(strict=True)
+            if not role_dir.is_dir():
+                raise ValueError(f"Restore role path must be a directory: {role_dir}")
+            for role in ("RestoreTrustCache", "RestoreRamDisk", "RestoreDeviceTree", "RestoreKernelCache"):
+                paths["restore_" + role] = _regular(
+                    role_dir / (role + ".im4p"), "restore " + role, limit=MAX_RECOVERY_BYTES
+                )
+            optional_logo = role_dir / "RestoreLogo.im4p"
+            if optional_logo.exists():
+                paths["restore_RestoreLogo"] = _regular(optional_logo, "restore RestoreLogo", limit=MAX_RECOVERY_BYTES)
+        if qemu.is_wsl and os.name == "nt":
+            raise ValueError("Run the VMApple worker inside WSL; the GUI bridge performs this re-exec")
+        return qemu, qemu_img, paths
+
+    def personality_report(self) -> dict[str, object]:
+        """Return the validated iBoot/macOS policy metadata for reports."""
+        personality = validate_iboot_scope(
+            self.machine_type,
+            self.guest_os,
+            recovery_protocol=self.recovery_protocol,
+            recovery_image_name=self.recovery_image_name,
+            recovery_enabled=True,
+            target_major=self.target_major,
+        )
+        personality["boot_picker"] = validate_boot_picker_config(
+            enabled=self.boot_picker_enabled,
+            delay_seconds=self.boot_delay_seconds,
+            alt_key=DEFAULT_ALT_KEY,
+            show_picker_on_alt=True,
+            target_major=self.target_major,
+            recovery_enabled=True,
+            recovery_protocol=self.recovery_protocol,
+            recovery_image_name=self.recovery_image_name,
+        )
+        personality["boot_picker"]["selection"] = self.boot_selection
+        trigger = self.boot_picker_trigger.strip() if isinstance(self.boot_picker_trigger, str) else ""
+        personality["boot_picker"]["selection_source"] = trigger
+        personality["boot_picker"]["hotkey_event_observed"] = trigger.startswith("alt-")
+        personality["boot_picker"]["delay_enforced"] = self.boot_picker_enabled
+        return personality
+
+
+def run(config: VMappleConfig) -> dict[str, object]:
+    """Start VMApple and drive the selected direct-macOS or recovery path.
+
+    Direct mode starts AVPBooter against the caller's provisioned AUX/root
+    pair and observes XNU/userspace UART markers.  Recovery live mode supplies
+    an unchanged BuildManifest/iBSS/iBEC and a request encoder; Apple TSS
+    tickets are generated into a fresh output directory and the original
+    payload bytes are wrapped without edits.  No marker or transport
+    acknowledgement is promoted to an installation claim.
+    """
+    config, vm_bundle = config.resolve_vm_configuration()
+    personality = config.personality_report()
+    qemu, qemu_img, paths = config.validate()
+    backend = probe_backend(qemu, direct_macos=config.boot_selection == MACOS_ENTRY_ID)
+    if config.research_graphics and backend.get("research_graphics") is not True:
+        raise ValueError(
+            "VMApple research graphics was requested, but this QEMU binary "
+            "does not advertise research-graphics"
+        )
+    # Inspect the caller-supplied bases before QEMU starts.  This is a
+    # read-only diagnostic: the runner still permits a zero fixture for a
+    # recovery-protocol experiment, but records that it cannot be an install
+    # target so a later iBoot panic is not misread as an installer failure.
+    storage_diagnostics = inspect_storage(
+        aux=paths["aux"], root=paths["root"], aux_offset=config.aux_offset
+    )
+    output = _new_directory(config.output)
+    storage: StorageSession | None = None
+    process: subprocess.Popen[bytes] | None = None
+    restore_transport_holds: list[object] = []
+    report: dict[str, object] | None = None
+    started = time.monotonic()
+    socket_path = f"/tmp/26x86-vmapple-{output.name}.sock"
+    try:
+        try:
+            Path(socket_path).unlink()
+        except FileNotFoundError:
+            pass
+        storage = create_storage(
+            aux=paths["aux"], root=paths["root"], directory=output,
+            qemu_img=qemu_img, aux_offset=config.aux_offset,
+            aux_seed=paths.get("aux_seed"), root_seed=paths.get("root_seed"),
+        )
+        effective_display = _effective_display_backend(
+            config.display,
+            direct_macos=config.boot_selection == MACOS_ENTRY_ID,
+            available=backend.get("display_backends") if isinstance(backend.get("display_backends"), list) else None,
+        )
+        command = _command_for(
+            config,
+            qemu,
+            storage,
+            socket_path,
+            output,
+            bdif_block_writes=bool(backend.get("bdif_block_writes")),
+            display_backend=effective_display,
+        )
+        inputs = {name: {"path": str(path), "bytes": path.stat().st_size, "sha256": _sha256(path)}
+                  for name, path in paths.items()}
+        if isinstance(vm_bundle, dict):
+            bundle_path = vm_bundle.get("path")
+            bundle_digest = vm_bundle.get("json_sha256")
+            if isinstance(bundle_path, str) and isinstance(bundle_digest, str):
+                bundle_file = Path(bundle_path)
+                inputs["macosvm_json"] = {
+                    "path": bundle_path,
+                    "bytes": bundle_file.stat().st_size,
+                    "sha256": bundle_digest,
+                }
+        report = {
+            "schema": "26x86.vmapple-gui/1", "target_major": config.target_major,
+            "target_name": "Tahoe" if config.target_major == 26 else "Golden Gate",
+            "machine_type": personality["machine_type"],
+            "personality": personality["personality"],
+            "guest_os": personality["guest_os"],
+            "guest_os_supported": personality["guest_os_supported"],
+            "guest_os_policy": personality["guest_os_policy"],
+            "supported_guest_os": personality["supported_guest_os"],
+            "unsupported_guest_os": personality["unsupported_guest_os"],
+            "policy_matrix": personality["policy_matrix"],
+            "recovery_scope": personality["recovery"],
+            "boot_picker": personality["boot_picker"],
+            "boot_mode": "direct-macos" if config.boot_selection == MACOS_ENTRY_ID else "recovery",
+            "direct_boot_requested": config.boot_selection == MACOS_ENTRY_ID,
+            "recovery_inputs_required": config.boot_selection == RECOVERY_ENTRY_ID,
+            "validation_level": (
+                "DIRECT-MACOS-BOOT" if config.boot_selection == MACOS_ENTRY_ID else "RECOVERY-PROTOCOL"
+            ),
+            "display_backend_requested": config.display,
+            "display_backend": effective_display,
+            "research_graphics_requested": config.research_graphics,
+            "research_stage2_requested": config.research_stage2,
+            "graphics_backend": (
+                "reims-vgpu (host Vulkan/Metal selected by QEMU build)"
+                if config.research_graphics else
+                ("native VMApple graphics" if backend.get("native_hvf_selected") else "none")
+            ),
+            "graphics_device_enabled": bool(
+                backend.get("native_hvf_selected")
+                or (config.research_graphics and backend.get("research_graphics"))
+            ),
+            "virtual_soc_name": VIRTUAL_SOC_NAME,
+            "virtual_model": VIRTUAL_MODEL,
+            "virtual_identity_mode": "metadata-only",
+            "hardware_attestation_verified": False,
+            "soc_profile": apple_silicon_profile(),
+            "research_only": True, "developer_host_bypass": True,
+            "distribution_status": "NONREDISTRIBUTABLE DEVELOPMENT ARTIFACT",
+            "restore_chain_requested": config.restore_chain,
+            "restore_chain_completed": False,
+            "host": {"system": platform.system(), "architecture": platform.machine(),
+                     "physical_mac_verified": False},
+            "direct_macos_host": direct_macos_host_report(),
+            "vm_bundle": vm_bundle,
+            "backend": backend, "command": command, "inputs": inputs,
+            "output": str(output),
+            "cow_storage": True, "storage_session": str(storage.directory / "storage"),
+            "storage_seed_views": {
+                "aux": str(storage.aux_seed) if storage.aux_seed is not None else None,
+                "root": str(storage.root_seed) if storage.root_seed is not None else None,
+            },
+            "storage_diagnostics": storage_diagnostics,
+            "forced_transition": False, "signature_acceptance_verified": False,
+            "runtime_started": False,
+            "personalization_mode": "live-tss" if config.live_personalize else "caller-supplied",
+            "installer_modified": False, "ibec_executed": False,
+            "xnu_executed": False, "guest_kernel_major": None,
+            "guest_target_match": False, "macos_boot_verified": False,
+            "installer_ui_visible": False, "installation_verified": False,
+            "physical_mac_verified": False, "termination": None, "returncode": None,
+            "duration_seconds": None, "input_integrity": False, "error": None,
+        }
+        _write_report(output, report)
+        stdout = (output / "qemu.stdout.log").open("xb")
+        stderr = (output / "qemu.stderr.log").open("xb")
+        try:
+            process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr)
+        finally:
+            stdout.close()
+            stderr.close()
+        report["runtime_started"] = True
+        report["pid"] = process.pid
+        _write_report(output, report)
+        if config.boot_selection == RECOVERY_ENTRY_ID:
+            _wait_for_socket(socket_path, process, 30)
+        else:
+            # The direct macOS entry does not consume the recovery USB
+            # transport.  Do not make its startup contingent on a recovery
+            # socket; only ensure that QEMU did not exit immediately.
+            time.sleep(0.2)
+            if process.poll() is not None:
+                raise VMappleError(
+                    f"QEMU exited before direct macOS observation began: {process.returncode}"
+                )
+        # The gate starts when QEMU has exposed its recovery socket, which is
+        # the first point at which the guest is powered and input can be
+        # observed by this runner.  The GUI picker records the real Alt event
+        # separately; this bounded sleep enforces the same two-second policy
+        # before any DFU transfer is attempted.
+        if config.boot_picker_enabled:
+            report["boot_picker"]["gate_started_monotonic"] = round(time.monotonic() - started, 3)  # type: ignore[index]
+            time.sleep(config.boot_delay_seconds)
+            report["boot_picker"]["gate_released_monotonic"] = round(time.monotonic() - started, 3)  # type: ignore[index]
+        report["boot_picker"]["gate_released"] = True  # type: ignore[index]
+        _write_report(output, report)
+        if config.boot_selection == MACOS_ENTRY_ID:
+            # Direct boot must not enter the DFU/IPSW path.  AVPBooter owns the
+            # normal macOS entry and reads the caller's provisioned AUX/root
+            # pair; this runner only observes the UART boundary and keeps the
+            # process alive after a successful userspace marker so a visible
+            # GUI can remain available.
+            observation_timeout = min(
+                config.transition_timeout,
+                config.duration if config.duration is not None else config.transition_timeout,
+            )
+            direct = _observe_direct_macos_boot(
+                output / "serial.log",
+                observation_timeout,
+                process,
+                expected_kernel_major=config.target_major,
+            )
+            report.update({
+                "direct_boot": {
+                    "requested": True,
+                    "selection": MACOS_ENTRY_ID,
+                    "dfu_entered": False,
+                    "recovery_transport_used": False,
+                    "observation": direct,
+                },
+                "xnu_executed": bool(direct["xnu_executed"]),
+                "guest_kernel_major": direct["guest_kernel_major"],
+                "guest_target_match": bool(direct["guest_target_match"]),
+                "macos_boot_verified": bool(direct["macos_boot_verified"]),
+                "installer_ui_visible": bool(direct["installer_ui_visible"]),
+                "installation_verified": bool(direct["installation_verified"]),
+            })
+            storage_blockers = storage_diagnostics.get("blockers", [])
+            if not isinstance(storage_blockers, list):
+                storage_blockers = []
+            blocker = direct.get("direct_boot_blocker")
+            if not isinstance(blocker, str):
+                blocker = ""
+            if storage_diagnostics.get("provisioning_status") in (
+                "unprovisioned-zero", "partially-unprovisioned"
+            ):
+                storage_note = (
+                    " Storage preflight found a zero-filled AUX/root fixture; a "
+                    "hardware-model-matched provisioned storage pair is required."
+                )
+                blocker += storage_note
+            if not blocker:
+                blocker = None
+            stage_reached = (
+                "macOS userspace" if direct["macos_boot_verified"] else
+                "XNU kernel" if direct["xnu_executed"] else
+                "AVPBooter direct entry"
+            )
+            report["golden_gate_installation"] = {
+                "stage_reached": stage_reached,
+                "boot_mode": "direct-macos",
+                "signature_acceptance_verified": False,
+                "ibec_executed": False,
+                "stage2_execution_observed": False,
+                "xnu_executed": bool(direct["xnu_executed"]),
+                "guest_kernel_major": direct["guest_kernel_major"],
+                "guest_target_match": bool(direct["guest_target_match"]),
+                "macos_boot_verified": bool(direct["macos_boot_verified"]),
+                "installer_ui_visible": bool(direct["installer_ui_visible"]),
+                "installation_verified": False,
+                "blocker": blocker,
+                "storage_provisioning_status": storage_diagnostics.get("provisioning_status"),
+                "storage_blockers": storage_blockers,
+                "observed_markers": direct["observed_markers"],
+            }
+            _write_report(output, report)
+
+            # A missing direct-boot marker is a bounded blocker, not a reason
+            # to leave an invisible research process running indefinitely.
+            if not direct["macos_boot_verified"] and process.poll() is None:
+                report["termination"] = "direct-boot-evidence-timeout"
+                process.terminate()
+            deadline = time.monotonic() + config.duration if config.duration is not None else None
+            while process.poll() is None:
+                if deadline is not None and time.monotonic() >= deadline:
+                    report["termination"] = "time_budget"
+                    process.terminate()
+                    break
+                if (output / "stop").exists():
+                    report["termination"] = "stop_file"
+                    process.terminate()
+                    break
+                time.sleep(0.1)
+            if process.poll() is None:
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+            report["returncode"] = process.returncode
+            if report.get("termination") is None:
+                report["termination"] = "guest_exit"
+            try:
+                log_start, log_data = _read_log_tail(output / "serial.log")
+            except OSError:
+                log_start, log_data = 0, b""
+            panic_position = log_data.rfind(IBOOT_PANIC_MARKER)
+            report["guest_panic"] = {
+                "observed": panic_position >= 0,
+                "marker": IBOOT_PANIC_MARKER.decode("ascii"),
+                **({"byte_offset": log_start + panic_position} if panic_position >= 0 else {}),
+            }
+            report["duration_seconds"] = round(time.monotonic() - started, 3)
+            report["input_integrity"] = _inputs_intact(report.get("inputs"))
+            _apply_iboot_xnu_handoff_gate(report)
+            if not report["input_integrity"]:
+                report["error"] = "One or more caller-supplied inputs changed during the run"
+            elif not report["macos_boot_verified"]:
+                report["error"] = (
+                    "Direct macOS boot evidence was not verified: "
+                    + str(report.get("handoff_blockers") or blocker or "XNU and macOS userspace UART markers were incomplete")
+                )
+            _write_report(output, report)
+            return report
+        if config.live_personalize:
+            from .vmapple_personalization import personalize_firmware
+
+            personalization = output / "personalization"
+            personalization.mkdir(mode=0o700)
+            ibss_personalization = personalize_firmware(
+                socket_path=socket_path,
+                build_manifest=paths["build_manifest"],
+                firmware=paths["original_ibss"],
+                component="iBSS",
+                helper=paths["tss_helper"],
+                output=personalization / "ibss",
+                developer_host_bypass=True,
+                deadline=time.monotonic() + config.transition_timeout,
+            )
+            report["personalization"] = {"ibss": ibss_personalization}
+            ibss_path = Path(ibss_personalization["output"])
+        else:
+            ibss_path = paths["ibss"]
+
+        with RecoveryTransport(socket_path, timeout=10) as transport:
+            initial = transport.probe()
+            report["initial_device"] = initial
+            dfu = transport.send_dfu_file(ibss_path, reset=True,
+                                          expected_sha256=(_sha256(ibss_path) if config.live_personalize else None))
+        report["dfu_upload"] = dfu
+        transition = _probe_transition(socket_path, config.transition_timeout)
+        report["transition"] = transition
+        if transition.get("state") == "ibec-ready" and config.live_personalize:
+            from .vmapple_personalization import personalize_firmware
+
+            ibec_personalization = personalize_firmware(
+                socket_path=socket_path,
+                build_manifest=paths["build_manifest"],
+                firmware=paths["original_ibec"],
+                component="iBEC",
+                helper=paths["tss_helper"],
+                output=output / "personalization" / "ibec",
+                developer_host_bypass=True,
+                include_restore_policy=True,
+                deadline=time.monotonic() + config.transition_timeout,
+            )
+            report.setdefault("personalization", {})["ibec"] = ibec_personalization
+            policy = ibec_personalization.get("restore_policy", {})
+            if (ibec_personalization.get("ticket_received") is not True
+                    or ibec_personalization.get("payload_preserved") is not True
+                    or policy.get("ticket_received") is not True):
+                raise VMappleError("Live iBEC or bound LocalPolicy personalization did not complete")
+            recovery_deadline = time.monotonic() + config.transition_timeout
+            with RecoveryTransport(socket_path, timeout=10) as transport:
+                report["ibec_configuration"] = transport.configure_recovery(deadline=recovery_deadline)
+                policy_path = Path(ibec_personalization["output"]).parent / "restore-policy" / "RestoreLocalPolicy.personalized.img4"
+                report["policy_upload"] = transport.send_recovery_file(
+                    policy_path,
+                    total_timeout=max(1.0, recovery_deadline - time.monotonic()),
+                    expected_sha256=policy.get("sha256"),
+                )
+                transport.send_command("lpolrestore", deadline=recovery_deadline)
+                report["lpolrestore_acknowledged"] = True
+                report["ibec_upload"] = transport.send_recovery_file(
+                    Path(ibec_personalization["output"]),
+                    total_timeout=max(1.0, recovery_deadline - time.monotonic()),
+                    expected_sha256=ibec_personalization.get("personalized_sha256"),
+                )
+                transport.send_command("go", request=1, deadline=recovery_deadline)
+                report["go_acknowledged"] = True
+            report["ibec_upload_attempted"] = True
+            stage2 = _wait_serial_marker(output / "serial.log", STAGE2_PROMPT,
+                                         min(config.transition_timeout, 300.0), process)
+            report["stage2"] = stage2
+            stage2_serial_started = bool(stage2.get("stage2_serial_started"))
+            # The Stage2 serial banner is emitted before the interactive
+            # prompt.  It is therefore a stronger execution boundary than
+            # the prompt alone, especially when iBoot panics during early
+            # hardware/boot-policy setup.
+            report["ibec_executed"] = bool(stage2.get("observed")) or stage2_serial_started
+            report["stage2_execution_observed"] = bool(stage2.get("observed")) or stage2_serial_started
+            if not stage2.get("observed"):
+                if stage2.get("panic_observed") is True:
+                    report["transition_blocker"] = (
+                        "iBoot emitted a panic during Stage2 before the interactive prompt"
+                        if stage2_serial_started else
+                        "iBoot emitted a panic before the Stage2 UART marker"
+                    )
+                    report["termination"] = "stage2-panic"
+                    report["guest_panic"] = {
+                        "observed": True,
+                        "marker": str(stage2.get("panic_marker") or IBOOT_PANIC_MARKER.decode("ascii")),
+                        **({
+                            "byte_offset": stage2["panic_byte_offset"]
+                        } if isinstance(stage2.get("panic_byte_offset"), int) else {}),
+                    }
+                else:
+                    report["transition_blocker"] = (
+                        "iBEC go completed but Stage2 UART marker was not observed"
+                    )
+                    report["termination"] = "stage2-marker-timeout"
+                # Do not fall through to the normal long-lived recovery
+                # process loop after a terminal evidence failure.  QEMU may
+                # remain alive after iBoot has panicked or stopped producing
+                # UART output, so cleanup must happen at this boundary.
+                report["process_cleanup"] = _terminate_process(process)
+                if config.restore_chain:
+                    report["restore_chain"] = {
+                        "schema": "26x86.vmapple-restore/1",
+                        "sequence_sent": False,
+                        "bootx_acknowledged": False,
+                        "input_integrity": True,
+                        "error": "Stage2 UART marker was not observed",
+                    }
+            elif config.restore_chain:
+                # Stage2 is the first point at which the standard macOS
+                # restore-role protocol is available.  The role files are
+                # normalized against BuildManifest and wrapped with the same
+                # accepted iBEC IM4M; no new ticket or installer mutation is
+                # introduced here.
+                from .vmapple_restore import RestoreChainError, run_restore_sequence
+
+                ticket_path = (
+                    Path(report["personalization"]["ibec"]["output"]).parent
+                    / "apple-ticket.private.im4m"
+                )
+                role_sources = {
+                    role: paths["restore_" + role]
+                    for role in ("RestoreTrustCache", "RestoreRamDisk", "RestoreDeviceTree", "RestoreKernelCache")
+                }
+                optional_logo = paths.get("restore_RestoreLogo")
+                if optional_logo is not None:
+                    role_sources["RestoreLogo"] = optional_logo
+                try:
+                    restore_report = run_restore_sequence(
+                        socket_path=socket_path,
+                        build_manifest=paths["build_manifest"],
+                        role_sources=role_sources,
+                        ticket=ticket_path,
+                        output=output / "restore",
+                        total_timeout=config.restore_timeout,
+                        transport_holders=restore_transport_holds,
+                        extra_commands=config.restore_extra_commands,
+                    )
+                    for held_transport in restore_transport_holds:
+                        start_drain = getattr(held_transport, "start_passive_drain", None)
+                        if callable(start_drain):
+                            start_drain()
+                except RestoreChainError as exc:
+                    # Keep the structured partial report even when a guest
+                    # stalls or panics; this is a bounded evidence boundary,
+                    # not a reason to claim a boot.
+                    restore_report = getattr(exc, "report", None)
+                    if not isinstance(restore_report, dict):
+                        restore_report = {"error": str(exc), "sequence_sent": False}
+                report["restore_chain"] = restore_report
+                report["restore_chain_completed"] = bool(
+                    isinstance(restore_report, dict)
+                    and restore_report.get("sequence_sent") is True
+                    and restore_report.get("input_integrity") is True
+                )
+                report["restore_chain_stage"] = (
+                    "bootx-sent" if report["restore_chain_completed"] else "restore-chain-failed"
+                )
+        elif transition.get("state") == "ibec-ready" and "ibec" in paths:
+            report["ibec_upload_attempted"] = True
+            with RecoveryTransport(socket_path, timeout=10) as transport:
+                report["ibec_upload"] = transport.send_recovery_file(paths["ibec"])
+            # Upload acknowledgement is not proof that iBEC was accepted or executed.
+            report["ibec_executed"] = False
+        elif transition.get("state") != "ibec-ready":
+            report["ibec_upload_attempted"] = False
+            report["transition_blocker"] = "iBSS did not advertise bulk OUT endpoint 4"
+        else:
+            report["ibec_upload_attempted"] = False
+            report["transition_blocker"] = "No iBEC input was supplied"
+        _write_report(output, report)
+
+        evidence_terminated = report.get("termination") in {
+            "stage2-panic", "stage2-marker-timeout"
+        }
+        if not evidence_terminated:
+            deadline = time.monotonic() + config.duration if config.duration is not None else None
+            while process.poll() is None:
+                if deadline is not None and time.monotonic() >= deadline:
+                    report["termination"] = "time_budget"
+                    report["process_cleanup"] = _terminate_process(process)
+                    break
+                if (output / "stop").exists():
+                    report["termination"] = "stop_file"
+                    report["process_cleanup"] = _terminate_process(process)
+                    break
+                time.sleep(0.1)
+        if process.poll() is None:
+            report["process_cleanup"] = _terminate_process(process)
+        report["returncode"] = process.returncode
+        if report.get("termination") is None:
+            report["termination"] = "guest_exit"
+        # A restore transport can acknowledge every role and the bootx command
+        # while iBoot still panics before XNU.  Capture that real UART boundary
+        # after the process has stopped so the report cannot imply that a
+        # successful transport sequence rendered the installer UI.
+        try:
+            log_start, log_data = _read_log_tail(output / "serial.log")
+        except OSError:
+            log_start, log_data = 0, b""
+        panic_position = log_data.rfind(IBOOT_PANIC_MARKER)
+        if panic_position >= 0:
+            report["guest_panic"] = {
+                "observed": True,
+                "marker": IBOOT_PANIC_MARKER.decode("ascii"),
+                "byte_offset": log_start + panic_position,
+            }
+            if report.get("restore_chain_completed"):
+                report["restore_chain_stage"] = "post-bootx-panic"
+                restore_report = report.get("restore_chain")
+                if isinstance(restore_report, dict):
+                    restore_report["post_bootx_panic"] = True
+            elif report.get("stage2_execution_observed"):
+                report["transition_blocker"] = "Stage2 guest panic before XNU"
+        else:
+            report["guest_panic"] = {
+                "observed": False,
+                "marker": IBOOT_PANIC_MARKER.decode("ascii"),
+            }
+        storage_blockers = storage_diagnostics.get("blockers", [])
+        if not isinstance(storage_blockers, list):
+            storage_blockers = []
+        if report.get("guest_panic", {}).get("observed"):
+            if report.get("restore_chain_completed"):
+                stage_reached = "bootx acknowledged / iBoot Panic"
+                blocker = (
+                    "After the complete restore-role transport and bootx acknowledgement, "
+                    "iBoot emitted a panic before XNU or any macOS UI."
+                )
+            elif report.get("stage2_execution_observed"):
+                stage_reached = "iBootStage2 / iBoot Panic"
+                blocker = "iBoot emitted a panic after Stage2 execution and before XNU or any macOS UI."
+            else:
+                stage_reached = "iBEC / iBoot Panic"
+                blocker = "iBoot emitted a panic before Stage2, XNU, or any macOS UI."
+        elif report.get("stage2_execution_observed"):
+            stage_reached = "iBootStage2 serial start"
+            blocker = "The guest did not reach XNU or a macOS UI within the observed run."
+        elif report.get("ibec_executed"):
+            stage_reached = "iBEC executed"
+            blocker = "Stage2/XNU and the macOS UI were not observed."
+        elif report.get("transition", {}).get("state") == "ibec-ready":
+            stage_reached = "iBEC endpoint advertised"
+            blocker = "iBEC execution and the macOS UI were not observed."
+        else:
+            stage_reached = "iBSS/DFU boundary"
+            blocker = "The iBEC endpoint or a later guest stage was not observed."
+        if storage_diagnostics.get("provisioning_status") in (
+            "unprovisioned-zero", "partially-unprovisioned"
+        ):
+            blocker += " Storage preflight found a zero-filled AUX/root fixture; a hardware-model-matched provisioned storage pair is required for installation."
+        report["golden_gate_installation"] = {
+            "stage_reached": stage_reached,
+            "signature_acceptance_verified": False,
+            "ibec_executed": bool(report.get("ibec_executed")),
+            "stage2_execution_observed": bool(report.get("stage2_execution_observed")),
+            "xnu_executed": False,
+            "macos_boot_verified": False,
+            "installer_ui_visible": False,
+            "installation_verified": False,
+            "blocker": blocker,
+            "storage_provisioning_status": storage_diagnostics.get("provisioning_status"),
+            "storage_blockers": storage_blockers,
+        }
+        report["duration_seconds"] = round(time.monotonic() - started, 3)
+        report["input_integrity"] = _inputs_intact(report.get("inputs"))
+        _apply_iboot_xnu_handoff_gate(report)
+        if not report["input_integrity"]:
+            report["error"] = "One or more caller-supplied inputs changed during the run"
+        _write_report(output, report)
+        return report
+    except BaseException as error:
+        if process is not None:
+            cleanup = _terminate_process(process)
+            if report is not None:
+                report["process_cleanup"] = cleanup
+        if report is None:
+            report = {
+                "schema": "26x86.vmapple-gui/1", "target_major": config.target_major,
+                "target_name": "Tahoe" if config.target_major == 26 else "Golden Gate",
+                "machine_type": personality["machine_type"],
+                "personality": personality["personality"],
+                "guest_os": personality["guest_os"],
+                "guest_os_supported": personality["guest_os_supported"],
+                "guest_os_policy": personality["guest_os_policy"],
+                "policy_matrix": personality["policy_matrix"],
+                "recovery_scope": personality["recovery"],
+                "boot_picker": personality["boot_picker"],
+                "validation_level": "RECOVERY-PROTOCOL",
+                "display_backend_requested": config.display,
+                "display_backend": _effective_display_backend(
+                    config.display,
+                    direct_macos=config.boot_selection == MACOS_ENTRY_ID,
+                ),
+                "virtual_soc_name": VIRTUAL_SOC_NAME,
+                "virtual_model": VIRTUAL_MODEL,
+                "virtual_identity_mode": "metadata-only",
+                "hardware_attestation_verified": False,
+                "vm_bundle": vm_bundle,
+                "forced_transition": False, "signature_acceptance_verified": False,
+                "macos_boot_verified": False, "physical_mac_verified": False,
+            }
+        report["error"] = f"{type(error).__name__}: {error}"
+        report["termination"] = report.get("termination") or "error"
+        report["returncode"] = process.returncode if process is not None else None
+        report["duration_seconds"] = round(time.monotonic() - started, 3)
+        report["input_integrity"] = _inputs_intact(report.get("inputs"))
+        _write_report(output, report)
+        if config.boot_selection == MACOS_ENTRY_ID:
+            # Direct mode is an observable boot attempt, so return its
+            # structured evidence even when QEMU exits before the UART
+            # observer starts.  The CLI still returns a non-zero status when
+            # ``error`` is present, but callers receive the exact blocker and
+            # output directory instead of a lossy exception-only message.
+            report.setdefault("direct_boot", {
+                "requested": True,
+                "selection": MACOS_ENTRY_ID,
+                "dfu_entered": False,
+                "recovery_transport_used": False,
+                "observation": {
+                    "xnu_executed": False,
+                    "macos_userspace_reached": False,
+                    "macos_boot_verified": False,
+                    "installer_ui_visible": False,
+                    "installation_verified": False,
+                    "observed_markers": {"xnu": [], "userspace": [], "installer": []},
+                    "direct_boot_blocker": f"Direct macOS QEMU start failed: {type(error).__name__}: {error}",
+                },
+            })
+            report.setdefault("golden_gate_installation", {
+                "stage_reached": "direct macOS launch",
+                "boot_mode": "direct-macos",
+                "signature_acceptance_verified": False,
+                "ibec_executed": False,
+                "stage2_execution_observed": False,
+                "xnu_executed": False,
+                "macos_boot_verified": False,
+                "installer_ui_visible": False,
+                "installation_verified": False,
+                "blocker": f"Direct macOS QEMU start failed: {type(error).__name__}: {error}",
+                "storage_provisioning_status": storage_diagnostics.get("provisioning_status"),
+                "storage_blockers": storage_diagnostics.get("blockers", []),
+            })
+            _write_report(output, report)
+            return report
+        raise
+    finally:
+        for held_transport in restore_transport_holds:
+            close_transport = getattr(held_transport, "close", None)
+            if callable(close_transport):
+                close_transport()
+        try:
+            Path(socket_path).unlink()
+        except FileNotFoundError:
+            pass
+
+
+def configured_from_environment() -> dict[str, object]:
+    """Return GUI-safe availability information without launching a guest."""
+    host = direct_macos_host_report()
+    native_host = native_macosvm_host_report()
+    default_firmware = host.get("default_avpbooter")
+    firmware_env = os.environ.get("X86_VMAPLE_AVPBOOTER", "")
+    if not firmware_env and isinstance(default_firmware, str):
+        firmware_env = default_firmware
+    values = {
+        "macosvm": os.environ.get("X86_MACOSVM", ""),
+        "qemu": os.environ.get("X86_VMAPLE_QEMU", ""),
+        "firmware": firmware_env,
+        "vm_json": os.environ.get("X86_VMAPLE_JSON", ""),
+        "ibss": os.environ.get("X86_VMAPLE_IBSS", ""),
+        "ibec": os.environ.get("X86_VMAPLE_IBEC", ""),
+        "aux": os.environ.get("X86_VMAPLE_AUX", ""),
+        "root": os.environ.get("X86_VMAPLE_ROOT", ""),
+        "aux_seed": os.environ.get("X86_VMAPLE_AUX_SEED", ""),
+        "root_seed": os.environ.get("X86_VMAPLE_ROOT_SEED", ""),
+        "qemu_img": os.environ.get("X86_VMAPLE_QEMU_IMG", ""),
+        "output": os.environ.get("X86_VMAPLE_OUTPUT", ""),
+        "build_manifest": os.environ.get("X86_VMAPLE_BUILD_MANIFEST", ""),
+        "tss_helper": os.environ.get("X86_VMAPLE_TSS_HELPER", ""),
+        "original_ibss": os.environ.get("X86_VMAPLE_ORIGINAL_IBSS", ""),
+        "original_ibec": os.environ.get("X86_VMAPLE_ORIGINAL_IBEC", ""),
+        "restore_role_dir": os.environ.get("X86_VMAPLE_RESTORE_ROLE_DIR", ""),
+    }
+    base_required = ("qemu", "firmware", "qemu_img")
+    present = {name: bool(value) for name, value in values.items()}
+    storage_configured = present["vm_json"] or (present["aux"] and present["root"])
+    legacy_configured = all(present[name] for name in (*base_required, "ibss")) and storage_configured
+    direct_configured = all(present[name] for name in base_required) and storage_configured
+    native_configured = present["macosvm"] and present["vm_json"] and present["output"]
+    live_required = (*base_required, "build_manifest", "tss_helper", "original_ibss", "original_ibec")
+    live_configured = all(present[name] for name in live_required) and storage_configured
+    boot_picker = validate_boot_picker_config(target_major=27)
+    boot_picker["selection"] = RECOVERY_ENTRY_ID
+    boot_picker["selection_source"] = "runner-default-recovery"
+    boot_picker["hotkey_event_observed"] = False
+    boot_picker["delay_enforced"] = True
+    return {
+        "ok": True, "research_only_required": True, "display_backend": "auto",
+        "display_backend_effective": _effective_display_backend(
+            "auto", direct_macos=host.get("apple_silicon_macos") is True
+        ),
+        "machine_type": IBOOT_MACHINE_TYPE, "personality": "iBoot",
+        "guest_os": MACOS_GUEST_OS, "guest_os_supported": True,
+        "guest_os_policy": "macOS-only", "supported_guest_os": [MACOS_GUEST_OS],
+        "unsupported_guest_os": ["iOS", "iPadOS", "tvOS", "watchOS", "visionOS"],
+        "policy_matrix": default_scope(recovery_enabled=True)["policy_matrix"],
+        "recovery_scope": default_scope(recovery_enabled=True)["recovery"],
+        "boot_picker": boot_picker,
+        "direct_macos_host": host,
+        "native_macosvm_host": native_host,
+        "soc_profile": apple_silicon_profile(),
+        # Either an explicitly personalized legacy input or the preferred
+        # live-TSS set is usable.  The GUI defaults to live mode and exposes
+        # this distinction instead of claiming that a partial path is ready.
+        "configured": live_configured or legacy_configured or direct_configured or bool(native_configured), "fields": present,
+        "legacy_configured": legacy_configured,
+        "direct_macos_configured": direct_configured,
+        "native_macosvm_configured": bool(native_configured),
+        "live_personalization_configured": live_configured,
+        "personalization_default": "live-tss",
+        "values": values, "macos_boot_verified": False,
+        "note": "Paths, macosvm, and macosvm.json are caller-supplied. The GUI never bundles Apple firmware or writes an existing ESP.",
+    }

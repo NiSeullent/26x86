@@ -1,0 +1,95 @@
+name: Cross-platform preparation
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preparation:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install requests packaging markdown2
+      - name: Install native macOS probe bindings
+        if: runner.os == 'macOS'
+        run: python -m pip install pyobjc-core pyobjc-framework-Cocoa py_sip_xnu
+      - name: Validate platform, Mellow payload, mode and transaction boundaries
+        run: python -m unittest discover -s tests -v
+      - name: Observe actual runner execution policy without patching
+        run: python -c "import json,platform; from x86.execution import resolve_execution; c=resolve_execution(settings={},environ={}); print(json.dumps(c.as_dict(),indent=2)); assert c.can_native_plan; assert c.can_native_apply == (platform.system() == 'Darwin')"
+      - name: Compile Python source
+        run: python -m compileall -q x86 opencore_legacy_patcher
+      - name: Exercise preparation GUI bridge on Windows and Linux
+        if: runner.os != 'macOS'
+        run: python -m unittest x86.gui.test_bridge_smoke x86.gui.test_mellow_gui -v
+      - name: Read-only application CLI (UTF-8 redirected output)
+        run: python -X utf8 -m x86 --help
+
+  native-gui:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install requests packaging markdown2 pywebview
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify GUI transport ownership
+        run: node --test tests/gui_transport.test.cjs
+      - name: Install native macOS runtime
+        if: runner.os == 'macOS'
+        run: python -m pip install pyobjc py-applescript py_sip_xnu 'wxpython<4.2.5' macos-pkg-builder
+      - name: Install Linux Qt runtime
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libnss3 libnspr4 libasound2t64 libxcomposite1 libxdamage1 libxrandr2 libgbm1 xvfb
+          python -m pip install PySide6 qtpy
+      - name: Verify Linux Qt platform dependencies
+        if: runner.os == 'Linux'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import PySide6
+          plugin = Path(PySide6.__file__).parent / 'Qt/plugins/platforms/libqxcb.so'
+          result = subprocess.run(['ldd', str(plugin)], text=True, capture_output=True, check=True, timeout=10)
+          print(result.stdout)
+          if 'not found' in result.stdout:
+              raise SystemExit('Qt XCB platform dependencies are missing')
+          PY
+      - name: Exercise the Linux GUI
+        if: runner.os == 'Linux'
+        env:
+          QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu --no-sandbox
+        run: xvfb-run -a python -m x86.gui.entry --gui-smoke-report gui-smoke.json
+      - name: Exercise the macOS GUI
+        if: runner.os == 'macOS'
+        run: python -m x86.gui.entry --gui-smoke-report gui-smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gui-smoke-${{ matrix.os }}
+          path: gui-smoke.json

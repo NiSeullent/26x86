@@ -1,0 +1,227 @@
+{
+  "updated_at": "2026-09-13",
+  "physical_desktop_verified": false,
+  "boundary": {
+    "evidence_url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r29-mmfr0-summary.json",
+    "label": "Mapped prefix: 42,256,374 instructions; MMFR1 feature-register boundary",
+    "detail": "r29 completes 6,012,373 data operations and passes MMFR0 before SYSTEM_REGISTER_TRAP (status 13) at MRS ID_AA64MMFR1_EL1. The provider reports no error. The 1280 by 800 framebuffer remains zero with matching GOP readback; normal startup and physical desktop remain unverified."
+  },
+  "headline": "Building the path to a real macOS desktop",
+  "milestones": [
+    {
+      "title": "EFI recovery",
+      "id": "efi",
+      "layer": "Firmware",
+      "status": "validated-in-ovmf",
+      "summary": "Configuration recovery passes ten actual OVMF cases: Enter rereads the same file and Escape returns the original error. Three picker regressions pass; physical firmware coverage remains pending.",
+      "evidence_url": "https://github.com/26x86/Nextcore-EFI/pull/10"
+    },
+    {
+      "title": "A64 startup execution",
+      "id": "execution",
+      "layer": "CPU runtime",
+      "status": "in-progress",
+      "summary": "r29 retires 42,256,374 instructions and completes 6,012,373 data operations before MMFR1 traps. MMFR0 and immutable ASID8 have authored native, provider and EFI evidence. Normal startup and physical boot remain unverified.",
+      "evidence_url": "https://github.com/26x86/Nextcore-ISE/pull/9"
+    },
+    {
+      "title": "Normal kernel handoff",
+      "id": "platform",
+      "layer": "Platform",
+      "status": "not-ready",
+      "summary": "Normal startup returns NOT_READY. A complete validated entry profile, platform services and live mappings are not implemented.",
+      "evidence_url": "https://github.com/26x86/26x86/pull/19"
+    },
+    {
+      "title": "Non-accelerated desktop output",
+      "id": "display",
+      "layer": "Display",
+      "status": "not-ready",
+      "summary": "An authored guest reads encoded boot-video fields, writes its owned framebuffer and passes exact GOP RGB readback in OVMF. Persistent presentation, normal startup and a physical desktop remain unverified.",
+      "evidence_url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/docs/BOOT_FRAMEBUFFER_VALIDATION.md"
+    },
+    {
+      "title": "Install and reboot on physical hardware",
+      "id": "physical",
+      "layer": "Physical acceptance",
+      "status": "unverified",
+      "summary": "No physical macOS 27 desktop, installation or reboot has been demonstrated by this project.",
+      "evidence_url": "https://github.com/26x86/26x86/pull/19"
+    }
+  ],
+  "metrics": [
+    {
+      "value": "0",
+      "label": "Physical macOS desktops verified",
+      "detail": "No model is certified as booting macOS 27 through Nextcore."
+    },
+    {
+      "value": "6 / 6",
+      "label": "Latest workspace CI",
+      "detail": "All six workspace and EFI jobs pass on source revision b18e6d64. The separate Sandbox and documentation workflows also pass. CI is not physical boot proof."
+    },
+    {
+      "value": "42,256,374",
+      "label": "Latest bounded prefix",
+      "detail": "Retired instructions before the MMFR1 feature-register read traps in completed r29 mapped OVMF execution."
+    }
+  ],
+  "latest": [
+    {
+      "date": "2026-09-13",
+      "title": "Optional-control integration passes public CI",
+      "summary": "All six workspace and EFI jobs, the separate Sandbox workflow and documentation checks pass on immutable source b18e6d64. The published EFI package uses that same source. This validates the bounded implementation and packaging; original r29 and physical boot status remain unchanged.",
+      "url": "https://github.com/26x86/26x86/actions/runs/34715223879"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Unsupported table-management controls now reject without changing state",
+      "summary": "All 15 nonzero HA/HD/HPD0/HPD1 combinations are rejected before mutation. Independent C checks pass 160 assertions; Rust register-bank and direct-MMU suites pass 102 tests each. Existing immutable and dynamic admission remains closed. The same fixture exposes the old acceptance bug. This is a bounded software policy, not architectural write-ignore emulation or an MMFR1 feature declaration. No new original replay was run; r29 and normal NOT_READY status are unchanged.",
+      "url": "https://26x86.github.io/26x86/BOOT_PRIMARY_SOURCE_AUDIT_20260913/#optional-translation-controls-and-generic-mmfr1-evidence"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Hierarchical permissions qualified; original boundary unchanged",
+      "summary": "Authored hierarchy tests pass 34 provider tests in each of three cache modes, 104 reference tests and two rejected semantic mutants. Arm QEMU TCG supplies 306 observations; 258 directly agree with canonical service replies. OVMF executes 961 native EFI cases. The original r6 source-preservation gate failed on an uncompiled Arm host-runner edit and is separately qualified, not relabeled. No new original-input replay was run: r29 remains at 42,256,374 instructions and the MMFR1 trap. Normal startup remains NOT_READY. A fresh public CI replay repeats the complete gate with source preservation passing; the older r6 record remains unchanged.",
+      "url": "https://github.com/26x86/26x86/blob/3d3a434dfc9f84dcc1c34a2257f8cf7ceaafd99c/nextcore/artifacts/physical-integration-20260912/hierarchy-20260913/README.md"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Fresh public hierarchy CI preserves all sources",
+      "summary": "The public workflow repeats 34 provider tests in each of three cache modes, 104 reference tests, 306 Arm QEMU observations and 258 direct joins with sources_preserved=true. The EFI gate passes 961 cases. All six workspace jobs and the separate Sandbox workflow pass on the pinned runtime source.",
+      "url": "https://github.com/26x86/26x86/actions/runs/34713439375"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Pinned public boot-source audit",
+      "summary": "The reviewed source audit separates verified public interfaces from entry-ABI, mutable translation, persistent display and physical boot gaps. Hierarchy evidence does not implement MMFR1 advertisement or establish kernel-generated screen output.",
+      "url": "https://26x86.github.io/26x86/BOOT_PRIMARY_SOURCE_AUDIT_20260913/"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "MMFR0 reads reach the MMFR1 feature-register boundary",
+      "summary": "r29 completes 42,256,374 instructions, 42,256,375 fetch requests and 6,012,373 data operations in 151.399 seconds. It adds five retired instructions and no data operations beyond r28, then stops at MRS ID_AA64MMFR1_EL1 with status 13. Provider status is zero; the framebuffer remains zero and matches GOP. This single-run observation is not a benchmark.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r29-mmfr0-summary.json"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Authored MMFR0 and immutable ASID8 qualification",
+      "summary": "MMFR0 passes 964 native assertions and 31 provider tests in three cache modes; 32 Cortex-A72 access observations deliberately do not equate hardware0x1124 with software0x0f100005. ASID tests cover both immutable profiles with 35 provider tests per mode, 102 reference tests and three rejected mutants. Actual EFI passes64 cases; the old runtime rejects the same tagged fixture before execution. The completed r29 passes MMFR0; physical boot is unverified.",
+      "url": "https://github.com/26x86/Nextcore-ISE/blob/feb09b5f1ef5eecce60120ba39e624bb020bd071/docs/MMFR0_ASID8_PROFILE.md"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "ISAR2 reads reach the MMFR0 feature-register boundary",
+      "summary": "r28 completes 42,256,369 instructions, 42,256,370 fetch requests and 6,012,373 data operations in 104.333 seconds. It adds nine retired instructions and no data operations beyond r27, then stops at MRS ID_AA64MMFR0_EL1 with status13. Provider status is zero; the framebuffer remains zero and matches GOP. This single-run observation is not a benchmark.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r28-isar2-summary.json"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Authored ISAR2 and PAC address-selection qualification",
+      "summary": "Exact ISAR2 reads pass 918 native assertions, 32 Cortex-A72 observations and 32 mapped provider tests in each of three cache modes. A separately adapted APA1 QEMU control validates 48 PAC inputs and 288 results; the old source fails the same expected values. This is not a stock-hardware conformance claim. The completed r28 passes ISAR2; normal and physical startup remain unverified. A separate actual EFI M0 fixture enables address PAC and passes all 48 inputs /288 comparisons with 432 data operations; the old EFI reaches the distinct row-4 signing assertion on the same input. ISB/barrier execution is outside this fixture.",
+      "url": "https://github.com/26x86/Nextcore-ISE/blob/5cd1e44413958450875392d8a431dba15bb76f2e/docs/ISAR2_SCALAR_PROFILE.md"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Exact ISAR0 reads reach the ISAR2 feature-register boundary",
+      "summary": "r27 completes 42,256,360 instructions and 6,012,373 data operations in 106.090 seconds, adding 362 instructions and 98 data operations beyond r26. It stops with SYSTEM_REGISTER_TRAP (status 13) at MRS ID_AA64ISAR2_EL1. The framebuffer remains zero; this is not a benchmark. Authored ISAR0 tests pass 928 assertions, 32 Arm access observations and ten EFI checks.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r27-isar0-summary.json"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Exact ZFR0 reads reach the ISAR0 feature-register boundary",
+      "summary": "r26 completes 42,255,998 instructions and 6,012,275 data operations in 122.167 seconds, adding eight instructions and two data operations beyond r25. It stops with SYSTEM_REGISTER_TRAP (status 13) at MRS ID_AA64ISAR0_EL1. The framebuffer remains zero; this is not a benchmark. Authored ZFR0 tests pass 912 assertions, 32 actual Arm comparisons and ten EFI checks.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r26-zfr0-summary.json"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Variable shifts reach the SVE feature-register boundary",
+      "summary": "r25 completes 42,255,990 instructions and 6,012,273 data operations in 109.910 seconds, adding 112 instructions and fourteen data operations beyond r24. It stops with SYSTEM_REGISTER_TRAP (status 13) at MRS ID_AA64ZFR0_EL1. The framebuffer remains zero; this is not a benchmark. Authored shifts pass 16,464 native cases, 1,920 actual Arm comparisons and ten EFI checks.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r25-variable-shift-summary.json"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Indexed memory execution reaches variable-register shifting",
+      "summary": "r24 completes 42,255,878 instructions and 6,012,259 data operations in 110.822 seconds, adding 48 instructions and ten data operations beyond r23 before unsupported LSLV. This is not a benchmark; the framebuffer remains zero. Indexed tests cover 910 native cases and 78 actual Arm comparisons.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r24-indexed-summary.json"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "EFI configuration recovery is available in the prebuilt package",
+      "summary": "Missing, empty, malformed and no-entry configurations show recovery with Enter retry and Escape return. Ten authored OVMF cases, three picker regressions and an old-binary negative control pass. Actual OVMF screenshot is available; physical boot remains unverified.",
+      "url": "https://26x86.github.io/26x86/downloads/"
+    },
+    {
+      "date": "2026-09-13",
+      "title": "Logical shifted-register execution reaches post-indexed LDR",
+      "summary": "r23 completes 42,255,830 instructions and 6,012,249 data operations in 134.696 seconds before unsupported scalar post-indexed LDR. Its framebuffer remains zero. Authored logical tests pass 64,512 cases, 768 actual Arm comparisons and ten mapped EFI checks.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r23-logical-shifted-summary.json"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Completed mapped run reaches register ORR after watchdog ownership",
+      "summary": "r22 completes in 413.518 seconds with 42,252,452 retired instructions and 6,010,805 data operations, then stops at unsupported scalar register ORR. The framebuffer remains zero. Authored unscaled tests cover 13 forms and 546 cases; the independent watchdog control passes 15 checks.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r22-watchdog-summary.json"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Mapped original prefix reaches an unscaled-load boundary",
+      "summary": "r20 retires 42,252,448 instructions and completes 6,010,803 data operations after verified stack selection. It stops at an unsupported scalar unscaled load; the 1280 by 800 framebuffer remains zero. Native stack-selection tests pass 32 cases in each of three modes. Normal startup remains unverified.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r20-spsel-summary.json"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "First original mapped attempt stops at SPSel",
+      "summary": "The separate r19 mapping regime retires 13 instructions, completes zero data operations and stops with SYSTEM_REGISTER_TRAP at SPSel. Its zero framebuffer matches 1280 by 800 GOP readback. It did not advance beyond r18; the different regimes are not a direct progress comparison. This historical stop is superseded by the r20 mapped run with verified stack selection.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r19-mapped-summary.json"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Authored mapped execution preserves state across native reuse",
+      "summary": "Three native modes pass 31 tests each and nine complete-state comparisons; 20 M=0 regressions and ten authored EFI checks pass. QEMU APA5 comparisons cover 16 enabled sign/auth and 24 XPAC/disabled vectors; eight upper enabled vectors remain unverified for APA1. Original evidence remains r18.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/docs/PREFIX_PROGRESS_VALIDATION.md"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Mapped unaligned transfers pass native and EFI execution",
+      "summary": "An explicit Normal-memory profile passes 23 native stage-1 tests, 20 M=0 regressions and 152 authored EFI cases. Cross-page failures preserve all data. The original kernel needs its entry mapping and pointer authentication integration.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/docs/PREFIX_PROGRESS_VALIDATION.md"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Initialization advances to an actual memory-alignment boundary",
+      "summary": "A separately gated longer diagnostic reaches chained-fixup node 51,889 and stops at an unaligned 64-bit load. The framebuffer remains zero. The next step is validating target entry memory setup, not suppressing the fault.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/docs/PREFIX_PROGRESS_VALIDATION.md"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Native reuse preserves execution while reducing EFI permission changes",
+      "summary": "Thirteen native differential cases and five mutation controls pass. Final EFI framebuffer and long-loop comparisons preserve results, including the mandatory permission restore. The original macOS framebuffer remains all zero.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/docs/PREFIX_PROGRESS_VALIDATION.md"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Observed kernel memory progress and reliable trace collection",
+      "summary": "The long prefix completes 11,702 data operations. Its final store is 17,872 bytes beyond the earlier checkpoint. Fragmented UART records and transient read failures are handled without claiming a visible macOS screen.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/docs/PREFIX_PROGRESS_VALIDATION.md"
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Owned guest framebuffer connects to firmware display",
+      "summary": "Nine authored checks pass at 1280 by 800 pixels, including exact GOP RGB readback after guest writes. Without GOP, the CPU diagnostic still completes 64 instructions while video reports NOT_FOUND and remains unverified. This is firmware evidence, not a macOS desktop.",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/docs/BOOT_FRAMEBUFFER_VALIDATION.md"
+    },
+    {
+      "summary": "BFM/BFI/BFXIL/BFC source tests, a 64-instruction authored EFI consumer and the unchanged captured-Arm comparator pass. The local kernel prefix reaches its 16,384-instruction limit.",
+      "date": "2026-09-12",
+      "title": "Bitfield execution reaches the diagnostic budget",
+      "url": "https://github.com/26x86/26x86/blob/codex/physical-golden-gate-20260912/nextcore/artifacts/physical-integration-20260912/original-prefix-r8-summary.json"
+    },
+    {
+      "date": "2026-09-12",
+      "url": "https://github.com/26x86/26x86/pull/19",
+      "summary": "Published MADD/MSUB execution, branch validation fixes and exact-source regression evidence.",
+      "title": "Multiply and reference-branch corrections"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+﻿* text=auto
+*.S text eol=lf
+*.patch text eol=lf
+*.command text eol=lf
+*.sh text eol=lf
+*.bin binary
+*.elf binary
+*.efi binary
+*.cer binary
+*.png binary
+*.jpg binary
+*.zip binary
+*.dmg binary
+*.icns binary
+*.json text

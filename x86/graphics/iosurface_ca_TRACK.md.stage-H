@@ -1,0 +1,20 @@
+# Track H — IOSurface / CoreAnimation (base 52f7298)
+
+## Ownership
+- Live modules (already on main): `iosurface_*.py`, `coreanimation_*.py`, tests
+- MC promote only: `*.stage-H` (never overwrite live sys_patch from Track H agent)
+
+## Policy
+1. **Default:** stock Tahoe Metal IOSurface + QuartzCore (no patches).
+2. **Double latch** `X86_EXTREME=1` + `X86_EXTREME_IOSURFACE_CA=1`: open Non-Metal
+   IOSurface.framework/kext + QuartzCore MERGEs when PSP payloads exist.
+3. **Parallel N (52f7298 integrated):** N may also emit the same IOSurface/QC payload
+   IDs under `X86_EXTREME` / `X86_TAHOE_NONMETAL`. Idempotent overlap is intentional.
+   Conflict only with N IOAccel `IOSurface.kext=10.14.6` — prefer `10.15.7` under H latch
+   (see `MC-PROMOTE-H.md.stage-H`).
+
+## Promote
+See `opencore_legacy_patcher/.../MC-PROMOTE-H.md.stage-H`.
+
+## Tests
+`python3 -m unittest x86.graphics.test_iosurface_coreanimation`

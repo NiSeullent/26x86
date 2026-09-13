@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "source_repository": "https://github.com/26x86/26x86.git",
+  "source_commit": "b18e6d648874a8f4179498c4f3639e75f1bdc593",
+  "target": "x86_64-unknown-uefi",
+  "rust_toolchain": "1.97.1",
+  "diagnostic_features": [
+    "arm-jit-mapped-trace",
+    "arm-jit-video-readback",
+    "arm-jit-memory-observation",
+    "arm-jit-protection-observation"
+  ],
+  "archive": "prebuiltefi.zip",
+  "normal_startup": "NOT_READY",
+  "physical_desktop_verified": false
+}

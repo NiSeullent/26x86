@@ -1,0 +1,3 @@
+# Track F: no sys_patch.py body changes required.
+# Overlay injection is dmg_mount.py.stage-F + x86.graphics.psp_overlay.
+# MC: leave sys_patch.py as-is for Track F.
